@@ -7,9 +7,5 @@
 
 bool error_is_internal(error err)
 {
-	if (err == INTERNAL_MEMORY_ALLOCATION || err == INTERNAL_MEMORY_FREE || err == INTERNAL_INDEX_OUT_OF_BOUNDS)
-	{
-		return true;
-	}
-	return false;
+    return err >= INTERNAL_MEMORY_ALLOCATION;
 }

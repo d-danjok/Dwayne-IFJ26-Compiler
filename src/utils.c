@@ -30,3 +30,26 @@ void utils_safe_free(void **ptr)
     free(*ptr);
     *ptr = NULL;
 }
+
+char utils_get_char(error *err, FILE *stream)
+{
+    int c = getc(stream);
+    if (c == EOF)
+    {
+        *err = INTERNAL_END_OF_FILE;
+        return '\0';
+    }
+    return (char)c;
+}
+
+char utils_peek_char(error *err, FILE *stream)
+{
+    int c = getc(stream);
+    if (c == EOF)
+    {
+        *err = INTERNAL_END_OF_FILE;
+        ungetc(c, stream);
+        return '\0';
+    }
+    return (char)c;
+}

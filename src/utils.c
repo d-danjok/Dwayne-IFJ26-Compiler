@@ -33,6 +33,7 @@ void utils_safe_free(void **ptr)
 
 char utils_get_char(error *err, FILE *stream)
 {
+    *err = NONE;
     int c = getc(stream);
     if (c == EOF)
     {
@@ -44,12 +45,13 @@ char utils_get_char(error *err, FILE *stream)
 
 char utils_peek_char(error *err, FILE *stream)
 {
+    *err = NONE;
     int c = getc(stream);
     if (c == EOF)
     {
         *err = INTERNAL_END_OF_FILE;
-        ungetc(c, stream);
         return '\0';
     }
+    ungetc(c, stream);
     return (char)c;
 }

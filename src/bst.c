@@ -161,20 +161,17 @@ bst_node *remove_node(bst_node *root, int key_to_remove)
         root->key = successor->key;
         root->data = successor->data;
         root->right_child = remove_node(root->right_child, successor->key);
-
-        check_and_restore_balance_recursively(root);
-        return root;
     }
-
-    if (root->key > key_to_remove)
+    else if (root->key > key_to_remove)
     {
         root->left_child = remove_node(root->left_child, key_to_remove);
     }
-    if (root->key < key_to_remove)
+    else
     {
         root->right_child = remove_node(root->right_child, key_to_remove);
     }
 
+    update_weight_and_balance(root);
     return root;
 }
 
@@ -188,17 +185,14 @@ bst_node *find_node(bst_node *root, int key_to_find)
     {
         return root;
     }
-
-    bst_node *found_node = NULL;
-    if (root->left_child != NULL)
+    if (key_to_find < root->key)
     {
-        found_node = find_node(root->left_child, key_to_find);
+        return find_node(root->left_child, key_to_find);
     }
-    if (root->right_child != NULL && found_node == NULL)
+    else
     {
-        found_node = find_node(root->right_child, key_to_find);
+        return find_node(root->right_child, key_to_find);
     }
-    return found_node;
 }
 
 // globals -------------------------------------------------------------------------------------------------------------
@@ -210,12 +204,12 @@ bst_table new_table()
     return table;
 }
 
-void bst_destruct(bst_table self)
+void bst_destruct(bst_table *self)
 {
-    if (self.root != NULL)
+    if (self->root != NULL)
     {
-        free_node(self.root);
-        self.root = NULL;
+        free_node(self->root);
+        self->root = NULL;
     }
 }
 

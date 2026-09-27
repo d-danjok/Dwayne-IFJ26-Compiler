@@ -178,7 +178,30 @@ bst_node *remove_node(bst_node *root, int key_to_remove)
     return root;
 }
 
-// globals
+bst_node *find_node(bst_node *root, int key_to_find)
+{
+    if (root == NULL)
+    {
+        return NULL;
+    }
+    if (root->key == key_to_find)
+    {
+        return root;
+    }
+
+    bst_node *found_node = NULL;
+    if (root->left_child != NULL)
+    {
+        found_node = find_node(root->left_child, key_to_find);
+    }
+    if (root->right_child != NULL && found_node == NULL)
+    {
+        found_node = find_node(root->right_child, key_to_find);
+    }
+    return found_node;
+}
+
+// globals -------------------------------------------------------------------------------------------------------------
 bst_table new_table()
 {
     bst_table table;
@@ -187,14 +210,13 @@ bst_table new_table()
     return table;
 }
 
-void bst_destruct(bst_table *self)
+void bst_destruct(bst_table self)
 {
-    if (self->root != NULL)
+    if (self.root != NULL)
     {
-        free_node(self->root);
-        self->root = NULL;
+        free_node(self.root);
+        self.root = NULL;
     }
-    UTILS_SAFE_FREE(&self);
 }
 
 void bst_insert(bst_table *self, error *err, int key, void *data)
@@ -220,12 +242,19 @@ void bst_remove(bst_table *self, int key)
 
 bool bst_search(bst_table *self, int key)
 {
-
+    if (find_node(self->root, key) != NULL)
+    {
+        return true;
+    }
     return false;
 }
 
 void *bst_getdata(bst_table *self, int key)
 {
-
+    bst_node *found_node = find_node(self->root, key);
+    if (found_node != NULL)
+    {
+        return found_node->data;
+    }
     return NULL;
 }

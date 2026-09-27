@@ -15,7 +15,7 @@ typedef struct bst_table_s bst_table;
 bst_table new_table();
 
 // @brief Destructs given bst table
-void bst_destruct(bst_table *self);
+void bst_destruct(bst_table self);
 
 // @brief Insert item into table
 //

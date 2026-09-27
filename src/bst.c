@@ -13,7 +13,7 @@ typedef struct bst_node_s
     struct bst_node_s *left_child;
     struct bst_node_s *right_child;
 
-    size_t height;
+    int weight;
     int balance;
 } bst_node;
 
@@ -48,12 +48,48 @@ bst_node *create_node(error *err, int key, void *data)
     node->left_child = NULL;
     node->right_child = NULL;
     node->balance = 0;
-    node->height = 0;
+    node->weight = 1;
 
     node->data = data;
     node->key = key;
 
     return node;
+}
+
+void update_weight_and_balance(bst_node *node)
+{
+    int weight = 1;
+    int balance = 0;
+    if (node->right_child != NULL)
+    {
+        weight += (node->right_child)->weight;
+        balance -= (node->right_child)->weight;
+    }
+    if (node->left_child != NULL)
+    {
+        weight += (node->left_child)->weight;
+        balance += (node->left_child)->weight;
+    }
+    // debug
+    // printf("NODE : K:%d W:%d B:%d\n", node->key, weight, balance);
+
+    node->weight = weight;
+    node->balance = balance;
+}
+
+void check_and_restore_balance_recursively(bst_node *root)
+{
+    if (root->left_child != NULL)
+    {
+        check_and_restore_balance_recursively(root->left_child);
+    }
+
+    if (root->right_child != NULL)
+    {
+        check_and_restore_balance_recursively(root->right_child);
+    }
+    update_weight_and_balance(root);
+    // TODO: add rebalancing HERE
 }
 
 void insert_node(bst_node *root, bst_node *node_to_insert)
@@ -69,9 +105,11 @@ void insert_node(bst_node *root, bst_node *node_to_insert)
         if (root->left_child == NULL)
         {
             root->left_child = node_to_insert;
-            return;
         }
-        insert_node(root->left_child, node_to_insert);
+        else
+        {
+            insert_node(root->left_child, node_to_insert);
+        }
     }
 
     if (root->key < node_to_insert->key)
@@ -79,26 +117,76 @@ void insert_node(bst_node *root, bst_node *node_to_insert)
         if (root->right_child == NULL)
         {
             root->right_child = node_to_insert;
-            return;
         }
-        insert_node(root->right_child, node_to_insert);
+        else
+        {
+            insert_node(root->right_child, node_to_insert);
+        }
     }
+    update_weight_and_balance(root);
+    // TODO: add rebalancing HERE
 }
 
-bst_table *new_table(error *err)
+bst_node *get_successor(bst_node *curr)
 {
-    *err = NONE;
-    bst_table *table = (bst_table *)utils_safe_malloc(err, sizeof(bst_table));
-    if (*err != NONE)
+    curr = curr->right_child;
+    while (curr != NULL && curr->left_child != NULL)
+        curr = curr->left_child;
+    return curr;
+}
+
+bst_node *remove_node(bst_node *root, int key_to_remove)
+{
+    if (root == NULL)
     {
-        return NULL;
+        return root;
+    }
+    if (root->key == key_to_remove)
+    {
+        if (root->left_child == NULL)
+        {
+            bst_node *temp = root->right_child;
+            free(root);
+            return temp;
+        }
+        if (root->right_child == NULL)
+        {
+            bst_node *temp = root->left_child;
+            free(root);
+            return temp;
+        }
+
+        // for node with 2 children
+        bst_node *successor = get_successor(root);
+        root->key = successor->key;
+        root->data = successor->data;
+        root->right_child = remove_node(root->right_child, successor->key);
+
+        check_and_restore_balance_recursively(root);
+        return root;
     }
 
-    table->root = NULL; // set to
-    return table;
+    if (root->key > key_to_remove)
+    {
+        root->left_child = remove_node(root->left_child, key_to_remove);
+    }
+    if (root->key < key_to_remove)
+    {
+        root->right_child = remove_node(root->right_child, key_to_remove);
+    }
+
+    return root;
 }
 
 // globals
+bst_table new_table()
+{
+    bst_table table;
+
+    table.root = NULL; // set to
+    return table;
+}
+
 void bst_destruct(bst_table *self)
 {
     if (self->root != NULL)
@@ -125,8 +213,19 @@ void bst_insert(bst_table *self, error *err, int key, void *data)
     insert_node(self->root, node_to_insert);
 }
 
-void bst_remove(bst_table *self, int key);
+void bst_remove(bst_table *self, int key)
+{
+    self->root = remove_node(self->root, key);
+}
 
-bool bst_search(bst_table *self, int key);
+bool bst_search(bst_table *self, int key)
+{
 
-void *bst_getdata(bst_table *self, int key);
+    return false;
+}
+
+void *bst_getdata(bst_table *self, int key)
+{
+
+    return NULL;
+}

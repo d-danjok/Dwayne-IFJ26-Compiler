@@ -12,7 +12,7 @@ struct bst_table_s;
 typedef struct bst_table_s bst_table;
 
 // @brief Creates new empty bst table;
-bst_table *new_table(error *err);
+bst_table new_table();
 
 // @brief Destructs given bst table
 void bst_destruct(bst_table *self);

@@ -25,15 +25,24 @@ struct bst_table_s
 // utilities
 void free_node(bst_node *node)
 {
+    if (node->data != NULL)
+    {
+        UTILS_SAFE_FREE(&node->data);
+    }
+    UTILS_SAFE_FREE(&node);
+}
+
+void free_node_with_children(bst_node *node)
+{
     if (node->left_child != NULL)
     {
-        free_node(node->left_child);
+        free_node_with_children(node->left_child);
     }
     if (node->right_child != NULL)
     {
-        free_node(node->right_child);
+        free_node_with_children(node->right_child);
     }
-    UTILS_SAFE_FREE(&node);
+    free_node(node);
 }
 
 bst_node *create_node(error *err, int key, void *data)
@@ -147,6 +156,7 @@ void insert_node(bst_node **root, bst_node *node_to_insert)
     if ((*root)->key == node_to_insert->key)
     {
         // do not do nothing
+        free_node(node_to_insert);
         return;
     }
     else if ((*root)->key > node_to_insert->key)
@@ -193,20 +203,24 @@ bst_node *remove_node(bst_node **root, int key_to_remove)
         if ((*root)->left_child == NULL)
         {
             bst_node *temp = (*root)->right_child;
-            free((*root));
+            free_node((*root));
             return temp;
         }
         if ((*root)->right_child == NULL)
         {
             bst_node *temp = (*root)->left_child;
-            free((*root));
+            free_node((*root));
             return temp;
         }
 
         // for node with 2 children
         bst_node *successor = get_successor((*root));
+
+        UTILS_SAFE_FREE(&(*root)->data);
+
         (*root)->key = successor->key;
         (*root)->data = successor->data;
+        successor->data = NULL; // ownership transition
         (*root)->right_child = remove_node(&(*root)->right_child, successor->key);
     }
     else if ((*root)->key > key_to_remove)
@@ -260,7 +274,7 @@ void bst_destruct(bst_table **self)
 {
     if ((*self)->root != NULL)
     {
-        free_node((*self)->root);
+        free_node_with_children((*self)->root);
         (*self)->root = NULL;
     }
     UTILS_SAFE_FREE(self);

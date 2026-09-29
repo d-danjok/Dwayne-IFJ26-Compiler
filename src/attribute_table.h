@@ -1,3 +1,8 @@
+// @file attribute_table.h
+//
+// @author 	Daniil Didenko 		(xdidend00)
+//			Oleksandr Fedorenko (xfedoro00)
+
 #ifndef ATTRIBUTE_TABLE_H
 #define ATTRIBUTE_TABLE_H
 
@@ -26,7 +31,7 @@ int attribute_table_insert_float(attribute_table *self, error *err, float val);
 
 // @brief inserts string value into attribute table and returns index by which it can be accessed
 //
-// @param val - string value we want to insert
+// @param val - string value we want to insert (ownership transition)
 // @return index in by which value can be accessed
 int attribute_table_insert_string(attribute_table *self, error *err, char *val);
 

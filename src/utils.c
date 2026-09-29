@@ -27,6 +27,14 @@ void *utils_safe_malloc(error *err, size_t size)
 
 void utils_safe_free(void **ptr)
 {
+    if (ptr == NULL)
+    {
+        return;
+    }
+    if (*ptr == NULL)
+    {
+        return;
+    }
     free(*ptr);
     *ptr = NULL;
 }

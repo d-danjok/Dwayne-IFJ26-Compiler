@@ -1,3 +1,11 @@
+// @file attribute_table.c
+//
+// @author 	Daniil Didenko 		(xdidend00)
+//			Oleksandr Fedorenko (xfedoro00)
+//
+// @note    we worked using IDE's Code together feature,
+// 			so on repository only one author is seen
+
 #include "attribute_table.h"
 #include <math.h>
 

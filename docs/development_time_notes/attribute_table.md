@@ -7,3 +7,4 @@
    becomes owner of those values, it simplifies memory management because everything is freed in one place
 3) table lacks an ability to remove values, this is intentional. Since values are accessed by index any removal would
    lead to index shift, which is not what we want
+4) Ownership transition is ensured by setting variable where pointer was stored to NULL in order to prevent memory bugs

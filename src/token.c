@@ -1,7 +1,5 @@
-#include "token.h"
+// @file token.c
+//
+// @author Daniil Didenko (xdidend00)
 
-struct token_s
-{
-    token_type type;
-    token_details *details; // TODO: create struct type
-};
+#include "token.h"

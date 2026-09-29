@@ -108,7 +108,7 @@ int int_slice_insert(int_slice *self, error *err, int val)
         }
     }
     // done in this way in order to not do conversion
-    if (self->capacity < 2 * (self->len + 1))
+    if (self->capacity < (self->len + 1))
     {
         int *tmt_content = (int *)realloc(self->content, sizeof(int) * (self->capacity) * 2);
         if (tmt_content == NULL)
@@ -137,7 +137,7 @@ int float_slice_insert(float_slice *self, error *err, float val)
         }
     }
     // done in this way in order to not do conversion
-    if (self->capacity < 2 * (self->len + 1))
+    if (self->capacity < (self->len + 1))
     {
         float *tmp_content = (float *)realloc(self->content, sizeof(float) * (self->capacity) * 2);
         if (tmp_content == NULL)
@@ -163,11 +163,12 @@ int string_slice_insert(string_slice *self, error *err, char *val)
     {
         if (strcmp((self->content)[i], val) == 0)
         {
+            free(val); // ownership already transitioned so we can free that
             return i;
         }
     }
     // done in this way in order to not do conversion
-    if (self->capacity < 2 * (self->len + 1))
+    if (self->capacity < (self->len + 1))
     {
         char **tmp_content = (char **)realloc(self->content, sizeof(char *) * (self->capacity) * 2);
         if (tmp_content == NULL)
@@ -301,14 +302,24 @@ int attribute_table_insert_float(attribute_table *self, error *err, float val)
     return float_slice_insert(self->float_values, err, val);
 }
 
-int attribute_table_insert_string(attribute_table *self, error *err, char *val)
+int attribute_table_insert_string(attribute_table *self, error *err, char **val)
 {
-    return string_slice_insert(self->string_values, err, val);
+    int value_storage_index = string_slice_insert(self->string_values, err, *val);
+    if (*err == NONE)
+    {
+        *val = NULL; // ensure value can not be used or free anywhere else
+    }
+    return value_storage_index;
 }
 
-int attribute_table_insert_identifier(attribute_table *self, error *err, char *identifier)
+int attribute_table_insert_identifier(attribute_table *self, error *err, char **identifier)
 {
-    return string_slice_insert(self->identifiers, err, identifier);
+    int value_storage_index = string_slice_insert(self->identifiers, err, *identifier);
+    if (*err == NONE)
+    {
+        *identifier = NULL; // ensure value can not be used or free anywhere else
+    }
+    return value_storage_index;
 }
 
 int attribute_table_get_integer(attribute_table *self, error *err, int index)

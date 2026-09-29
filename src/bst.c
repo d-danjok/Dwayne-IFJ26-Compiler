@@ -125,12 +125,11 @@ bst_node *rotate_left(bst_node *root)
 
 void check_and_restore_balance(bst_node **node)
 {
-    update_height_and_balance(*node);
-
     if (*node == NULL)
     {
         return;
     }
+    update_height_and_balance(*node);
 
     int balance = (*node)->balance;
     if (balance > 1)
@@ -280,10 +279,10 @@ void bst_destruct(bst_table **self)
     UTILS_SAFE_FREE(self);
 }
 
-void bst_insert(bst_table *self, error *err, int key, void *data)
+void bst_insert(bst_table *self, error *err, int key, void **data)
 {
     *err = NONE;
-    bst_node *node_to_insert = create_node(err, key, data);
+    bst_node *node_to_insert = create_node(err, key, *data);
     if (*err != NONE)
     {
         return;
@@ -294,6 +293,7 @@ void bst_insert(bst_table *self, error *err, int key, void *data)
         return;
     }
     insert_node(&self->root, node_to_insert);
+    *data = NULL; // ensure value can not be used or free anywhere else
 }
 
 void bst_remove(bst_table *self, int key)

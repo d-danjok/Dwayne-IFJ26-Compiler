@@ -20,8 +20,8 @@ void bst_destruct(bst_table **self);
 // @brief Insert item into table
 //
 // @param key - key for data we want to insert
-// @param data - data we want to insert (only dynamically allocated)
-void bst_insert(bst_table *self, error *err, int key, void *data);
+// @param data - pointer to data we want to insert (only dynamically allocated, ownership transition)
+void bst_insert(bst_table *self, error *err, int key, void **data);
 
 // @brief Insert item into table
 //

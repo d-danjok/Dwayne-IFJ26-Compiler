@@ -4,4 +4,5 @@
    identifier name once (in attribute_table) and free only when this value is not needed anywhere
 2) when data is inserted into BST, table takes ownership of this memory (it means this memory should be freed by BST)
 3) I really wanted to make operations atomic, and it worked quite well util I needed to implement rotations and removal,
-   so I needed to return pointer to new sub-root. But rest of functions remain void return 
+   so I needed to return pointer to new sub-root. But rest of functions remain void return
+4) Ownership transition is ensured by setting variable where pointer was stored to NULL in order to prevent memory bugs

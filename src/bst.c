@@ -290,9 +290,11 @@ void bst_insert(bst_table *self, error *err, int key, void **data)
     if (self->root == NULL)
     {
         self->root = node_to_insert;
-        return;
     }
-    insert_node(&self->root, node_to_insert);
+    else
+    {
+        insert_node(&self->root, node_to_insert);
+    }
     *data = NULL; // ensure value can not be used or free anywhere else
 }
 

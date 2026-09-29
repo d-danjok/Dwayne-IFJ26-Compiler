@@ -131,7 +131,7 @@ int float_slice_insert(float_slice *self, error *err, float val)
     // check if is already in list
     for (int i = 0; i < self->len; i++)
     {
-        if (fabs((self->content)[i] - val) < FLOAT_EQUALITY_TOLERANCE)
+        if ((self->content)[i] == val)
         {
             return i;
         }

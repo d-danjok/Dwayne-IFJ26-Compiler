@@ -20,6 +20,7 @@ typedef enum
 
     TOKEN_IDENTIFIER, // var_name, func_name...
     TOKEN_KEYWORD,    // if, else, while...
+    TOKEN_OPERATOR,   // +, -, *, /, =, ==, !=, >= ...
 
     TOKEN_DOT,           // .
     TOKEN_COMMA,         // ,
@@ -27,17 +28,18 @@ typedef enum
     TOKEN_CLOSE_PAREN,   // )
     TOKEN_OPEN_BRACKET,  // [
     TOKEN_CLOSE_BRACKET, // ]
-    TOKEN_ASSIGN,        // =
-    TOKEN_PLUS,          // +
-    TOKEN_MINUS,         // -
-    TOKEN_MULTIPLY,      // *
-    TOKEN_DIVISION,      // /
-    TOKEN_EQUAL,         // ==
-    TOKEN_NOT_EQUAL,     // !=
-    TOKEN_GREATER,       // >
-    TOKEN_EQUAL_GREATER, // >=
-    TOKEN_LESS,          // <
-    TOKEN_EQUAL_LESS,    // <=
+
+    //    TOKEN_ASSIGN,        // =
+    //    TOKEN_PLUS,          // +
+    //    TOKEN_MINUS,         // -
+    //    TOKEN_MULTIPLY,      // *
+    //    TOKEN_DIVISION,      // /
+    //    TOKEN_EQUAL,         // ==
+    //    TOKEN_NOT_EQUAL,     // !=
+    //    TOKEN_GREATER,       // >
+    //    TOKEN_EQUAL_GREATER, // >=
+    //    TOKEN_LESS,          // <
+    //    TOKEN_EQUAL_LESS,    // <=
     // TOKEN_EOF,           // EOF
     TOKEN_EOL, // \n
 
@@ -52,6 +54,7 @@ typedef struct
     // Notes:
     // 1) in case of bool: 0 - false , 1 - true
     // 2) in case of keyword: value of type of keyword enum
+    // 3) in case of operator: value of type of operator enum
 
     int line; // only for error messages
 } token;

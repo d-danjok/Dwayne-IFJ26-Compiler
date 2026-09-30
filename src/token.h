@@ -49,7 +49,11 @@ typedef struct
 {
     token_type type;
     int attribute_index; // Index of item in type-scoped attribute table
-    int line;            // only for error messages
+    // Notes:
+    // 1) in case of bool: 0 - false , 1 - true
+    // 2) in case of keyword: value of type of keyword enum
+
+    int line; // only for error messages
 } token;
 
 #define TOKEN_GET_VAL(token) // TODO: implement this using attribute_table_get_...

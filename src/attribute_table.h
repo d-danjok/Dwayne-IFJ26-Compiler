@@ -23,11 +23,11 @@ void destruct_attribute_table(attribute_table **self);
 // @return index in by which value can be accessed
 int attribute_table_insert_integer(attribute_table *self, error *err, int val);
 
-// @brief inserts float value into attribute table and returns index by which it can be accessed
+// @brief inserts double value into attribute table and returns index by which it can be accessed
 //
-// @param val - float value we want to insert
+// @param val - double value we want to insert
 // @return index in by which value can be accessed
-int attribute_table_insert_float(attribute_table *self, error *err, float val);
+int attribute_table_insert_double(attribute_table *self, error *err, double val);
 
 // @brief inserts string value into attribute table and returns index by which it can be accessed
 //
@@ -46,10 +46,10 @@ int attribute_table_insert_identifier(attribute_table *self, error *err, char **
 // @param index value from which we want to get
 int attribute_table_get_integer(attribute_table *self, error *err, int index);
 
-// @brief get float value by index
+// @brief get double value by index
 //
 // @param index value from which we want to get
-float attribute_table_get_float(attribute_table *self, error *err, int index);
+double attribute_table_get_double(attribute_table *self, error *err, int index);
 
 // @brief get string value by index
 //

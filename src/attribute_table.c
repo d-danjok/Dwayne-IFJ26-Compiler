@@ -22,10 +22,10 @@ typedef struct
 
 typedef struct
 {
-    float *content;
+    double *content;
     int len;
     int capacity;
-} float_slice;
+} double_slice;
 
 typedef struct
 {
@@ -55,9 +55,9 @@ int_slice *new_int_slice(error *err)
     return self;
 }
 
-float_slice *new_float_slice(error *err)
+double_slice *new_double_slice(error *err)
 {
-    float_slice *self = (float_slice *)utils_safe_malloc(err, sizeof(float_slice));
+    double_slice *self = (double_slice *)utils_safe_malloc(err, sizeof(double_slice));
     if (*err != NONE)
     {
         return NULL;
@@ -65,7 +65,7 @@ float_slice *new_float_slice(error *err)
     self->len = 0;
     self->capacity = INITIAL_SLICE_CAPACITY;
 
-    self->content = (float *)utils_safe_malloc(err, sizeof(float) * INITIAL_SLICE_CAPACITY);
+    self->content = (double *)utils_safe_malloc(err, sizeof(double) * INITIAL_SLICE_CAPACITY);
     if (*err != NONE)
     {
         UTILS_SAFE_FREE(&self);
@@ -125,7 +125,7 @@ int int_slice_insert(int_slice *self, error *err, int val)
     return insertion_index;
 }
 
-int float_slice_insert(float_slice *self, error *err, float val)
+int double_slice_insert(double_slice *self, error *err, double val)
 {
     *err = NONE;
     // check if is already in list
@@ -139,7 +139,7 @@ int float_slice_insert(float_slice *self, error *err, float val)
     // done in this way in order to not do conversion
     if (self->capacity < (self->len + 1))
     {
-        float *tmp_content = (float *)realloc(self->content, sizeof(float) * (self->capacity) * 2);
+        double *tmp_content = (double *)realloc(self->content, sizeof(double) * (self->capacity) * 2);
         if (tmp_content == NULL)
         {
             *err = INTERNAL_MEMORY_ALLOCATION;
@@ -196,7 +196,7 @@ void int_slice_destruct(int_slice *self)
     UTILS_SAFE_FREE(&self);
 }
 
-void float_slice_destruct(float_slice *self)
+void double_slice_destruct(double_slice *self)
 {
     if (self == NULL)
     {
@@ -227,7 +227,7 @@ void string_slice_destruct(string_slice *self)
 struct attribute_table_s
 {
     int_slice *int_values;
-    float_slice *float_values;
+    double_slice *double_values;
     string_slice *string_values;
     string_slice *identifiers;
 };
@@ -247,7 +247,7 @@ attribute_table *new_attribute_table(error *err)
         return NULL;
     }
 
-    table->float_values = new_float_slice(err);
+    table->double_values = new_double_slice(err);
     if (*err != NONE)
     {
         int_slice_destruct(table->int_values);
@@ -259,7 +259,7 @@ attribute_table *new_attribute_table(error *err)
     if (*err != NONE)
     {
         int_slice_destruct(table->int_values);
-        float_slice_destruct(table->float_values);
+        double_slice_destruct(table->double_values);
         free(table);
         return NULL;
     }
@@ -268,7 +268,7 @@ attribute_table *new_attribute_table(error *err)
     if (*err != NONE)
     {
         int_slice_destruct(table->int_values);
-        float_slice_destruct(table->float_values);
+        double_slice_destruct(table->double_values);
         string_slice_destruct(table->string_values);
         free(table);
         return NULL;
@@ -285,7 +285,7 @@ void destruct_attribute_table(attribute_table **self)
     }
 
     int_slice_destruct((*self)->int_values);
-    float_slice_destruct((*self)->float_values);
+    double_slice_destruct((*self)->double_values);
     string_slice_destruct((*self)->string_values);
     string_slice_destruct((*self)->identifiers);
 
@@ -297,9 +297,9 @@ int attribute_table_insert_integer(attribute_table *self, error *err, int val)
     return int_slice_insert(self->int_values, err, val);
 }
 
-int attribute_table_insert_float(attribute_table *self, error *err, float val)
+int attribute_table_insert_double(attribute_table *self, error *err, double val)
 {
-    return float_slice_insert(self->float_values, err, val);
+    return double_slice_insert(self->double_values, err, val);
 }
 
 int attribute_table_insert_string(attribute_table *self, error *err, char **val)
@@ -333,15 +333,15 @@ int attribute_table_get_integer(attribute_table *self, error *err, int index)
     return ((self->int_values)->content)[index];
 }
 
-float attribute_table_get_float(attribute_table *self, error *err, int index)
+double attribute_table_get_double(attribute_table *self, error *err, int index)
 {
     *err = NONE;
-    if (index < 0 || index >= (self->float_values)->len)
+    if (index < 0 || index >= (self->double_values)->len)
     {
         *err = INTERNAL_INDEX_OUT_OF_BOUNDS;
         return 0;
     }
-    return ((self->float_values)->content)[index];
+    return ((self->double_values)->content)[index];
 }
 
 char *attribute_table_get_string(attribute_table *self, error *err, int index)

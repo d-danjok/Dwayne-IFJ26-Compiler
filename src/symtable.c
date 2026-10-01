@@ -5,25 +5,52 @@
 
 #include "symtable.h"
 #include "bst.h"
-
-typedef union {
-    int int_value;
-    float double_value;
-    char *string_value;
-    bool bool_value;
-} identifier_data;
-
-typedef struct identifier_details_s
-{
-    data_type data_type;
-
-    bool is_constant;
-    bool is_function;
-
-    bool is_initialised;
-} identifier_details;
+#include "utils.h"
 
 typedef struct symtable_s
 {
     bst_table *table;
 } symtable;
+
+symtable *new_symtable(error *err)
+{
+    *err = NONE;
+    symtable *table = (symtable *)utils_safe_malloc(err, sizeof(symtable));
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+    table->table = new_table(err);
+    if (*err != NONE)
+    {
+        UTILS_SAFE_FREE(&table);
+        return NULL;
+    }
+    return table;
+}
+
+void symtable_destruct(symtable **self)
+{
+    bst_destruct(&(*self)->table);
+    UTILS_SAFE_FREE(self);
+}
+
+void symtable_insert(symtable *self, error *err, int identifier_id, identifier_data *data)
+{
+    bst_insert(self->table, err, identifier_id, (void **)data);
+}
+
+void symtable_remove(symtable *self, int identifier_id)
+{
+    bst_remove(self->table, identifier_id);
+}
+
+bool symtable_search(symtable *self, int identifier_id)
+{
+    return bst_search(self->table, identifier_id);
+}
+
+identifier_data *symtable_getdata(symtable *self, int identifier_id)
+{
+    return (identifier_data *)bst_getdata(self->table, identifier_id);
+}

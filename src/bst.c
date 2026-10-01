@@ -150,11 +150,12 @@ void check_and_restore_balance(bst_node **node)
     }
 }
 
-void insert_node(bst_node **root, bst_node *node_to_insert)
+void insert_node(error *err, bst_node **root, bst_node *node_to_insert)
 {
+    *err = NONE;
     if ((*root)->key == node_to_insert->key)
     {
-        // do not do nothing
+        *err = INTERNAL_ITEM_ALREADY_EXISTS;
         free_node(node_to_insert);
         return;
     }
@@ -166,7 +167,7 @@ void insert_node(bst_node **root, bst_node *node_to_insert)
         }
         else
         {
-            insert_node(&(*root)->left_child, node_to_insert);
+            insert_node(err, &(*root)->left_child, node_to_insert);
         }
     }
     else
@@ -177,7 +178,7 @@ void insert_node(bst_node **root, bst_node *node_to_insert)
         }
         else
         {
-            insert_node(&(*root)->right_child, node_to_insert);
+            insert_node(err, &(*root)->right_child, node_to_insert);
         }
     }
     check_and_restore_balance(root);
@@ -293,7 +294,7 @@ void bst_insert(bst_table *self, error *err, int key, void **data)
     }
     else
     {
-        insert_node(&self->root, node_to_insert);
+        insert_node(err, &self->root, node_to_insert);
     }
     *data = NULL; // ensure value can not be used or free anywhere else
 }

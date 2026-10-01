@@ -35,7 +35,7 @@ void symtable_destruct(symtable **self)
     UTILS_SAFE_FREE(self);
 }
 
-void symtable_insert(symtable *self, error *err, int identifier_id, identifier_data *data)
+void symtable_insert(symtable *self, error *err, int identifier_id, identifier_data **data)
 {
     bst_insert(self->table, err, identifier_id, (void **)data);
 }

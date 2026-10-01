@@ -25,6 +25,9 @@ void *utils_safe_malloc(error *err, size_t size);
 // @param ptr is a pointer we want to free
 void utils_safe_free(void **ptr);
 
+// @brief macro for utils_safe free which performs pointer conversion
+#define UTILS_SAFE_FREE(ptr) utils_safe_free((void **)ptr)
+
 // @brief getc wrapper
 //
 // @param err is a pointer to error handling variable in calling function

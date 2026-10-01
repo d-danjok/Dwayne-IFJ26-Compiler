@@ -27,6 +27,14 @@ void *utils_safe_malloc(error *err, size_t size)
 
 void utils_safe_free(void **ptr)
 {
+    if (ptr == NULL)
+    {
+        return;
+    }
+    if (*ptr == NULL)
+    {
+        return;
+    }
     free(*ptr);
     *ptr = NULL;
 }
@@ -38,6 +46,10 @@ char utils_get_char(error *err, FILE *stream)
     if (c == EOF)
     {
         *err = INTERNAL_END_OF_FILE;
+        if (ferror(stream) != 0)
+        {
+            *err = INTERNAL_FILE_READ_ERROR;
+        }
         return '\0';
     }
     return (char)c;
@@ -50,6 +62,10 @@ char utils_peek_char(error *err, FILE *stream)
     if (c == EOF)
     {
         *err = INTERNAL_END_OF_FILE;
+        if (ferror(stream) != 0)
+        {
+            *err = INTERNAL_FILE_READ_ERROR;
+        }
         return '\0';
     }
     ungetc(c, stream);

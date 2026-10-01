@@ -4,3 +4,5 @@ cmake-build-debug
 
 *.o
 
+/test_bench*
+/tests/

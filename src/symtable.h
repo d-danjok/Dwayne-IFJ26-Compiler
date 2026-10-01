@@ -46,7 +46,7 @@ typedef struct identifier_data_s
 
 #define NEW_IDENTIFIER_DATA(err, number_of_function_args)                                                              \
     /*Note: set number of function args to 0 allocating not for function */                                            \
-        utils_safe_malloc(err, sizeof(identifier_data) + number_of_function_args * sizeof(data_type)
+        (identifier_data*)utils_safe_malloc(err, sizeof(identifier_data) + number_of_function_args * sizeof(data_type)
 
 // symtable itself
 struct symtable_s;

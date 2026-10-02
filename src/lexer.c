@@ -16,6 +16,7 @@ token lexer_get_next_token(error *err, lexer *l)
 {
     token res = {TOKEN_UNDEFINED, -1, 0};
     error internal_err = NONE;
+    char *identifier = NULL;
 
     // ---- FSM implementation ----
     char c = utils_peek_char(&internal_err, l->input, 0);
@@ -122,12 +123,23 @@ token lexer_get_next_token(error *err, lexer *l)
         utils_get_char(&internal_err, l->input);
         break;
 
+    // Identifiers
+    case 'a' ... 'z':
+        res.type = TOKEN_IDENTIFIER;
+        identifier = parse_identifier(err, l->input);
+        res.attribute_index = attribute_table_insert_identifier(l->attr_table, err, &identifier);
+        break;
+    case 'A' ... 'Z':
+        res.type = TOKEN_IDENTIFIER;
+        identifier = parse_identifier(err, l->input);
+        res.attribute_index = attribute_table_insert_identifier(l->attr_table, err, &identifier);
+        break;
     case '_':
         c = utils_peek_char(&internal_err, l->input, 1);
         if (isalnum(c) || c == '_')
         {
             res.type = TOKEN_IDENTIFIER;
-            char *identifier = parse_identifier(err, l->input);
+            identifier = parse_identifier(err, l->input);
             res.attribute_index = attribute_table_insert_identifier(l->attr_table, err, &identifier);
         }
         else
@@ -136,6 +148,23 @@ token lexer_get_next_token(error *err, lexer *l)
             res.type = TOKEN_UNDERSCORE;
         }
         break;
+
+    // Annotations
+    case '@':
+        utils_get_char(&internal_err, l->input);
+        if (utils_peek_char(&internal_err, l->input, 0) == 'm' && utils_peek_char(&internal_err, l->input, 1) == 'a' &&
+            utils_peek_char(&internal_err, l->input, 2) == 'i' && utils_peek_char(&internal_err, l->input, 3) == 'n')
+        {
+            for (int i = 0; i < 4; i++)
+                utils_get_char(&internal_err, l->input);
+            res.type = TOKEN_ANNOTATION;
+        }
+        else
+        {
+            *err = INVALID_SYMBOL;
+        }
+        break;
+
     // Comments
     case '/':
         utils_get_char(&internal_err, l->input);
@@ -242,7 +271,7 @@ token lexer_get_next_token(error *err, lexer *l)
 char *parse_identifier(error *err, FILE *input)
 {
     // TODO: implement
-    return NULL; 
+    return NULL;
 }
 
 double complete_double_from_dot(error *err, FILE *input, double int_part)

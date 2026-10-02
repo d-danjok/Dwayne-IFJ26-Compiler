@@ -22,6 +22,7 @@ typedef enum
     TOKEN_UNIT,    // unit
     TOKEN_BOOLEAN, // true, false
 
+    TOKEN_ANNOTATION, // @annotation
     TOKEN_IDENTIFIER, // var_name, func_name...
     TOKEN_KEYWORD,    // if, else, while...
     TOKEN_OPERATOR,   // +, -, *, /, =, ==, !=, >= ...
@@ -52,7 +53,6 @@ typedef enum
     OP_LESS,          // <
     OP_EQUAL_LESS,    // <=
 } operator_list;
-
 
 typedef struct
 {

@@ -39,7 +39,8 @@ char utils_get_char(error *err, FILE *stream);
 //
 // @param err is a pointer to error handling variable in calling function
 // @param stream is a steam from which we get characters
+// @param offset is a number of characters we want to skip
 // @return character if not EOF, if is returns `\0`
-char utils_peek_char(error *err, FILE *stream);
+char utils_peek_char(error *err, FILE *stream, int offset);
 
 #endif

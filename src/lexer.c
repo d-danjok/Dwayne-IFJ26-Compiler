@@ -20,59 +20,59 @@ double complete_double_from_e(error *err, FILE *input, double int_part);
 // (possible integer overflow in case[0-9])
 // todo: check errors when token is EOF
 
-
-token lexer_get_next_token(error *err, lexer *l)
+token lexer_get_next_token(lexer *self, error *err)
 {
+    FILE *in = self->input;
     token res = {TOKEN_UNDEFINED, -1, 0};
     error internal_err = NONE;
     char *identifier = NULL;
 
     // ---- FSM implementation ----
-    char c = utils_peek_char(&internal_err, l->input, 0);
+    char c = utils_peek_char(&internal_err, in, 0);
     switch (c)
     {
     // Whitespaces
     case ' ':
         res.type = TOKEN_WHITESPACE;
-        while (utils_peek_char(&internal_err, l->input, 0) == ' ')
-            utils_get_char(&internal_err, l->input);
+        while (utils_peek_char(&internal_err, in, 0) == ' ')
+            utils_get_char(&internal_err, in);
         break;
     case '\n':
         res.type = TOKEN_EOL;
-        utils_get_char(&internal_err, l->input);
+        utils_get_char(&internal_err, in);
         break;
     case '\0':
         res.type = TOKEN_EOF;
-        utils_get_char(&internal_err, l->input);
+        utils_get_char(&internal_err, in);
         break;
 
     // Operators
     case ',':
         res.type = TOKEN_COMMA;
-        utils_get_char(&internal_err, l->input);
+        utils_get_char(&internal_err, in);
         break;
     case '|':
         res.type = TOKEN_DIVIDER;
-        utils_get_char(&internal_err, l->input);
+        utils_get_char(&internal_err, in);
         break;
     case '(':
         res.type = TOKEN_OPEN_PAREN;
-        utils_get_char(&internal_err, l->input);
+        utils_get_char(&internal_err, in);
         break;
     case ')':
         res.type = TOKEN_CLOSE_PAREN;
-        utils_get_char(&internal_err, l->input);
+        utils_get_char(&internal_err, in);
         break;
     case ':':
         res.type = TOKEN_COLON;
-        utils_get_char(&internal_err, l->input);
+        utils_get_char(&internal_err, in);
         break;
     case '=':
         res.type = TOKEN_OPERATOR;
-        utils_get_char(&internal_err, l->input);
-        if (utils_peek_char(&internal_err, l->input, 0) == '=')
+        utils_get_char(&internal_err, in);
+        if (utils_peek_char(&internal_err, in, 0) == '=')
         {
-            utils_get_char(&internal_err, l->input);
+            utils_get_char(&internal_err, in);
             res.attribute_index = OP_EQUAL;
         }
         else
@@ -80,10 +80,10 @@ token lexer_get_next_token(error *err, lexer *l)
         break;
     case '<':
         res.type = TOKEN_OPERATOR;
-        utils_get_char(&internal_err, l->input);
-        if (utils_peek_char(&internal_err, l->input, 0) == '=')
+        utils_get_char(&internal_err, in);
+        if (utils_peek_char(&internal_err, in, 0) == '=')
         {
-            utils_get_char(&internal_err, l->input);
+            utils_get_char(&internal_err, in);
             res.attribute_index = OP_EQUAL_LESS;
         }
         else
@@ -91,10 +91,10 @@ token lexer_get_next_token(error *err, lexer *l)
         break;
     case '>':
         res.type = TOKEN_OPERATOR;
-        utils_get_char(&internal_err, l->input);
-        if (utils_peek_char(&internal_err, l->input, 0) == '=')
+        utils_get_char(&internal_err, in);
+        if (utils_peek_char(&internal_err, in, 0) == '=')
         {
-            utils_get_char(&internal_err, l->input);
+            utils_get_char(&internal_err, in);
             res.attribute_index = OP_EQUAL_GREATER;
         }
         else
@@ -104,10 +104,10 @@ token lexer_get_next_token(error *err, lexer *l)
         break;
     case '!':
         res.type = TOKEN_OPERATOR;
-        utils_get_char(&internal_err, l->input);
-        if (utils_peek_char(&internal_err, l->input, 0) == '=')
+        utils_get_char(&internal_err, in);
+        if (utils_peek_char(&internal_err, in, 0) == '=')
         {
-            utils_get_char(&internal_err, l->input);
+            utils_get_char(&internal_err, in);
             res.attribute_index = OP_NOT_EQUAL;
         }
         else
@@ -119,53 +119,53 @@ token lexer_get_next_token(error *err, lexer *l)
     case '+':
         res.type = TOKEN_OPERATOR;
         res.attribute_index = OP_PLUS;
-        utils_get_char(&internal_err, l->input);
+        utils_get_char(&internal_err, in);
         break;
     case '-':
         res.type = TOKEN_OPERATOR;
         res.attribute_index = OP_MINUS;
-        utils_get_char(&internal_err, l->input);
+        utils_get_char(&internal_err, in);
         break;
     case '*':
         res.type = TOKEN_OPERATOR;
         res.attribute_index = OP_MULTIPLY;
-        utils_get_char(&internal_err, l->input);
+        utils_get_char(&internal_err, in);
         break;
 
     // Identifiers
     case 'a' ... 'z':
         res.type = TOKEN_IDENTIFIER;
-        identifier = parse_identifier(err, l->input);
-        res.attribute_index = attribute_table_insert_identifier(l->attr_table, err, &identifier);
+        identifier = parse_identifier(err, in);
+        res.attribute_index = attribute_table_insert_identifier(self->attr_table, err, &identifier);
         break;
     case 'A' ... 'Z':
         res.type = TOKEN_IDENTIFIER;
-        identifier = parse_identifier(err, l->input);
-        res.attribute_index = attribute_table_insert_identifier(l->attr_table, err, &identifier);
+        identifier = parse_identifier(err, in);
+        res.attribute_index = attribute_table_insert_identifier(self->attr_table, err, &identifier);
         break;
     case '_':
-        c = utils_peek_char(&internal_err, l->input, 1);
+        c = utils_peek_char(&internal_err, in, 1);
         if (isalnum(c) || c == '_')
         {
             res.type = TOKEN_IDENTIFIER;
-            identifier = parse_identifier(err, l->input);
-            res.attribute_index = attribute_table_insert_identifier(l->attr_table, err, &identifier);
+            identifier = parse_identifier(err, in);
+            res.attribute_index = attribute_table_insert_identifier(self->attr_table, err, &identifier);
         }
         else
         {
-            utils_get_char(&internal_err, l->input);
+            utils_get_char(&internal_err, in);
             res.type = TOKEN_UNDERSCORE;
         }
         break;
 
     // Annotations
     case '@':
-        utils_get_char(&internal_err, l->input);
-        if (utils_peek_char(&internal_err, l->input, 0) == 'm' && utils_peek_char(&internal_err, l->input, 1) == 'a' &&
-            utils_peek_char(&internal_err, l->input, 2) == 'i' && utils_peek_char(&internal_err, l->input, 3) == 'n')
+        utils_get_char(&internal_err, in);
+        if (utils_peek_char(&internal_err, in, 0) == 'm' && utils_peek_char(&internal_err, in, 1) == 'a' &&
+            utils_peek_char(&internal_err, in, 2) == 'i' && utils_peek_char(&internal_err, in, 3) == 'n')
         {
             for (int i = 0; i < 4; i++)
-                utils_get_char(&internal_err, l->input);
+                utils_get_char(&internal_err, in);
             res.type = TOKEN_ANNOTATION;
         }
         else
@@ -176,12 +176,12 @@ token lexer_get_next_token(error *err, lexer *l)
 
     // Comments
     case '/':
-        utils_get_char(&internal_err, l->input);
-        c = utils_peek_char(&internal_err, l->input, 0);
+        utils_get_char(&internal_err, in);
+        c = utils_peek_char(&internal_err, in, 0);
         if (c == '/') // single-line comment
         {
-            while ((c = utils_peek_char(&internal_err, l->input, 0)) != '\n' && internal_err == NONE)
-                utils_get_char(&internal_err, l->input);
+            while ((c = utils_peek_char(&internal_err, in, 0)) != '\n' && internal_err == NONE)
+                utils_get_char(&internal_err, in);
 
             if (internal_err == INTERNAL_END_OF_FILE)
                 res.type = TOKEN_EOF;
@@ -190,18 +190,18 @@ token lexer_get_next_token(error *err, lexer *l)
 
             else
             {
-                utils_get_char(&internal_err, l->input);
+                utils_get_char(&internal_err, in);
                 res.type = TOKEN_EOL;
             }
         }
         else if (c == '*') // multi-line comment
         {
-            utils_get_char(&internal_err, l->input);
+            utils_get_char(&internal_err, in);
             int depth = 1;
             bool Sline_comment = true;
             while (depth > 0)
             {
-                c = utils_get_char(&internal_err, l->input);
+                c = utils_get_char(&internal_err, in);
                 if (c == '\0')
                 {
                     *err = UNFINISHED_COMMENT;
@@ -209,14 +209,14 @@ token lexer_get_next_token(error *err, lexer *l)
                 }
                 else if (c == '\n')
                     Sline_comment = false;
-                else if (c == '*' && utils_peek_char(&internal_err, l->input, 0) == '/')
+                else if (c == '*' && utils_peek_char(&internal_err, in, 0) == '/')
                 {
-                    utils_get_char(&internal_err, l->input);
+                    utils_get_char(&internal_err, in);
                     depth--;
                 }
-                else if (c == '/' && utils_peek_char(&internal_err, l->input, 0) == '*')
+                else if (c == '/' && utils_peek_char(&internal_err, in, 0) == '*')
                 {
-                    utils_get_char(&internal_err, l->input);
+                    utils_get_char(&internal_err, in);
                     depth++;
                 }
             }
@@ -227,9 +227,9 @@ token lexer_get_next_token(error *err, lexer *l)
             else
             {
                 res.type = TOKEN_EOL;
-                while ((c = utils_peek_char(&internal_err, l->input, 0)) == ' ' && internal_err == NONE)
+                while ((c = utils_peek_char(&internal_err, in, 0)) == ' ' && internal_err == NONE)
 
-                    utils_get_char(&internal_err, l->input);
+                    utils_get_char(&internal_err, in);
 
                 if (internal_err != NONE && internal_err != INTERNAL_END_OF_FILE)
                 {
@@ -237,7 +237,7 @@ token lexer_get_next_token(error *err, lexer *l)
                 }
                 else if (c == '\n')
                 {
-                    utils_get_char(&internal_err, l->input);
+                    utils_get_char(&internal_err, in);
                     res.type = TOKEN_EOL;
                 }
                 else
@@ -253,25 +253,25 @@ token lexer_get_next_token(error *err, lexer *l)
         // Literals
     case '"':
         res.type = TOKEN_STRING;
-        char *literal = parse_literal(err, l->input);
-        res.attribute_index = attribute_table_insert_string(l->attr_table, err, &literal);
+        char *literal = parse_literal(err, in);
+        res.attribute_index = attribute_table_insert_string(self->attr_table, err, &literal);
         break;
     // Numeric
     case '0' ... '9':
         bool integer = true;
         double val = 0;
 
-        char c = utils_peek_char(&internal_err, l->input, 0);
+        char c = utils_peek_char(&internal_err, in, 0);
         if (c == '0')
         {
             while (c == '0')
             {
-                utils_get_char(&internal_err, l->input); // eat zero
-                c = utils_peek_char(&internal_err, l->input, 0);
+                utils_get_char(&internal_err, in); // eat zero
+                c = utils_peek_char(&internal_err, in, 0);
                 if (c == '_')
                 {
-                    utils_get_char(&internal_err, l->input); // eat underscore
-                    c = utils_peek_char(&internal_err, l->input, 0);
+                    utils_get_char(&internal_err, in); // eat underscore
+                    c = utils_peek_char(&internal_err, in, 0);
                     if (c != '0')
                     {
                         *err = INVALID_SYMBOL;
@@ -280,15 +280,15 @@ token lexer_get_next_token(error *err, lexer *l)
                 }
                 else if (c == '.')
                 {
-                    utils_get_char(&internal_err, l->input); // eat dot
-                    val = complete_double_from_dot(err, l->input, val);
+                    utils_get_char(&internal_err, in); // eat dot
+                    val = complete_double_from_dot(err, in, val);
                     integer = false;
                     break;
                 }
                 else if (c == 'e' || c == 'E')
                 {
-                    c = utils_get_char(&internal_err, l->input); // eat e
-                    val = complete_double_from_e(err, l->input, val);
+                    c = utils_get_char(&internal_err, in); // eat e
+                    val = complete_double_from_e(err, in, val);
                     integer = false;
                     break;
                 }
@@ -298,12 +298,12 @@ token lexer_get_next_token(error *err, lexer *l)
             while (isdigit(c))
             {
                 val = val * 10 + (c - '0');
-                utils_get_char(&internal_err, l->input); // eat digit
-                c = utils_peek_char(&internal_err, l->input, 0);
+                utils_get_char(&internal_err, in); // eat digit
+                c = utils_peek_char(&internal_err, in, 0);
                 if (c == '_')
                 {
-                    utils_get_char(&internal_err, l->input); // eat underscore
-                    c = utils_peek_char(&internal_err, l->input, 0);
+                    utils_get_char(&internal_err, in); // eat underscore
+                    c = utils_peek_char(&internal_err, in, 0);
                     if (!isdigit(c))
                     {
                         *err = INVALID_SYMBOL;
@@ -312,15 +312,15 @@ token lexer_get_next_token(error *err, lexer *l)
                 }
                 else if (c == '.')
                 {
-                    utils_get_char(&internal_err, l->input); // eat dot
-                    val = complete_double_from_dot(err, l->input, val);
+                    utils_get_char(&internal_err, in); // eat dot
+                    val = complete_double_from_dot(err, in, val);
                     integer = false;
                     break;
                 }
                 else if (c == 'e' || c == 'E')
                 {
-                    utils_get_char(&internal_err, l->input); // eat e
-                    val = complete_double_from_e(err, l->input, val);
+                    utils_get_char(&internal_err, in); // eat e
+                    val = complete_double_from_e(err, in, val);
                     integer = false;
                     break;
                 }
@@ -332,24 +332,24 @@ token lexer_get_next_token(error *err, lexer *l)
         {
             res.type = TOKEN_INT;
 
-            res.attribute_index = attribute_table_insert_integer(l->attr_table, err, (int)val);
+            res.attribute_index = attribute_table_insert_integer(self->attr_table, err, (int)val);
         }
         else if (*err == NONE)
         {
             res.type = TOKEN_DOUBLE;
-            res.attribute_index = attribute_table_insert_double(l->attr_table, err, val);
+            res.attribute_index = attribute_table_insert_double(self->attr_table, err, val);
         }
         break;
     case '.':
-        c = utils_get_char(&internal_err, l->input);
-        if (isdigit(utils_peek_char(&internal_err, l->input, 0)))
+        c = utils_get_char(&internal_err, in);
+        if (isdigit(utils_peek_char(&internal_err, in, 0)))
         {
-            double val = complete_double_from_dot(err, l->input, 0.0);
+            double val = complete_double_from_dot(err, in, 0.0);
             if (*err == NONE)
             {
 
                 res.type = TOKEN_DOUBLE;
-                res.attribute_index = attribute_table_insert_double(l->attr_table, err, val);
+                res.attribute_index = attribute_table_insert_double(self->attr_table, err, val);
             }
         }
         else

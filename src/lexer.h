@@ -5,9 +5,8 @@
 #define LEXER_H
 
 #include "attribute_table.h"
-#include "token.h"
 #include "error.h"
-
+#include "token.h"
 
 #include <stdio.h>
 
@@ -20,10 +19,10 @@ typedef struct
 
 // @brief gets next token from input stream and returns it
 //
-// @param lexer - pointer to lexer structure
+// @param self - pointer to lexer structure
 // @param err - pointer to error variable
 //     (if error occurs, token.type will be TOKEN_UNDEFINED)
 // @return next token from input stream
-token lexer_get_next_token(error *err, lexer *l);
+token lexer_get_next_token(lexer *self, error *err);
 
 #endif

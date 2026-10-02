@@ -12,6 +12,10 @@ typedef enum
     // TODO: complete list
     TOKEN_UNDEFINED,
 
+    TOKEN_WHITESPACE, // ' ', '\t', '\r', '\n'
+    TOKEN_EOL,        // \n
+    TOKEN_EOF,        // EOF
+
     TOKEN_INT,     // 1,2,3...
     TOKEN_DOUBLE,  // 2.2,122.05e2,21e435
     TOKEN_STRING,  // "str", """str_multiline"""
@@ -33,6 +37,22 @@ typedef enum
     TOKEN_INDENT, // ADD INDENTATION
     TOKEN_DEDENT, // DECREASE INDENTATION
 } token_type;
+
+typedef enum
+{
+    OP_ASSIGN,        // =
+    OP_PLUS,          // +
+    OP_MINUS,         // -
+    OP_MULTIPLY,      // *
+    OP_DIVISION,      // /
+    OP_EQUAL,         // ==
+    OP_NOT_EQUAL,     // !=
+    OP_GREATER,       // >
+    OP_EQUAL_GREATER, // >=
+    OP_LESS,          // <
+    OP_EQUAL_LESS,    // <=
+} operator_list;
+
 
 typedef struct
 {

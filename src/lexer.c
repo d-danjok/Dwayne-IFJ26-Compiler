@@ -16,6 +16,11 @@ char *parse_literal(error *err, FILE *input);
 double complete_double_from_dot(error *err, FILE *input, double int_part);
 double complete_double_from_e(error *err, FILE *input, double int_part);
 
+// TODO: line-tracing, proper error handling, identifiers and literals
+// (possible integer overflow in case[0-9])
+// todo: check errors when token is EOF
+
+
 token lexer_get_next_token(error *err, lexer *l)
 {
     token res = {TOKEN_UNDEFINED, -1, 0};

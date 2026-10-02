@@ -8,9 +8,11 @@
 #include "utils.h"
 
 #include <ctype.h>
+#include <math.h>
 
 char *parse_identifier(error *err, FILE *input);
 double complete_double_from_dot(error *err, FILE *input, double int_part);
+double complete_double_from_e(error *err, FILE *input, double int_part);
 
 token lexer_get_next_token(error *err, lexer *l)
 {
@@ -241,6 +243,90 @@ token lexer_get_next_token(error *err, lexer *l)
             res.attribute_index = OP_DIVISION;
         }
         break;
+    // Numeric
+    case '0' ... '9':
+        bool integer = true;
+        double val = 0;
+
+        char c = utils_peek_char(&internal_err, l->input, 0);
+        if (c == '0')
+        {
+            while (c == '0')
+            {
+                utils_get_char(&internal_err, l->input); // eat zero
+                c = utils_peek_char(&internal_err, l->input, 0);
+                if (c == '_')
+                {
+                    utils_get_char(&internal_err, l->input); // eat underscore
+                    c = utils_peek_char(&internal_err, l->input, 0);
+                    if (c != '0')
+                    {
+                        *err = INVALID_SYMBOL;
+                        break;
+                    }
+                }
+                else if (c == '.')
+                {
+                    utils_get_char(&internal_err, l->input); // eat dot
+                    val = complete_double_from_dot(err, l->input, val);
+                    integer = false;
+                    break;
+                }
+                else if (c == 'e' || c == 'E')
+                {
+                    c = utils_get_char(&internal_err, l->input); // eat e
+                    val = complete_double_from_e(err, l->input, val);
+                    integer = false;
+                    break;
+                }
+            }
+        }
+        else
+            while (isdigit(c))
+            {
+                val = val * 10 + (c - '0');
+                utils_get_char(&internal_err, l->input); // eat digit
+                c = utils_peek_char(&internal_err, l->input, 0);
+                if (c == '_')
+                {
+                    utils_get_char(&internal_err, l->input); // eat underscore
+                    c = utils_peek_char(&internal_err, l->input, 0);
+                    if (!isdigit(c))
+                    {
+                        *err = INVALID_SYMBOL;
+                        break;
+                    }
+                }
+                else if (c == '.')
+                {
+                    utils_get_char(&internal_err, l->input); // eat dot
+                    val = complete_double_from_dot(err, l->input, val);
+                    integer = false;
+                    break;
+                }
+                else if (c == 'e' || c == 'E')
+                {
+                    utils_get_char(&internal_err, l->input); // eat e
+                    val = complete_double_from_e(err, l->input, val);
+                    integer = false;
+                    break;
+                }
+            }
+        if (*err == NONE && internal_err != INTERNAL_END_OF_FILE)
+            *err = internal_err;
+
+        if (integer && *err == NONE)
+        {
+            res.type = TOKEN_INT;
+
+            res.attribute_index = attribute_table_insert_integer(l->attr_table, err, (int)val);
+        }
+        else if (*err == NONE)
+        {
+            res.type = TOKEN_DOUBLE;
+            res.attribute_index = attribute_table_insert_double(l->attr_table, err, val);
+        }
+        break;
     case '.':
         c = utils_get_char(&internal_err, l->input);
         if (isdigit(utils_peek_char(&internal_err, l->input, 0)))
@@ -276,6 +362,86 @@ char *parse_identifier(error *err, FILE *input)
 
 double complete_double_from_dot(error *err, FILE *input, double int_part)
 {
-    // TODO: implement
+    error internal_err = NONE;
+    int pos = 0;
+    char c = utils_peek_char(err, input, 0);
+    if (!isdigit(c))
+    {
+        *err = INVALID_SYMBOL;
+        return int_part;
+    }
+    while (isdigit(c))
+    {
+        int_part += (c - '0') / pow(10.0, ++pos);
+        utils_get_char(&internal_err, input); // eat digit
+        c = utils_peek_char(&internal_err, input, 0);
+        if (c == '_')
+        {
+            utils_get_char(&internal_err, input);         // eat underscore
+            c = utils_peek_char(&internal_err, input, 0); // eat underscore
+            if (!isdigit(c))
+            {
+                *err = INVALID_SYMBOL;
+                break;
+            }
+        }
+        else if (c == 'e' || c == 'E')
+        {
+            utils_get_char(&internal_err, input); // eat e
+            int_part = complete_double_from_e(err, input, int_part);
+            break;
+        }
+        else if (c == 'd' || c == 'D')
+        {
+            utils_get_char(&internal_err, input); // eat d
+            break;
+        }
+    }
+
+    return int_part;
+}
+double complete_double_from_e(error *err, FILE *input, double int_part)
+{
+    error internal_err = NONE;
+    double exponent = 0.0;
+    bool sign = 1;
+    char c = utils_peek_char(err, input, 0);
+    if (c == '+' || c == '-')
+    {
+        sign = c == '-' ? 0 : 1;
+        utils_get_char(&internal_err, input); // eat sign
+        c = utils_peek_char(&internal_err, input, 0);
+    }
+    if (!isdigit(c))
+    {
+        *err = INVALID_SYMBOL;
+    }
+    else
+        while (isdigit(c))
+        {
+            exponent = exponent * 10.0 + (c - '0');
+
+            utils_get_char(&internal_err, input); // eat digit
+            c = utils_peek_char(&internal_err, input, 0);
+            if (c == '_')
+            {
+                utils_get_char(&internal_err, input); // eat underscore
+                c = utils_peek_char(&internal_err, input, 0);
+                if (!isdigit(c))
+                {
+                    *err = INVALID_SYMBOL;
+                    break;
+                }
+            }
+            else if (c == 'd' || c == 'D')
+            {
+                utils_get_char(&internal_err, input); // eat d
+                break;
+            }
+        }
+    if (int_part != 0.0)
+    {
+        int_part *= pow(10.0, (sign ? 1 : -1) * exponent);
+    }
     return int_part;
 }

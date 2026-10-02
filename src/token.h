@@ -22,26 +22,13 @@ typedef enum
     TOKEN_KEYWORD,    // if, else, while...
     TOKEN_OPERATOR,   // +, -, *, /, =, ==, !=, >= ...
 
-    TOKEN_DOT,           // .
-    TOKEN_COMMA,         // ,
-    TOKEN_OPEN_PAREN,    // (
-    TOKEN_CLOSE_PAREN,   // )
-    TOKEN_OPEN_BRACKET,  // [
-    TOKEN_CLOSE_BRACKET, // ]
-
-    //    TOKEN_ASSIGN,        // =
-    //    TOKEN_PLUS,          // +
-    //    TOKEN_MINUS,         // -
-    //    TOKEN_MULTIPLY,      // *
-    //    TOKEN_DIVISION,      // /
-    //    TOKEN_EQUAL,         // ==
-    //    TOKEN_NOT_EQUAL,     // !=
-    //    TOKEN_GREATER,       // >
-    //    TOKEN_EQUAL_GREATER, // >=
-    //    TOKEN_LESS,          // <
-    //    TOKEN_EQUAL_LESS,    // <=
-    // TOKEN_EOF,           // EOF
-    TOKEN_EOL, // \n
+    TOKEN_DOT,         // .
+    TOKEN_COMMA,       // ,
+    TOKEN_UNDERSCORE,  // _
+    TOKEN_DIVIDER,     // |
+    TOKEN_OPEN_PAREN,  // (
+    TOKEN_CLOSE_PAREN, // )
+    TOKEN_COLON,       // :
 
     TOKEN_INDENT, // ADD INDENTATION
     TOKEN_DEDENT, // DECREASE INDENTATION

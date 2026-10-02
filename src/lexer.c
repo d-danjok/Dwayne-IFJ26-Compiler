@@ -5,12 +5,14 @@
 // @note    some fsm parts will be implemented by other team members
 
 #include "lexer.h"
-#include "utils.h"
+
+#include "utils.c"
 
 #include <ctype.h>
 #include <math.h>
 
 char *parse_identifier(error *err, FILE *input);
+char *parse_literal(error *err, FILE *input);
 double complete_double_from_dot(error *err, FILE *input, double int_part);
 double complete_double_from_e(error *err, FILE *input, double int_part);
 
@@ -243,6 +245,12 @@ token lexer_get_next_token(error *err, lexer *l)
             res.attribute_index = OP_DIVISION;
         }
         break;
+        // Literals
+    case '"':
+        res.type = TOKEN_STRING;
+        char *literal = parse_literal(err, l->input);
+        res.attribute_index = attribute_table_insert_string(l->attr_table, err, &literal);
+        break;
     // Numeric
     case '0' ... '9':
         bool integer = true;
@@ -357,6 +365,11 @@ token lexer_get_next_token(error *err, lexer *l)
 char *parse_identifier(error *err, FILE *input)
 {
     // TODO: implement
+    return NULL;
+}
+char *parse_literal(error *err, FILE *input)
+{
+    // TODO:
     return NULL;
 }
 

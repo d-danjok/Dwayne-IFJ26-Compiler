@@ -8,7 +8,6 @@
 #include "utils.h"
 
 #include <ctype.h>
-#include <error.h>
 
 char *parse_identifier(error *err, FILE *input);
 double complete_double_from_dot(error *err, FILE *input, double int_part);
@@ -122,7 +121,7 @@ token lexer_get_next_token(error *err, lexer *l)
         res.attribute_index = OP_MULTIPLY;
         utils_get_char(&internal_err, l->input);
         break;
-    
+
     case '_':
         c = utils_peek_char(&internal_err, l->input, 1);
         if (isalnum(c) || c == '_')
@@ -143,11 +142,69 @@ token lexer_get_next_token(error *err, lexer *l)
         c = utils_peek_char(&internal_err, l->input, 0);
         if (c == '/') // single-line comment
         {
-            // TODO:
+            while ((c = utils_peek_char(&internal_err, l->input, 0)) != '\n' && internal_err == NONE)
+                utils_get_char(&internal_err, l->input);
+
+            if (internal_err == INTERNAL_END_OF_FILE)
+                res.type = TOKEN_EOF;
+            else if (internal_err != NONE)
+                *err = internal_err;
+
+            else
+            {
+                utils_get_char(&internal_err, l->input);
+                res.type = TOKEN_EOL;
+            }
         }
         else if (c == '*') // multi-line comment
         {
-            // TODO:
+            utils_get_char(&internal_err, l->input);
+            int depth = 1;
+            bool Sline_comment = true;
+            while (depth > 0)
+            {
+                c = utils_get_char(&internal_err, l->input);
+                if (c == '\0')
+                {
+                    *err = UNFINISHED_COMMENT;
+                    break;
+                }
+                else if (c == '\n')
+                    Sline_comment = false;
+                else if (c == '*' && utils_peek_char(&internal_err, l->input, 0) == '/')
+                {
+                    utils_get_char(&internal_err, l->input);
+                    depth--;
+                }
+                else if (c == '/' && utils_peek_char(&internal_err, l->input, 0) == '*')
+                {
+                    utils_get_char(&internal_err, l->input);
+                    depth++;
+                }
+            }
+            if (*err != NONE)
+                break;
+            if (Sline_comment)
+                res.type = TOKEN_WHITESPACE;
+            else
+            {
+                res.type = TOKEN_EOL;
+                while ((c = utils_peek_char(&internal_err, l->input, 0)) == ' ' && internal_err == NONE)
+
+                    utils_get_char(&internal_err, l->input);
+
+                if (internal_err != NONE && internal_err != INTERNAL_END_OF_FILE)
+                {
+                    *err = internal_err;
+                }
+                else if (c == '\n')
+                {
+                    utils_get_char(&internal_err, l->input);
+                    res.type = TOKEN_EOL;
+                }
+                else
+                    *err = SYMOBL_AFTER_COMMENT;
+            }
         }
         else
         {

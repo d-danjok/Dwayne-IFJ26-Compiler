@@ -6,21 +6,19 @@
 
 #include "lexer.h"
 
-#include "utils.c"
+#include "utils.h"
 
 #include <ctype.h>
+#include <error.h>
 #include <math.h>
+#include <token.h>
 
-char *parse_identifier(error *err, FILE *input);
-char *parse_literal(error *err, FILE *input);
-double complete_double_from_dot(error *err, FILE *input, double int_part);
-double complete_double_from_e(error *err, FILE *input, double int_part);
 
 // TODO: line-tracing, proper error handling, identifiers and literals
 // (possible integer overflow in case[0-9])
 // todo: check errors when token is EOF
 
-token lexer_get_next_token(lexer *self, error *err)
+token lexer_get_next_token(lexer *self, error *err, state current_state)
 {
     FILE *in = self->input;
     token res = {TOKEN_UNDEFINED, -1, 0};
@@ -28,139 +26,97 @@ token lexer_get_next_token(lexer *self, error *err)
     char *identifier = NULL;
 
     // ---- FSM implementation ----
-    char c = utils_peek_char(&internal_err, in, 0);
-    switch (c)
+    switch (current_state)
     {
-    // Whitespaces
-    case ' ':
-        res.type = TOKEN_WHITESPACE;
-        while (utils_peek_char(&internal_err, in, 0) == ' ')
-            utils_get_char(&internal_err, in);
-        break;
-    case '\n':
-        res.type = TOKEN_EOL;
-        utils_get_char(&internal_err, in);
-        break;
-    case '\0':
-        res.type = TOKEN_EOF;
-        utils_get_char(&internal_err, in);
-        break;
+    case STATE_START:
+        char c = utils_get_char(&internal_err, in);
+        switch (c)
+        {
+        // EOL, EOF
+        case '\n':
+            res.type = TOKEN_EOL;
+            break;
+        case '\0':
+            res.type = TOKEN_EOF;
+            break;
 
-    // Operators
-    case ',':
-        res.type = TOKEN_COMMA;
-        utils_get_char(&internal_err, in);
-        break;
-    case '|':
-        res.type = TOKEN_DIVIDER;
-        utils_get_char(&internal_err, in);
-        break;
-    case '(':
-        res.type = TOKEN_OPEN_PAREN;
-        utils_get_char(&internal_err, in);
-        break;
-    case ')':
-        res.type = TOKEN_CLOSE_PAREN;
-        utils_get_char(&internal_err, in);
-        break;
-    case ':':
-        res.type = TOKEN_COLON;
-        utils_get_char(&internal_err, in);
-        break;
-    case '=':
-        res.type = TOKEN_OPERATOR;
-        utils_get_char(&internal_err, in);
-        if (utils_peek_char(&internal_err, in, 0) == '=')
-        {
-            utils_get_char(&internal_err, in);
-            res.attribute_index = OP_EQUAL;
-        }
-        else
-            res.attribute_index = OP_ASSIGN;
-        break;
-    case '<':
-        res.type = TOKEN_OPERATOR;
-        utils_get_char(&internal_err, in);
-        if (utils_peek_char(&internal_err, in, 0) == '=')
-        {
-            utils_get_char(&internal_err, in);
-            res.attribute_index = OP_EQUAL_LESS;
-        }
-        else
-            res.attribute_index = OP_LESS;
-        break;
-    case '>':
-        res.type = TOKEN_OPERATOR;
-        utils_get_char(&internal_err, in);
-        if (utils_peek_char(&internal_err, in, 0) == '=')
-        {
-            utils_get_char(&internal_err, in);
-            res.attribute_index = OP_EQUAL_GREATER;
-        }
-        else
+        // Simple tokens
+        case '|':
+            res.type = TOKEN_SEPARATOR;
+            break;
+        case ',':
+            res.type = TOKEN_COMMA;
+            break;
+        case ':':
+            res.type = TOKEN_COLON;
+            break;
+        case '(':
+            res.type = TOKEN_OPEN_PAREN;
+            break;
+        case ')':
+            res.type = TOKEN_CLOSE_PAREN;
+            break;
+        // Operators
+        case '+':
+            res.type = TOKEN_OPERATOR;
+            res.attribute_index = OP_PLUS;
+            break;
+        case '-':
+            res.type = TOKEN_OPERATOR;
+            res.attribute_index = OP_MINUS;
+            break;
+        case '*':
+            res.type = TOKEN_OPERATOR;
+            res.attribute_index = OP_MULTIPLY;
+            break;
+        case '/':
+            res = lexer_get_next_token(self, err, STATE_DIVIDE);
+            break;
+        case '=':
+            res = lexer_get_next_token(self, err, STATE_EQUAL);
+            break;
+        case '!':
+            res = lexer_get_next_token(self, err, STATE_NOT);
+            break;
+        case '<':
+            res = lexer_get_next_token(self, err, STATE_LESS);
+            break;
+        case '>':
+            res = lexer_get_next_token(self, err, STATE_MORE);
+            break;
 
-            res.attribute_index = OP_GREATER;
-
-        break;
-    case '!':
-        res.type = TOKEN_OPERATOR;
-        utils_get_char(&internal_err, in);
-        if (utils_peek_char(&internal_err, in, 0) == '=')
-        {
-            utils_get_char(&internal_err, in);
-            res.attribute_index = OP_NOT_EQUAL;
-        }
-        else
-        {
-            *err = INVALID_SYMBOL;
-            res.type = TOKEN_UNDEFINED;
-        }
-        break;
-    case '+':
-        res.type = TOKEN_OPERATOR;
-        res.attribute_index = OP_PLUS;
-        utils_get_char(&internal_err, in);
-        break;
-    case '-':
-        res.type = TOKEN_OPERATOR;
-        res.attribute_index = OP_MINUS;
-        utils_get_char(&internal_err, in);
-        break;
-    case '*':
-        res.type = TOKEN_OPERATOR;
-        res.attribute_index = OP_MULTIPLY;
-        utils_get_char(&internal_err, in);
-        break;
-
-    // Identifiers
-    case 'a' ... 'z':
-        res.type = TOKEN_IDENTIFIER;
-        identifier = parse_identifier(err, in);
-        res.attribute_index = attribute_table_insert_identifier(self->attr_table, err, &identifier);
-        break;
-    case 'A' ... 'Z':
-        res.type = TOKEN_IDENTIFIER;
-        identifier = parse_identifier(err, in);
-        res.attribute_index = attribute_table_insert_identifier(self->attr_table, err, &identifier);
-        break;
-    case '_':
-        c = utils_peek_char(&internal_err, in, 1);
-        if (isalnum(c) || c == '_')
-        {
-            res.type = TOKEN_IDENTIFIER;
-            identifier = parse_identifier(err, in);
-            res.attribute_index = attribute_table_insert_identifier(self->attr_table, err, &identifier);
-        }
-        else
-        {
-            utils_get_char(&internal_err, in);
-            res.type = TOKEN_UNDERSCORE;
+        // Identifiers
+        case '_':
+            res = lexer_get_next_token(self, err, STATE_UNDERSCORE);
+            break;
+        case 'a' ... 'z':
+            res = lexer_get_next_token(self, err, STATE_IDENTIFIER);
+            break;
+        case 'A' ... 'Z':
+            res = lexer_get_next_token(self, err, STATE_IDENTIFIER);
+            break;
+        // Annotations
+        case '@':
+            res = lexer_get_next_token(self, err, STATE_ANNOTATION);
+            break;
+        // Literals
+        case '"':
+            res = lexer_get_next_token(self, err, STATE_STR_START);
+            break;
+        // Numeric
+        case '1' ... '9':
+            res = lexer_get_next_token(self, err, STATE_INT);
+            break;
+        case '0':
+            res = lexer_get_next_token(self, err, STATE_ZERO);
+            break;
+        case '.':
+            res = lexer_get_next_token(self, err, STATE_DOT);
+            break;
         }
         break;
-
-    // Annotations
-    case '@':
-        utils_get_char(&internal_err, in);
+    // ANNOTATION
+    case STATE_ANNOTATION:
         if (utils_peek_char(&internal_err, in, 0) == 'm' && utils_peek_char(&internal_err, in, 1) == 'a' &&
             utils_peek_char(&internal_err, in, 2) == 'i' && utils_peek_char(&internal_err, in, 3) == 'n')
         {
@@ -169,297 +125,113 @@ token lexer_get_next_token(lexer *self, error *err)
             res.type = TOKEN_ANNOTATION;
         }
         else
-        {
             *err = INVALID_SYMBOL;
-        }
         break;
-
-    // Comments
-    case '/':
-        utils_get_char(&internal_err, in);
-        c = utils_peek_char(&internal_err, in, 0);
-        if (c == '/') // single-line comment
-        {
-            while ((c = utils_peek_char(&internal_err, in, 0)) != '\n' && internal_err == NONE)
-                utils_get_char(&internal_err, in);
-
-            if (internal_err == INTERNAL_END_OF_FILE)
-                res.type = TOKEN_EOF;
-            else if (internal_err != NONE)
-                *err = internal_err;
-
-            else
-            {
-                utils_get_char(&internal_err, in);
-                res.type = TOKEN_EOL;
-            }
-        }
-        else if (c == '*') // multi-line comment
+    // OPERATORS
+    case STATE_NOT:
+        if (utils_peek_char(&internal_err, in, 0) == '=')
         {
             utils_get_char(&internal_err, in);
-            int depth = 1;
-            bool Sline_comment = true;
-            while (depth > 0)
-            {
-                c = utils_get_char(&internal_err, in);
-                if (c == '\0')
-                {
-                    *err = UNFINISHED_COMMENT;
-                    break;
-                }
-                else if (c == '\n')
-                    Sline_comment = false;
-                else if (c == '*' && utils_peek_char(&internal_err, in, 0) == '/')
-                {
-                    utils_get_char(&internal_err, in);
-                    depth--;
-                }
-                else if (c == '/' && utils_peek_char(&internal_err, in, 0) == '*')
-                {
-                    utils_get_char(&internal_err, in);
-                    depth++;
-                }
-            }
-            if (*err != NONE)
-                break;
-            if (Sline_comment)
-                res.type = TOKEN_WHITESPACE;
-            else
-            {
-                res.type = TOKEN_EOL;
-                while ((c = utils_peek_char(&internal_err, in, 0)) == ' ' && internal_err == NONE)
-
-                    utils_get_char(&internal_err, in);
-
-                if (internal_err != NONE && internal_err != INTERNAL_END_OF_FILE)
-                {
-                    *err = internal_err;
-                }
-                else if (c == '\n')
-                {
-                    utils_get_char(&internal_err, in);
-                    res.type = TOKEN_EOL;
-                }
-                else
-                    *err = SYMOBL_AFTER_COMMENT;
-            }
-        }
-        else
-        {
             res.type = TOKEN_OPERATOR;
-            res.attribute_index = OP_DIVISION;
-        }
-        break;
-        // Literals
-    case '"':
-        res.type = TOKEN_STRING;
-        char *literal = parse_literal(err, in);
-        res.attribute_index = attribute_table_insert_string(self->attr_table, err, &literal);
-        break;
-    // Numeric
-    case '0' ... '9':
-        bool integer = true;
-        double val = 0;
-
-        char c = utils_peek_char(&internal_err, in, 0);
-        if (c == '0')
-        {
-            while (c == '0')
-            {
-                utils_get_char(&internal_err, in); // eat zero
-                c = utils_peek_char(&internal_err, in, 0);
-                if (c == '_')
-                {
-                    utils_get_char(&internal_err, in); // eat underscore
-                    c = utils_peek_char(&internal_err, in, 0);
-                    if (c != '0')
-                    {
-                        *err = INVALID_SYMBOL;
-                        break;
-                    }
-                }
-                else if (c == '.')
-                {
-                    utils_get_char(&internal_err, in); // eat dot
-                    val = complete_double_from_dot(err, in, val);
-                    integer = false;
-                    break;
-                }
-                else if (c == 'e' || c == 'E')
-                {
-                    c = utils_get_char(&internal_err, in); // eat e
-                    val = complete_double_from_e(err, in, val);
-                    integer = false;
-                    break;
-                }
-            }
+            res.attribute_index = OP_NOT_EQUAL;
         }
         else
-            while (isdigit(c))
-            {
-                val = val * 10 + (c - '0');
-                utils_get_char(&internal_err, in); // eat digit
-                c = utils_peek_char(&internal_err, in, 0);
-                if (c == '_')
-                {
-                    utils_get_char(&internal_err, in); // eat underscore
-                    c = utils_peek_char(&internal_err, in, 0);
-                    if (!isdigit(c))
-                    {
-                        *err = INVALID_SYMBOL;
-                        break;
-                    }
-                }
-                else if (c == '.')
-                {
-                    utils_get_char(&internal_err, in); // eat dot
-                    val = complete_double_from_dot(err, in, val);
-                    integer = false;
-                    break;
-                }
-                else if (c == 'e' || c == 'E')
-                {
-                    utils_get_char(&internal_err, in); // eat e
-                    val = complete_double_from_e(err, in, val);
-                    integer = false;
-                    break;
-                }
-            }
-        if (*err == NONE && internal_err != INTERNAL_END_OF_FILE)
-            *err = internal_err;
-
-        if (integer && *err == NONE)
+            *err = INVALID_SYMBOL;
+        break;
+    case STATE_EQUAL:
+        res.type = TOKEN_OPERATOR;
+        res.attribute_index = OP_ASSIGN;
+        if (utils_peek_char(&internal_err, in, 0) == '=')
         {
-            res.type = TOKEN_INT;
-
-            res.attribute_index = attribute_table_insert_integer(self->attr_table, err, (int)val);
-        }
-        else if (*err == NONE)
-        {
-            res.type = TOKEN_DOUBLE;
-            res.attribute_index = attribute_table_insert_double(self->attr_table, err, val);
+            utils_get_char(&internal_err, in);
+            res.attribute_index = OP_EQUAL;
         }
         break;
-    case '.':
+    case STATE_MORE:
+        res.type = TOKEN_OPERATOR;
+        res.attribute_index = OP_GREATER;
+        if (utils_peek_char(&internal_err, in, 0) == '=')
+        {
+            utils_get_char(&internal_err, in);
+            res.attribute_index = OP_EQUAL_GREATER;
+        }
+        break;
+    case STATE_LESS:
+        res.type = TOKEN_OPERATOR;
+        res.attribute_index = OP_LESS;
+
+        if (utils_peek_char(&internal_err, in, 0) == '=')
+        {
+            utils_get_char(&internal_err, in);
+            res.attribute_index = OP_EQUAL_LESS;
+        }
+        break;
+    case STATE_DIVIDE:
+        res.type = TOKEN_OPERATOR;
+        res.attribute_index = OP_DIVISION;
+        c = utils_peek_char(&internal_err, in, 0);
+        if (c == '/')
+        {
+            utils_get_char(&internal_err, in);
+            res = lexer_get_next_token(self, err, STATE_S_COMMENT);
+        }
+        else if (c == '*')
+        {
+            utils_get_char(&internal_err, in);
+            res = lexer_get_next_token(self, err, STATE_M_COMMENT);
+        }
+        break;
+    // COMMENTS
+    case STATE_S_COMMENT:
+        break;
+    case STATE_M_COMMENT:
+        break;
+    // IDENTIFIERS
+    case STATE_UNDERSCORE:
+        c = utils_peek_char(&internal_err, in, 0);
+        if (c == '_' || isalnum(c)) // todo: check if isalnum is correct
+            res = lexer_get_next_token(self, err, STATE_IDENTIFIER);
+        else
+        {
+            utils_get_char(&internal_err, in);
+            res.type = TOKEN_UNDERSCORE;
+        }
+        break;
+    case STATE_IDENTIFIER:
+        break;
+    // LITERALS
+    case STATE_STR_START:
         c = utils_get_char(&internal_err, in);
-        if (isdigit(utils_peek_char(&internal_err, in, 0)))
+        if (c == '"')
         {
-            double val = complete_double_from_dot(err, in, 0.0);
-            if (*err == NONE)
-            {
-
-                res.type = TOKEN_DOUBLE;
-                res.attribute_index = attribute_table_insert_double(self->attr_table, err, val);
-            }
+            res.type = TOKEN_STRING;
+            res.attribute_index = attribute_table_insert_string(self->attr_table, err, "");
         }
+        else if (c == '\\')
+            res = lexer_get_next_token(self, err, STATE_ESCAPE);
+        else if (c == '\n' || c == '\0')
+            *err = UNFINISHED_STRING;
         else
-        {
-            res.type = TOKEN_DOT;
-        }
-
+            res = lexer_get_next_token(self, err, STATE_STR);
         break;
-    default:
-        *err = GENERAL_LEXICAL;
+    case STATE_END_OR_MULTIPLE:
+        break;
+    case STATE_ESCAPE:
+        c = utils_get_char(&internal_err, in);
+        switch (c)
+        {
+        case '\\':
+        case 'n':
+        case 't':
+        case 'r':
+        case '"':
+        default:
+            *err = INVALID_ESCAPE_SEQUENCE;
+            break;
+        }
+        break;
+    case STATE_STR:
         break;
     }
-    if (internal_err != NONE && *err == NONE)
-        *err = internal_err;
     return res;
-}
-
-char *parse_identifier(error *err, FILE *input)
-{
-    // TODO: implement
-    return NULL;
-}
-char *parse_literal(error *err, FILE *input)
-{
-    // TODO:
-    return NULL;
-}
-
-double complete_double_from_dot(error *err, FILE *input, double int_part)
-{
-    error internal_err = NONE;
-    int pos = 0;
-    char c = utils_peek_char(err, input, 0);
-    if (!isdigit(c))
-    {
-        *err = INVALID_SYMBOL;
-        return int_part;
-    }
-    while (isdigit(c))
-    {
-        int_part += (c - '0') / pow(10.0, ++pos);
-        utils_get_char(&internal_err, input); // eat digit
-        c = utils_peek_char(&internal_err, input, 0);
-        if (c == '_')
-        {
-            utils_get_char(&internal_err, input);         // eat underscore
-            c = utils_peek_char(&internal_err, input, 0); // eat underscore
-            if (!isdigit(c))
-            {
-                *err = INVALID_SYMBOL;
-                break;
-            }
-        }
-        else if (c == 'e' || c == 'E')
-        {
-            utils_get_char(&internal_err, input); // eat e
-            int_part = complete_double_from_e(err, input, int_part);
-            break;
-        }
-        else if (c == 'd' || c == 'D')
-        {
-            utils_get_char(&internal_err, input); // eat d
-            break;
-        }
-    }
-
-    return int_part;
-}
-double complete_double_from_e(error *err, FILE *input, double int_part)
-{
-    error internal_err = NONE;
-    double exponent = 0.0;
-    bool sign = 1;
-    char c = utils_peek_char(err, input, 0);
-    if (c == '+' || c == '-')
-    {
-        sign = c == '-' ? 0 : 1;
-        utils_get_char(&internal_err, input); // eat sign
-        c = utils_peek_char(&internal_err, input, 0);
-    }
-    if (!isdigit(c))
-    {
-        *err = INVALID_SYMBOL;
-    }
-    else
-        while (isdigit(c))
-        {
-            exponent = exponent * 10.0 + (c - '0');
-
-            utils_get_char(&internal_err, input); // eat digit
-            c = utils_peek_char(&internal_err, input, 0);
-            if (c == '_')
-            {
-                utils_get_char(&internal_err, input); // eat underscore
-                c = utils_peek_char(&internal_err, input, 0);
-                if (!isdigit(c))
-                {
-                    *err = INVALID_SYMBOL;
-                    break;
-                }
-            }
-            else if (c == 'd' || c == 'D')
-            {
-                utils_get_char(&internal_err, input); // eat d
-                break;
-            }
-        }
-    if (int_part != 0.0)
-    {
-        int_part *= pow(10.0, (sign ? 1 : -1) * exponent);
-    }
-    return int_part;
 }

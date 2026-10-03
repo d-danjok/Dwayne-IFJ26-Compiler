@@ -30,7 +30,7 @@ typedef enum
     TOKEN_DOT,         // .
     TOKEN_COMMA,       // ,
     TOKEN_UNDERSCORE,  // _
-    TOKEN_DIVIDER,     // |
+    TOKEN_SEPARATOR,   // |
     TOKEN_OPEN_PAREN,  // (
     TOKEN_CLOSE_PAREN, // )
     TOKEN_COLON,       // :

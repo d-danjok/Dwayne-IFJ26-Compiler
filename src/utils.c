@@ -94,3 +94,39 @@ char utils_peek_char(error *err, FILE *stream, int offset)
     }
     return (char)c;
 }
+
+int utils_string_to_int(error *err, char *string)
+{
+    *err = NONE;
+
+    char *endptr;
+    long num = strtol(string, &endptr, 10);
+
+    if (*endptr != '\0')
+    {
+        *err = INTERNAL_WRONG_NUMERIC_FORMAT;
+        return 0;
+    }
+    if (num < INT_MIN || num > INT_MAX)
+    {
+        *err = INTERNAL_WRONG_NUMERIC_FORMAT;
+        return 0;
+    }
+    return (int)num;
+}
+
+double utils_string_to_double(error *err, char *string)
+{
+    *err = NONE;
+    errno = 0; // reset errno before calling strtod
+
+    char *endptr;
+    double num = strtod(string, &endptr);
+
+    if (endptr == string || *endptr != '\0' || errno == ERANGE || !isfinite(num))
+    {
+        *err = INTERNAL_WRONG_NUMERIC_FORMAT;
+        return 0;
+    }
+    return num;
+}

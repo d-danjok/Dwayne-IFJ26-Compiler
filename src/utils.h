@@ -8,6 +8,9 @@
 
 #include "error.h"
 
+#include <errno.h>
+#include <limits.h>
+#include <math.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,5 +45,17 @@ char utils_get_char(error *err, FILE *stream);
 // @param offset is a number of characters we want to skip
 // @return character if not EOF, if is returns `\0`
 char utils_peek_char(error *err, FILE *stream, int offset);
+
+// @brief function for converting string to integer
+// @param err is a pointer to error handling variable in calling function
+// @param string is a string we want to convert
+// @return integer value of string, if conversion fails returns 0 and sets error
+int utils_string_to_int(error *err, char *string);
+
+// @brief function for converting string to double
+// @param err is a pointer to error handling variable in calling function
+// @param string is a string we want to convert
+// @return double value of string, if conversion fails returns 0 and sets error
+double utils_string_to_double(error *err, char *string);
 
 #endif

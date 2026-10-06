@@ -110,7 +110,7 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
             break;
         case '\0':
             if (internal_err == INTERNAL_END_OF_FILE)
-            res.type = TOKEN_EOF;
+                res.type = TOKEN_EOF;
             else
                 *err = INVALID_SYMBOL;
             break;
@@ -365,6 +365,64 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
             res = lexer_get_next_token(self, err, STATE_STR);
         break;
     case STATE_END_OR_MULTIPLE:
+        c = lexer_peek_char(err, &internal_err, in, 0);
+        if (c == '"')
+        {
+            lexer_get_char(err, &internal_err, in, line);
+            res = lexer_get_next_token(self, err, STATE_MULTIPLE_STR);
+        }
+        else
+        {
+            self->buffer[0] = '\0';
+            res.type = TOKEN_STRING;
+            res.attribute_index = lexer_insert_string(self, err);
+        }
+        break;
+    case STATE_MULTIPLE_STR:
+        c = lexer_peek_char(err, &internal_err, in, 0);
+        if (c == '"')
+        {
+            res = lexer_get_next_token(self, err, STATE_QUOTE_1);
+        }
+        else if (c == '\0')
+        {
+            *err = UNFINISHED_STRING;
+        }
+        else
+        {
+            self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
+            res = lexer_get_next_token(self, err, STATE_MULTIPLE_STR);
+        }
+        break;
+    case STATE_QUOTE_1:
+        c = lexer_peek_char(err, &internal_err, in, 1);
+        if (c == '"')
+        {
+            res = lexer_get_next_token(self, err, STATE_QUOTE_2);
+        }
+        else
+        {
+            self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
+            res = lexer_get_next_token(self, err, STATE_MULTIPLE_STR);
+        }
+        break;
+    case STATE_QUOTE_2:
+        c = lexer_peek_char(err, &internal_err, in, 2);
+        if (c == '"')
+        {
+            lexer_get_char(err, &internal_err, in, line);
+            lexer_get_char(err, &internal_err, in, line);
+            lexer_get_char(err, &internal_err, in, line);
+            res.type = TOKEN_STRING;
+            self->buffer[self->buffer_index++] = '\0';
+            res.attribute_index = lexer_insert_string(self, err);
+        }
+        else
+        {
+            self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
+            self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
+            res = lexer_get_next_token(self, err, STATE_MULTIPLE_STR);
+        }
         break;
     case STATE_ESCAPE:
         c = lexer_get_char(err, &internal_err, in, line);
@@ -396,6 +454,57 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
         }
         break;
     case STATE_STR:
+        c = lexer_get_char(err, &internal_err, in, line);
+        if (c == '"')
+        {
+            res.type = TOKEN_STRING;
+            self->buffer[self->buffer_index++] = '\0';
+            res.attribute_index = lexer_insert_string(self, err);
+        }
+        else if (c == '\\')
+        {
+            res = lexer_get_next_token(self, err, STATE_ESCAPE);
+        }
+        else if (c == '\n' || c == '\0')
+        {
+            *err = UNFINISHED_STRING;
+        }
+        else
+        {
+            self->buffer[self->buffer_index++] = c;
+            res = lexer_get_next_token(self, err, STATE_STR);
+        }
+        break;
+    // NUMERIC
+    case STATE_INT:
+        break;
+    case STATE_UINT:
+        break;
+    case STATE_ZERO:
+        break;
+    case STATE_UZERO:
+        break;
+    case STATE_DOT:
+        break;
+    case STATE_DOT_OR_DOUBLE:
+        break;
+    case STATE_DOUBLE:
+        break;
+    case STATE_UDOUBLE:
+        break;
+    case STATE_EXP:
+        break;
+    case STATE_EXP_SIGN:
+        break;
+    case STATE_EXP_ZERO:
+        break;
+    case STATE_UEXP_ZERO:
+        break;
+    case STATE_EXP_PART:
+        break;
+    case STATE_UEXP_PART:
+        break;
+    case STATE_D_SUFF:
         break;
     }
 

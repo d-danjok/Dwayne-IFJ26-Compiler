@@ -9,6 +9,8 @@
 #include "token.h"
 
 #include <stdio.h>
+#include <stdbool.h>
+#include <stddef.h>
 
 #define BUFFER_SIZE 128
 typedef struct
@@ -20,7 +22,7 @@ typedef struct
     size_t buffer_capacity;
     int coment_depth;
     bool comment_sline;
-    int *current_line;
+    size_t *current_line;
 } lexer;
 
 typedef enum

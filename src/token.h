@@ -6,6 +6,7 @@
 #define TOKEN_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 typedef enum
 {
@@ -63,7 +64,7 @@ typedef struct
     // 2) in case of keyword: value of type of keyword enum
     // 3) in case of operator: value of type of operator enum
 
-    int line; // only for error messages
+    size_t line; // only for error messages(used size_t to avoid hypothetical overflow of int)
 } token;
 
 #define TOKEN_GET_VAL(token) // TODO: implement this using attribute_table_get_...

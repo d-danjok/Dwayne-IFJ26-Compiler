@@ -65,13 +65,18 @@ static int lexer_insert_identifier(lexer *self, error *err)
 }
 
 // @brief wrapper for utils_get_char which checks for internal errors and sets external error if so
-static char lexer_get_char(error *err, error *internal_err, FILE *in, int *line_ptr)
+static char lexer_get_char(error *err, error *internal_err, FILE *in, size_t *line_ptr)
 {
     if (*err != NONE)
         return '\0';
     char c = utils_get_char(internal_err, in);
     if (c == '\n' && line_ptr != NULL)
-        ++(*line_ptr);
+    {
+        if (*line_ptr == SIZE_MAX)
+            *internal_err = INTERNAL_INDEX_OUT_OF_BOUNDS;
+        else
+            ++(*line_ptr);
+    }
     lexer_check_error(err, *internal_err);
     return c;
 }
@@ -126,8 +131,8 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
 {
     FILE *in = self->input;
     error internal_err = NONE;
-    int *line = self->current_line;
-    int *strt_line = line;
+    size_t *line = self->current_line;
+    size_t *strt_line = line;
     char c;
     token res = {TOKEN_UNDEFINED, -1, 0};
     if (*err != NONE)

@@ -71,6 +71,15 @@ typedef enum
     STATE_WAITING_EOL
 } state;
 
+// @brief creates new attribute_table
+//
+// @param err - pointer to error variable(INTERNAL_MEMORY_ALLOCATION if creation fails)
+// @param input - stream from which lexer will read characters
+// @param attr_table - attribute table for storing token attributes
+//
+// @result - pointer to newly created lexer structure or NULL if creation fails
+lexer *new_lexer(error *err, FILE *input, attribute_table *attr_table);
+
 // @brief gets next token from input stream and returns it
 //
 // @param self - pointer to lexer structure

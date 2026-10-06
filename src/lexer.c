@@ -133,6 +133,31 @@ static bool lexer_expand_buffer(lexer *self, error *err)
     return true;
 }
 
+lexer *new_lexer(error *err, FILE *input, attribute_table *attr_table)
+{
+    if (input == NULL || attr_table == NULL || err == NULL)
+    {
+        if (err != NULL)
+            *err = INTERNAL_MEMORY_ALLOCATION;
+        return NULL;
+    }
+
+    lexer *self = utils_safe_malloc(err, sizeof(lexer));
+    if (self == NULL)
+        return NULL;
+
+    self->input = input;
+    self->attr_table = attr_table;
+    self->buffer = NULL;
+    self->buffer_index = 0;
+    self->buffer_capacity = 0;
+    self->coment_depth = 0;
+    self->comment_sline = false;
+    self->current_line = 0;
+
+    return self;
+}
+
 token lexer_get_next_token(lexer *self, error *err, state current_state)
 {
     FILE *in = self->input;

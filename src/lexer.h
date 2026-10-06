@@ -10,14 +10,20 @@
 
 #include <stdio.h>
 
+#define BUFFER_SIZE 128
 typedef struct
 {
     FILE *input;
     attribute_table *attr_table;
+    char *buffer;
+    size_t buffer_index;
+    size_t buffer_capacity;
+    int coment_depth;
+    bool comment_sline;
     int *current_line;
 } lexer;
 
-typedef enum 
+typedef enum
 {
     STATE_START,
     // Operators
@@ -35,23 +41,32 @@ typedef enum
     // Literals
     STATE_STR_START,
     STATE_END_OR_MULTIPLE,
+    STATE_MULTIPLE_STR,
+    STATE_QUOTE_1,
+    STATE_QUOTE_2,
     STATE_ESCAPE,
     STATE_STR,
 
     // Integer and double
     STATE_INT,
+    STATE_UINT,
     STATE_ZERO,
+    STATE_UZERO,
     STATE_DOT,
     STATE_DOT_OR_DOUBLE,
     STATE_DOUBLE,
-    STATE_LITERAL,
-    STATE_OPERATOR,
-    STATE_COMMENT,
-    STATE_WHITESPACE,
-    STATE_EOL,
+    STATE_UDOUBLE,
+    STATE_D_SUFF,
+    STATE_EXP,
+    STATE_EXP_ZERO,
+    STATE_UEXP_ZERO,
+    STATE_EXP_SIGN,
+    STATE_EXP_PART,
+    STATE_UEXP_PART,
+
     STATE_S_COMMENT,
     STATE_M_COMMENT,
-    STATE_EOF
+    STATE_WAITING_EOL
 } state;
 
 // @brief gets next token from input stream and returns it

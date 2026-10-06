@@ -477,34 +477,265 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
         break;
     // NUMERIC
     case STATE_INT:
+        c = lexer_peek_char(err, &internal_err, in, 0);
+        if (isdigit(c))
+        {
+            c = lexer_get_char(err, &internal_err, in, line);
+            self->buffer[self->buffer_index++] = c;
+            res = lexer_get_next_token(self, err, STATE_INT);
+        }
+        else if (c == '_')
+        {
+            lexer_get_char(err, &internal_err, in, line); // eat underscore
+            res = lexer_get_next_token(self, err, STATE_UINT);
+        }
+        else if (c == '.')
+        {
+            res = lexer_get_next_token(self, err, STATE_DOT_OR_DOUBLE);
+        }
+        else if (c == 'e' || c == 'E')
+        {
+            lexer_get_char(err, &internal_err, in, line); // eat e/E
+            self->buffer[self->buffer_index++] = c;
+            res = lexer_get_next_token(self, err, STATE_EXP);
+        }
+        else
+        {
+            res.type = TOKEN_INT;
+            self->buffer[self->buffer_index++] = '\0';
+            int result = utils_string_to_int(&internal_err, self->buffer);
+            if (!lexer_check_error(err, internal_err))
+                break;
+            res.attribute_index = attribute_table_insert_integer(self->attr_table, err, result);
+        }
+
         break;
     case STATE_UINT:
+        c = lexer_peek_char(err, &internal_err, in, 0);
+        if (isdigit(c))
+            res = lexer_get_next_token(self, err, STATE_INT);
+        else
+            *err = INVALID_SYMBOL;
         break;
+
     case STATE_ZERO:
+        c = lexer_peek_char(err, &internal_err, in, 0);
+        if (c == '0')
+        {
+            self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
+            res = lexer_get_next_token(self, err, STATE_ZERO);
+        }
+        else if (c == '.')
+        {
+            res = lexer_get_next_token(self, err, STATE_DOT_OR_DOUBLE);
+        }
+        else if (c == '_')
+        {
+            lexer_get_char(err, &internal_err, in, line);
+            res = lexer_get_next_token(self, err, STATE_UZERO);
+        }
+        else if (c == 'e' || c == 'E')
+        {
+            lexer_get_char(err, &internal_err, in, line);
+            self->buffer[self->buffer_index++] = c;
+            res = lexer_get_next_token(self, err, STATE_EXP);
+        }
+        else
+        {
+            if (!lexer_check_error(err, internal_err))
+                break;
+            res.type = TOKEN_INT;
+            res.attribute_index = attribute_table_insert_integer(self->attr_table, err, 0);
+        }
         break;
     case STATE_UZERO:
+        c = lexer_peek_char(err, &internal_err, in, 0);
+        if (c == '0')
+            res = lexer_get_next_token(self, err, STATE_ZERO);
+        else
+            *err = INVALID_SYMBOL;
         break;
+
     case STATE_DOT:
+        if (isdigit(lexer_peek_char(err, &internal_err, in, 0)))
+        {
+            res = lexer_get_next_token(self, err, STATE_DOUBLE);
+        }
+        else
+        {
+            res.type = TOKEN_DOT;
+        }
         break;
-    case STATE_DOT_OR_DOUBLE:
+    case STATE_DOT_OR_DOUBLE: // current char is dot
+        if (isdigit(lexer_peek_char(err, &internal_err, in, 1)))
+        {
+            self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
+            res = lexer_get_next_token(self, err, STATE_DOUBLE);
+        }
+        else
+        {
+            // process as integer and dot separately if there is no digit after dot
+            res.type = TOKEN_INT;
+            self->buffer[self->buffer_index++] = '\0';
+            int result = utils_string_to_int(&internal_err, self->buffer);
+            if (!lexer_check_error(err, internal_err))
+                break;
+            res.attribute_index = attribute_table_insert_integer(self->attr_table, err, result);
+        }
         break;
+
     case STATE_DOUBLE:
+        c = lexer_peek_char(err, &internal_err, in, 0);
+        if (isdigit(c))
+        {
+            self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
+            res = lexer_get_next_token(self, err, STATE_DOUBLE);
+        }
+        else if (c == '_')
+        {
+            lexer_get_char(err, &internal_err, in, line);
+            res = lexer_get_next_token(self, err, STATE_UDOUBLE);
+        }
+        else if (c == 'e' || c == 'E')
+        {
+            lexer_get_char(err, &internal_err, in, line);
+            self->buffer[self->buffer_index++] = c;
+            res = lexer_get_next_token(self, err, STATE_EXP);
+        }
+        else if (c == 'd' || c == 'D')
+        {
+            lexer_get_char(err, &internal_err, in, line);
+            res = lexer_get_next_token(self, err, STATE_D_SUFF);
+        }
+        else
+        {
+            res.type = TOKEN_DOUBLE;
+            self->buffer[self->buffer_index++] = '\0';
+            double result = utils_string_to_double(&internal_err, self->buffer);
+            if (!lexer_check_error(err, internal_err))
+                break;
+            res.attribute_index = attribute_table_insert_double(self->attr_table, err, result);
+        }
         break;
     case STATE_UDOUBLE:
+        c = lexer_peek_char(err, &internal_err, in, 0);
+        if (isdigit(c))
+            res = lexer_get_next_token(self, err, STATE_DOUBLE);
+        else
+            *err = INVALID_SYMBOL;
         break;
+
     case STATE_EXP:
+        c = lexer_peek_char(err, &internal_err, in, 0);
+        if (c == '0')
+        {
+            res = lexer_get_next_token(self, err, STATE_EXP_ZERO);
+        }
+        else if (isdigit(c))
+        {
+
+            self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
+            res = lexer_get_next_token(self, err, STATE_EXP_PART);
+        }
+        else if (c == '+' || c == '-')
+        {
+            res = lexer_get_next_token(self, err, STATE_EXP_SIGN);
+        }
+        else
+            *err = INVALID_SYMBOL;
         break;
-    case STATE_EXP_SIGN:
-        break;
+
     case STATE_EXP_ZERO:
+        c = lexer_peek_char(err, &internal_err, in, 0);
+        if (c == '0')
+        {
+            self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
+            res = lexer_get_next_token(self, err, STATE_EXP_ZERO);
+        }
+        else if (c == '_')
+        {
+            lexer_get_char(err, &internal_err, in, line);
+            res = lexer_get_next_token(self, err, STATE_UEXP_ZERO);
+        }
+        else if (c == 'd' || c == 'D')
+        {
+            lexer_get_char(err, &internal_err, in, line);
+            res = lexer_get_next_token(self, err, STATE_D_SUFF);
+        }
+        else
+        {
+            res.type = TOKEN_DOUBLE;
+            self->buffer[self->buffer_index++] = '\0';
+            double result = utils_string_to_double(&internal_err, self->buffer);
+            if (!lexer_check_error(err, internal_err))
+                break;
+            res.attribute_index = attribute_table_insert_double(self->attr_table, err, result);
+        }
         break;
     case STATE_UEXP_ZERO:
+        c = lexer_peek_char(err, &internal_err, in, 0);
+        if (c == '0')
+            res = lexer_get_next_token(self, err, STATE_EXP_ZERO);
+        else
+            *err = INVALID_SYMBOL;
         break;
+
+    case STATE_EXP_SIGN:
+        self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
+        c = lexer_peek_char(err, &internal_err, in, 0);
+        if (c == '0')
+        {
+            res = lexer_get_next_token(self, err, STATE_EXP_ZERO);
+        }
+        else if (isdigit(c))
+            res = lexer_get_next_token(self, err, STATE_EXP_PART);
+        else
+            *err = INVALID_SYMBOL;
+        break;
+
     case STATE_EXP_PART:
+        c = lexer_peek_char(err, &internal_err, in, 0);
+        if (isdigit(c))
+        {
+            self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
+            res = lexer_get_next_token(self, err, STATE_EXP_PART);
+        }
+        else if (c == '_')
+        {
+            lexer_get_char(err, &internal_err, in, line);
+            res = lexer_get_next_token(self, err, STATE_UEXP_PART);
+        }
+        else if (c == 'd' || c == 'D')
+        {
+            lexer_get_char(err, &internal_err, in, line);
+            res = lexer_get_next_token(self, err, STATE_D_SUFF);
+        }
+        else
+        {
+            res.type = TOKEN_DOUBLE;
+            self->buffer[self->buffer_index++] = '\0';
+            double result = utils_string_to_double(&internal_err, self->buffer);
+            if (!lexer_check_error(err, internal_err))
+                break;
+            res.attribute_index = attribute_table_insert_double(self->attr_table, err, result);
+        }
         break;
     case STATE_UEXP_PART:
+        c = lexer_peek_char(err, &internal_err, in, 0);
+        if (isdigit(c))
+        {
+            res = lexer_get_next_token(self, err, STATE_EXP_PART);
+        }
+        else
+            *err = INVALID_SYMBOL;
         break;
     case STATE_D_SUFF:
+        res.type = TOKEN_DOUBLE;
+        self->buffer[self->buffer_index++] = '\0';
+        double result = utils_string_to_double(&internal_err, self->buffer);
+        if (!lexer_check_error(err, internal_err))
+            break;
+        res.attribute_index = attribute_table_insert_double(self->attr_table, err, result);
         break;
     }
 

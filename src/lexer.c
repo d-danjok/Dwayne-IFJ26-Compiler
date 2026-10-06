@@ -90,24 +90,30 @@ static char lexer_peek_char(error *err, error *internal_err, FILE *in, int offse
     return c;
 }
 
+// @brief Reserves two writable bytes at the current buffer index(expanding the buffer if necessary)
+//
+// @param self Its buffer, index(must not exceed the allocation size), and capacity must be initialized.
+//             The buffer must be NULL or realloc-compatible.
+//             Zero capacity forces allocation before the next write.
+// @param err The pointed-to error must be NONE before the call.
+//            Receives INTERNAL_MEMORY_ALLOCATION on failure.
+// @return true if two bytes fit, false on allocation failure or size overflow.
+// @note On failure, the existing allocation remains valid.
 static bool lexer_expand_buffer(lexer *self, error *err)
 {
-    // A state appends at most two characters before the next transition.
-    if (self->buffer_index > SIZE_MAX - 2)
+    if (self->buffer_index > SIZE_MAX - 2) // drop if we are too close to the limit of size_t
     {
         *err = INTERNAL_MEMORY_ALLOCATION;
         return false;
     }
     size_t required = self->buffer_index + 2;
-    if (self->buffer == NULL)
+    if (self->buffer == NULL) // If the buffer is NULL, we need to allocate it.
         self->buffer_capacity = 0;
-    else if (self->buffer_capacity == 0)
-        self->buffer_capacity = BUFFER_SIZE;
-    if (required <= self->buffer_capacity)
+    if (required <= self->buffer_capacity) // Already enough space.
         return true;
 
     size_t capacity = self->buffer_capacity ? self->buffer_capacity : BUFFER_SIZE;
-    while (capacity < required)
+    while (capacity < required) // Double the capacity until it is enough, but avoid overflow.
     {
         if (capacity > SIZE_MAX / 2)
         {

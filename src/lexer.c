@@ -8,8 +8,12 @@
 #include "utils.h"
 
 #include <ctype.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+// notes: integer followed by dot(1.) -> becomes int(1) and dot(.)
+//  TODO: rewrite get_next_token to use loop instead of recursion to avoid stack overflow
 
 // ------ HELPERS -------
 
@@ -81,6 +85,43 @@ static char lexer_peek_char(error *err, error *internal_err, FILE *in, int offse
     return c;
 }
 
+static bool lexer_expand_buffer(lexer *self, error *err)
+{
+    // A state appends at most two characters before the next transition.
+    if (self->buffer_index > SIZE_MAX - 2)
+    {
+        *err = INTERNAL_MEMORY_ALLOCATION;
+        return false;
+    }
+    size_t required = self->buffer_index + 2;
+    if (self->buffer == NULL)
+        self->buffer_capacity = 0;
+    else if (self->buffer_capacity == 0)
+        self->buffer_capacity = BUFFER_SIZE;
+    if (required <= self->buffer_capacity)
+        return true;
+
+    size_t capacity = self->buffer_capacity ? self->buffer_capacity : BUFFER_SIZE;
+    while (capacity < required)
+    {
+        if (capacity > SIZE_MAX / 2)
+        {
+            capacity = required;
+            break;
+        }
+        capacity *= 2;
+    }
+    char *buffer = realloc(self->buffer, capacity);
+    if (buffer == NULL)
+    {
+        *err = INTERNAL_MEMORY_ALLOCATION;
+        return false;
+    }
+    self->buffer = buffer;
+    self->buffer_capacity = capacity;
+    return true;
+}
+
 token lexer_get_next_token(lexer *self, error *err, state current_state)
 {
     FILE *in = self->input;
@@ -93,6 +134,8 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
         return res;
     if (current_state == STATE_START)
         self->buffer_index = 0;
+    if (!lexer_expand_buffer(self, err))
+        return res;
 
     // ---- FSM implementation ----
     switch (current_state)
@@ -465,7 +508,7 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
         {
             res = lexer_get_next_token(self, err, STATE_ESCAPE);
         }
-        else if (c == '\n' || c == '\0')
+        else if (c == '\n' || c== '\0')
         {
             *err = UNFINISHED_STRING;
         }

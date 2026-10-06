@@ -42,7 +42,7 @@ static int lexer_insert_string(lexer *self, error *err)
         return -1;
     memcpy(string, self->buffer, size);
     int index = attribute_table_insert_string(self->attr_table, err, &string);
-    free(string);
+    free(string); // used free cause utils_safe_free(&string) sets string to NULL
     return index;
 }
 
@@ -60,7 +60,7 @@ static int lexer_insert_identifier(lexer *self, error *err)
         return -1;
     memcpy(string, self->buffer, size);
     int index = attribute_table_insert_identifier(self->attr_table, err, &string);
-    free(string);
+    free(string); // used free cause utils_safe_free(&string) sets string to NULL
     return index;
 }
 

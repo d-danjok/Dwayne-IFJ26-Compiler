@@ -1,0 +1,2 @@
+1) I chose quadruple format of TAI over truples or indirect-truples, because for me it is the easiest to implement and understand.
+2) I created layout and definitions for the first iteration. Maybe gonna reimplement get_curr_instruction, as it is too strange and can be bad for optimalization phase.

@@ -4,12 +4,30 @@
 #ifndef TAC
 #define TAC
 
+// @brief Enum of possible operation in TAC
+typedef enum op
+{
+    PLUS,
+    MINUS,
+    UMINUS,
+    MUL,
+    DIV,
+    CALL,
+    GOTO,
+    PARAM,
+    ASSIGNMENT,
+    RETURN,
+    IF_STM,
+    LABEL,
+
+} Operator;
+
 // @brief Structure of Three Adress Instruction (Quadruple)
 typedef struct tac
 {
-    char *op;   // Operation (+,-, =, goto, call)
-    char *arg1; // Pointer to item in symtable
-    char *arg2; // Pointer to item in symtable
+    Operator op; // Operation (+,-, =, goto, call)
+    char *arg1;  // Pointer to item in symtable
+    char *arg2;  // Pointer to item in symtable
     char *result;
     struct tac *next_instuction;
 
@@ -52,5 +70,7 @@ void append_instruction(tac_list_ptr list, ta_instruction_ptr ir_node);
 // @param &err - error, op - operation, arg1 - first operand,
 // arg2 - second operand, result - operand to be assigned
 ta_instruction_ptr create_instruction(error *err, char *op, char *arg1, char *arg2, char *result);
+
+ta_instruction_ptr traverse_postorder(void *ast, tac_list_ptr list);
 
 #endif /*TAC*/

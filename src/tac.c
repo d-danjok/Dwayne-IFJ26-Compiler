@@ -1,79 +1,89 @@
 // @brief Implementation of TAC (Three Adress Code)
-// @author Created by Oleksandr Fedorenko (xfedoro00)
+// @author Oleksandr Fedorenko (xfedoro00)
 
 #include "tac.h"
 #include "utils.h"
 
-void ta_list_init(tac_list_ptr list)
+tac_list *new_tac_list(error *err)
 {
+    *err = NONE;
+    tac_list *list = (tac_list *)utils_safe_malloc(err, sizeof(tac_list));
+
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
     list->size = 0;
     list->curr_instruction = NULL;
     list->first_instruction = NULL;
     list->last_instruction = NULL;
+
+    return list;
 }
 
-bool isEmpty(tac_list_ptr list)
+bool is_empty(tac_list *self)
 {
-    return list->first_instruction == NULL;
+    return self->first_instruction == NULL;
 }
 
 // TODO: Implement this when I'll have enough information
-ta_instruction_ptr create_instruction(error *err, char *op, char *arg1, char *arg2, char *result)
+tac_instruction *create_instruction(error *err, char *op, char *arg1, char *arg2, char *result)
 {
     *err = NONE;
-    ta_instruction_ptr new_ir_node = (ta_instruction_ptr)utils_safe_malloc(err, sizeof(ta_instruction));
+    tac_instruction *new_ir_node = (tac_instruction *)utils_safe_malloc(err, sizeof(tac_instruction));
     if (*err != NONE)
     {
-        return;
+        return NULL;
     }
     new_ir_node->next_instuction = NULL;
     return;
 }
 
-void append_instruction(tac_list_ptr list, ta_instruction_ptr ir_node)
+void append_instruction(tac_list *self, tac_instruction *ir_node)
 {
-    if (isEmpty(list))
+    if (isEmpty(self))
     {
-        list->first_instruction = ir_node;
-        list->curr_instruction = ir_node;
-        list->last_instruction = ir_node;
-        list->size = 1;
+        self->first_instruction = ir_node;
+        self->curr_instruction = ir_node;
+        self->last_instruction = ir_node;
+        self->size = 1;
         return;
     }
 
-    list->last_instruction->next_instuction = ir_node;
-    list->last_instruction = ir_node;
+    self->last_instruction->next_instuction = ir_node;
+    self->last_instruction = ir_node;
 
-    list->size += 1;
+    self->size += 1;
     return;
 }
 
-ta_instruction_ptr get_curr_instruction(tac_list_ptr list)
+tac_instruction *get_curr_instruction(tac_list *self)
 {
-    if (isEmpty(list) || list->curr_instruction == NULL)
+    if (isEmpty(self) || self->curr_instruction == NULL)
     {
         return NULL;
     }
-    if (list->size == 1)
+    if (self->size == 1)
     {
-        list->curr_instruction = NULL;
-        return list->first_instruction;
+        self->curr_instruction = NULL;
+        return self->first_instruction;
     }
 
-    ta_instruction_ptr tmp = list->curr_instruction;
-    list->curr_instruction = tmp->next_instuction;
+    tac_instruction *tmp = self->curr_instruction;
+    self->curr_instruction = tmp->next_instuction;
     return tmp;
 }
 
-ta_instruction_ptr peek_next_instruction(tac_list_ptr list)
+tac_instruction *peek_next_instruction(tac_list *self)
 {
-    if (isEmpty(list))
+    if (isEmpty(self))
     {
         return NULL;
     }
-    if (list->curr_instruction == NULL)
+    if (self->curr_instruction == NULL)
     {
         return NULL;
     }
-    return list->curr_instruction;
+    return self->curr_instruction;
 }

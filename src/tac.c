@@ -58,7 +58,7 @@ void append_instruction(tac_list *self, tac_instruction *ir_node)
     return;
 }
 
-tac_instruction *get_curr_instruction(tac_list *self)
+tac_instruction *tac_get_curr_instruction(tac_list *self)
 {
     if (isEmpty(self) || self->curr_instruction == NULL)
     {
@@ -75,7 +75,7 @@ tac_instruction *get_curr_instruction(tac_list *self)
     return tmp;
 }
 
-tac_instruction *peek_next_instruction(tac_list *self)
+tac_instruction *tac_peek_next_instruction(error *err, tac_list *self)
 {
     if (isEmpty(self))
     {

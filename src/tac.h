@@ -44,25 +44,18 @@ typedef struct tac_list
 
 // @brief Initialize new tac_list
 // @return Pointer to the new initialized list
-tac_list *new_tac_list();
+tac_list *new_tac_list(error *err);
 
 // @brief Destroy tac_list
 void tac_list_destruct(tac_list *self);
 
 // @brief Gets current instruction and moves pointer to the next one
 // @return Pointer to current_instruction in the list
-tac_instruction *get_curr_instruction(tac_list *self);
+tac_instruction *tac_get_curr_instruction(tac_list *self);
 
 // @brief Gets instruction after current and DO NOT moves pointer.
 // Must be used ONLY after get_curr_instruction!!!
 // @return Pointer to the instruction after current
-tac_instruction *peek_next_instruction(tac_list *self);
-
-// @brief Create a new instruction
-// @param op -> operation, arg1 -> first operand,
-// arg2 -> second operand, result -> operand to be assigned
-tac_instruction *create_instruction(error *err, char *op, char *arg1, char *arg2, char *result);
-
-tac_instruction *traverse_postorder(void *ast, tac_list *self);
+tac_instruction *tac_peek_next_instruction(error *err, tac_list *self);
 
 #endif /*TAC_H*/

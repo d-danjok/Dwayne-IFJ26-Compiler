@@ -77,7 +77,7 @@ int main()
     }
     symtable_destruct(&symb_tab); // no longer needed TODO: delete this and rework if you understand it is needed
 
-    tac *tac_list = tac_generate(&err, &parser_tree, attr_tab);
+    tac *tac_list = tac_generate(&err, &ast, attr_tab);
     if (err != NONE)
     {
         err = convert_err_for_program_return(err);

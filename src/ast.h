@@ -9,16 +9,82 @@
 
 typedef enum
 {
-    PROGRAM,
-} ast_node_type; // TODO: add rest of node types
+    UNDEFINED,
 
-typedef struct ast_node_s
+    PROGRAM,
+    DEF_LIST,
+    VAL_DEF,
+    VAR_DEF,
+    DEF_BODY,
+    FUNC_DEF,
+    MAIN_FUNC_DEF, // main_func
+    FUNC_START,
+    FUNC_NAME,
+    FUNC_HEAD,
+    PARAM_LIST,
+    PARAM_LIST_, // param_list'
+    PARAM,
+    FUNC_BODY,
+    BLOCK,
+    STAT_LIST,
+    STAT_LIST_, // stat_list'
+    STATEMENT,
+    DEFINITION,
+    ASSIGN_VAL,
+    FUNC_CALL,
+    CALL_PARAMS,
+    CALL_PARAMS_, // call_params'
+    CALL_PARAM,
+    WHILE,
+    IF_ELSE,
+    RETURN,
+
+    UNARY_OPERATION,
+    BINARY_OPERATION,
+
+    LITERAL, // Int, Double, Bool, Unit, String
+    IDENTIFIER,
+} ast_node_type;
+
+typedef enum
+{
+    AST_TYPE_NONE, // for not literal
+    AST_TYPE_INT,
+    AST_TYPE_DOUBLE,
+    AST_TYPE_STRING,
+    AST_TYPE_UNIT,
+    AST_TYPE_BOOLEAN,
+} ast_literal_type;
+
+typedef enum
+{
+    AST_OP_NONE, // not operation
+    AST_OP_PLUS,
+    AST_OP_MINUS,
+    AST_OP_MINUS_UNARY,
+    AST_OP_MULT,
+    AST_OP_DIV,
+    AST_OP_GREATER,       //	>
+    AST_OP_GREATER_EQUAL, //	>=
+    AST_OP_LESS,          //	<
+    AST_OP_LESS_EQUAL,    //	<=
+    AST_OP_EQUAL,         //	==
+    AST_OP_NOT_EQUAL,     //	!=
+} ast_operator;
+
+typedef struct ast_node_s // TODO: implement this fully, mb add missing fields
 {
     ast_node_type type;
 
-    struct ast_node_s *left_child;
+    struct ast_node_s *left_child; // for unary is only child
     struct ast_node_s *right_child;
-} ast_node; // TODO: implement this fully, mb add missing fields
+
+    // fields for literal/identifier
+    ast_literal_type literal_type;
+    int attribute_index; // for literal
+
+    ast_operator operator; // for operations
+} ast_node;
 
 // @brief creating new dynamically allocated ast_node
 //
@@ -26,6 +92,6 @@ typedef struct ast_node_s
 ast_node *new_ast_node(error *err);
 
 // @brief frees node and all it's children
-void ast_node_destruct_recursively(ast_node *self);
+void ast_node_destruct_recursively(ast_node **self);
 
 #endif

@@ -6,6 +6,7 @@
 #ifndef AST_H
 #define AST_H
 #include "error.h"
+#include "token.h"
 
 typedef enum
 {
@@ -49,11 +50,11 @@ typedef enum
 typedef enum
 {
     AST_TYPE_NONE, // for not literal
-    AST_TYPE_INT,
-    AST_TYPE_DOUBLE,
-    AST_TYPE_STRING,
-    AST_TYPE_UNIT,
-    AST_TYPE_BOOLEAN,
+    AST_TYPE_INT = TOKEN_INT,
+    AST_TYPE_DOUBLE = TOKEN_DOUBLE,
+    AST_TYPE_STRING = TOKEN_STRING,
+    AST_TYPE_UNIT = TOKEN_UNIT,
+    AST_TYPE_BOOLEAN = TOKEN_BOOLEAN,
 } ast_literal_type;
 
 typedef enum
@@ -72,7 +73,7 @@ typedef enum
     AST_OP_NOT_EQUAL,     //	!=
 } ast_operator;
 
-typedef struct ast_node_s // TODO: implement this fully, mb add missing fields
+typedef struct ast_node_s
 {
     ast_node_type type;
 
@@ -80,8 +81,8 @@ typedef struct ast_node_s // TODO: implement this fully, mb add missing fields
     struct ast_node_s *right_child;
 
     // fields for literal/identifier
-    ast_literal_type literal_type;
-    int attribute_index; // for literal
+    ast_literal_type literal_type; //also represents function return type
+    int attribute_index; // for literals
 
     ast_operator operator; // for operations
 } ast_node;

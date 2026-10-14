@@ -8,11 +8,11 @@
 #include "error.h"
 #include "token.h"
 
-#include <stdio.h>
 #include <stdbool.h>
 #include <stddef.h>
 
 #define BUFFER_SIZE 128
+
 typedef struct
 {
     FILE *input;

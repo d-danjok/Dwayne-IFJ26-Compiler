@@ -5,6 +5,8 @@
 
 #ifndef AST_H
 #define AST_H
+#include <stddef.h>
+
 #include "error.h"
 #include "token.h"
 
@@ -86,7 +88,7 @@ typedef struct ast_node_s
 
     ast_operator operator; // for operations
 
-    int src_line_number; // token line representation for compiler error
+    size_t src_line_number; // token line representation for compiler error
 } ast_node;
 
 // @brief creating new dynamically allocated ast_node

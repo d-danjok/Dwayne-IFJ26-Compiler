@@ -4,12 +4,15 @@
 #ifndef TAC_H
 #define TAC_H
 
+#include "utils.h"
+
+
 // @brief Enum of possible operation in TAC
 typedef enum op
 {
     PLUS,
     MINUS,
-    UMINUS,
+    UNARY_MINUS,
     MUL,
     DIV,
     CALL,
@@ -19,21 +22,21 @@ typedef enum op
     RETURN,
     IF_STM,
     LABEL,
-} operator;
+} t_operator;
 
-// @brief Structure of Three Adress Instruction (Quadruple)
-typedef struct tac
+// @brief Structure of Three Address Instruction (Quadruple)
+typedef struct tac_instruction_s
 {
-    operator op; // Operation (+,-, =, goto, call)
+    t_operator op; // Operation (+,-, =, goto, call)
     char *arg1;  // Pointer to item in symtable
     char *arg2;  // Pointer to item in symtable
     char *result;
-    struct tac *next_instuction;
+    struct tac_instruction_s *next_instruction;
 
 } tac_instruction;
 
 // @brief Structure of TAC (All instruction in linked list)
-typedef struct tac_list
+typedef struct tac_list_s
 {
     long size;
     tac_instruction *first_instruction;

@@ -1,8 +1,6 @@
-// @brief Implementation of TAC (Three Adress Code)
+// @brief Implementation of TAC (Three Address Code)
 // @author Oleksandr Fedorenko (xfedoro00)
-
 #include "tac.h"
-#include "utils.h"
 
 tac_list *new_tac_list(error *err)
 {
@@ -22,13 +20,13 @@ tac_list *new_tac_list(error *err)
     return list;
 }
 
-bool is_empty(tac_list *self)
+static bool is_empty(tac_list *self)
 {
     return self->first_instruction == NULL;
 }
 
 // TODO: Implement this when I'll have enough information
-tac_instruction *create_instruction(error *err, char *op, char *arg1, char *arg2, char *result)
+static tac_instruction *create_instruction(error *err, char *op, char *arg1, char *arg2, char *result)
 {
     *err = NONE;
     tac_instruction *new_ir_node = (tac_instruction *)utils_safe_malloc(err, sizeof(tac_instruction));
@@ -36,13 +34,14 @@ tac_instruction *create_instruction(error *err, char *op, char *arg1, char *arg2
     {
         return NULL;
     }
-    new_ir_node->next_instuction = NULL;
+    new_ir_node->next_instruction = NULL;
+
     return;
 }
 
-void append_instruction(tac_list *self, tac_instruction *ir_node)
+static void append_instruction(tac_list *self, tac_instruction *ir_node)
 {
-    if (isEmpty(self))
+    if (is_empty(self))
     {
         self->first_instruction = ir_node;
         self->curr_instruction = ir_node;
@@ -51,7 +50,7 @@ void append_instruction(tac_list *self, tac_instruction *ir_node)
         return;
     }
 
-    self->last_instruction->next_instuction = ir_node;
+    self->last_instruction->next_instruction = ir_node;
     self->last_instruction = ir_node;
 
     self->size += 1;
@@ -60,7 +59,7 @@ void append_instruction(tac_list *self, tac_instruction *ir_node)
 
 tac_instruction *tac_get_curr_instruction(tac_list *self)
 {
-    if (isEmpty(self) || self->curr_instruction == NULL)
+    if (is_empty(self) || self->curr_instruction == NULL)
     {
         return NULL;
     }
@@ -71,13 +70,13 @@ tac_instruction *tac_get_curr_instruction(tac_list *self)
     }
 
     tac_instruction *tmp = self->curr_instruction;
-    self->curr_instruction = tmp->next_instuction;
+    self->curr_instruction = tmp->next_instruction;
     return tmp;
 }
 
 tac_instruction *tac_peek_next_instruction(error *err, tac_list *self)
 {
-    if (isEmpty(self))
+    if (is_empty(self))
     {
         return NULL;
     }

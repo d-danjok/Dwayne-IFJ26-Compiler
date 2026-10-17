@@ -6,6 +6,7 @@
 
 #include "attribute_table.h"
 #include "error.h"
+#include "stack.h"
 #include "token.h"
 
 #include <stdbool.h>
@@ -22,7 +23,9 @@ typedef struct
     size_t buffer_capacity;
     int coment_depth;
     bool comment_sline;
-    size_t *current_line;
+    stack *indent_size_s;
+    int indent_cnt;
+    size_t current_line;
 } lexer;
 
 typedef enum
@@ -68,17 +71,27 @@ typedef enum
 
     STATE_S_COMMENT,
     STATE_M_COMMENT,
-    STATE_WAITING_EOL
+    STATE_WAITING_EOL,
+
+    STATE_EOL, // to detect indentation and dedentation, but not to return it as a
+    STATE_INDENT_DIV,
+    // token
 } state;
 
 // @brief creates new attribute_table
 //
-// @param err - pointer to error variable(INTERNAL_MEMORY_ALLOCATION if creation fails)
+// @param err - pointer to error variable(INTERNAL_MEMORY_ALLOCATION if creation
+// fails)
 // @param input - stream from which lexer will read characters
 // @param attr_table - attribute table for storing token attributes
 //
 // @result - pointer to newly created lexer structure or NULL if creation fails
 lexer *new_lexer(error *err, FILE *input, attribute_table *attr_table);
+
+// @brief frees lexer and its internal buffers (does not close input or free attr_table)
+//
+// @param self - pointer to lexer pointer, set to NULL after freeing
+void lexer_destruct(lexer **self);
 
 // @brief gets next token from input stream and returns it
 //

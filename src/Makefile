@@ -24,7 +24,7 @@ fmt-check:
 PYTHON ?= python3
 TEST_ARGS ?=
 
-.PHONY: test-lexer test-lexer-sanitize test-lexer-all
+.PHONY: test-lexer test-lexer-sanitize test-lexer-all test-lexer-pretty
 test-lexer:
 	@CC="$(CC)" $(PYTHON) ../tests/lexer/run.py $(TEST_ARGS)
 
@@ -33,3 +33,6 @@ test-lexer-sanitize:
 
 test-lexer-all:
 	@CC="$(CC)" $(PYTHON) ../tests/lexer/run.py --all-modes $(TEST_ARGS)
+
+test-lexer-pretty:
+	@CC="$(CC)" $(PYTHON) ../tests/lexer/pretty.py --run $(TEST_ARGS)

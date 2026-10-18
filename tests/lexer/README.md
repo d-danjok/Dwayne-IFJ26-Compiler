@@ -8,6 +8,25 @@ make -C src test-lexer-sanitize
 make -C src test-lexer-all
 ```
 
+To read the results in the terminal with colors, render the report with `pretty.py`:
+
+```sh
+make -C src test-lexer-pretty                    # run the tests, then render the report
+make -C src test-lexer-pretty TEST_ARGS=--all-modes
+python3 tests/lexer/pretty.py                    # render an existing test.output
+python3 tests/lexer/pretty.py -q                 # build, failed names and totals only
+python3 tests/lexer/pretty.py -v -k integration/ # full details for matching cases
+python3 tests/lexer/pretty.py --run --case double/ | less -R
+```
+
+It shows the build result with compiler diagnostics, a pass bar per case group, and for
+each failure the mismatches plus an aligned expected/actual token table (`~` changed,
+`-` missing, `+` extra token; matching runs are collapsed unless `-v`). In an
+`--all-modes` report, sanitizer failures identical to the ordinary run are listed by
+name only. Colors are used on a terminal unless `NO_COLOR` is set; force them with
+`--color always`. Exit status matches `run.py`: `0` all pass, `1` failures, `2` build
+or report error.
+
 To include only failed cases in `test.output`:
 
 ```sh
@@ -97,8 +116,11 @@ Module/API conventions are identified explicitly in each case's reference;
 the assignment does not prescribe C enum names, constructor internals, or the
 representation of source positions. These checks must not be read as quotations
 of the language specification.
-They explicitly use paired parenthesis tokens for `()` and physical `TOKEN_EOL`
-tokens. Line metadata expectations use 1-based token start lines, with the caller
+They explicitly use paired parenthesis tokens for `()` and logical-line `TOKEN_EOL`
+tokens: `logical_lines()` in `run.py` keeps an EOL only after a line that produced a token
+(blank and comment-only lines emit none), drops EOLs inside parentheses, and expects a
+synthesized EOL before EOF when the last line has no final LF. The integration programs
+also expect INDENT/DEDENT. Line metadata expectations use 1-based token start lines, with the caller
 installing `current_line`. The semicolon case expects `TOKEN_SEPARATOR`; the header
 currently documents that token only for `|`, so its meaning must be coordinated
 with the parser. Keyword attribute IDs cannot yet be checked because no keyword

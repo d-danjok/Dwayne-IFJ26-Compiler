@@ -49,6 +49,35 @@ def t(kind, value=None, line=None):
     return Token("TOKEN_" + kind, value, line)
 
 
+def logical_lines(expected, at_eof):
+    """Apply the lexer's logical-line EOL policy to a physical-EOL expectation.
+
+    EOL ends only a line that produced a content token (blank/comment-only lines emit nothing),
+    is suppressed inside parentheses, and is synthesized at EOF after an unterminated last line
+    (only when the scan reaches EOF, i.e. not for a prefix that ends in a lexical error).
+    INDENT/DEDENT are layout tokens and never count as line content.
+    """
+    result = []
+    depth = 0
+    has_content = False
+    for token in expected:
+        if token.kind == "TOKEN_EOL":
+            if depth == 0 and has_content:
+                result.append(token)
+                has_content = False
+            continue
+        if token.kind == "TOKEN_OPEN_PAREN":
+            depth += 1
+        elif token.kind == "TOKEN_CLOSE_PAREN":
+            depth = max(0, depth - 1)
+        result.append(token)
+        if token.kind not in ("TOKEN_INDENT", "TOKEN_DEDENT"):
+            has_content = True
+    if at_eof and has_content:
+        result.append(t("EOL"))
+    return tuple(result)
+
+
 def cases():
     """Requirements-based fixtures; no expected-failure exemptions."""
     result = []
@@ -56,12 +85,12 @@ def cases():
     def add(name, source, expected=(), reason="", reference=LEXICAL, error=0, pipe=False, api=""):
         if isinstance(source, str):
             source = source.encode("ascii")
-        expected = tuple(expected)
+        expected = logical_lines(expected, at_eof=not error)
         if not error and not api:
             expected += (t("EOF"), t("EOF"))
         result.append(Case(name, source, expected, reason, reference, error, pipe, api))
 
-    for name in ("constructor", "null_input", "null_table", "null_error", "sticky_error", "null_line",
+    for name in ("constructor", "null_input", "null_table", "null_error", "sticky_error", "initial_line",
                  "independent_instances", "attribute_lifetime"):
         add("api/" + name, "", reason={
             "constructor": "Constructor preserves borrowed input/table and initializes all scanner fields.",
@@ -69,7 +98,7 @@ def cases():
             "null_table": "NULL table is rejected without dereferencing it (current constructor contract).",
             "null_error": "NULL error pointer is rejected without dereferencing it.",
             "sticky_error": "An existing error returns UNDEFINED without consuming input or overwriting the error.",
-            "null_line": "Constructor's optional NULL line pointer is safe; unavailable token line is zero.",
+            "initial_line": "Lexer-owned line counter starts at 1; EOF of empty input reports line 1.",
             "independent_instances": "Interleaved lexers keep input, attributes and line counters independent.",
             "attribute_lifetime": "Stored strings survive buffer reallocation and freeing the lexer that created them.",
         }[name], reference=API, api=name)
@@ -307,12 +336,12 @@ def cases():
         t("KEYWORD"), t("IDENTIFIER", "ifj26"), t("DOT"), t("OPERATOR", "OP_MULTIPLY"), t("EOL"),
         t("ANNOTATION"), t("KEYWORD"), t("IDENTIFIER", "main"), t("OPEN_PAREN"), t("CLOSE_PAREN"),
         t("COLON"), t("KEYWORD"), t("OPERATOR", "OP_ASSIGN"), t("EOL"),
-        t("OPEN_PAREN"), t("CLOSE_PAREN"), t("EOL")],
-        "Scan a minimal complete base program using the raw token interface; parser-level indentation is outside this case.")
+        t("INDENT"), t("OPEN_PAREN"), t("CLOSE_PAREN"), t("EOL"), t("DEDENT")],
+        "Scan a minimal complete base program, including the indented body's INDENT/DEDENT pair.")
     program_header = "import ifj26.*\n@main def main(): Unit =\n"
     header_tokens = [t("KEYWORD"), t("IDENTIFIER", "ifj26"), t("DOT"), t("OPERATOR", "OP_MULTIPLY"), t("EOL"),
                      t("ANNOTATION"), t("KEYWORD"), t("IDENTIFIER", "main"), t("OPEN_PAREN"), t("CLOSE_PAREN"),
-                     t("COLON"), t("KEYWORD"), t("OPERATOR", "OP_ASSIGN"), t("EOL")]
+                     t("COLON"), t("KEYWORD"), t("OPERATOR", "OP_ASSIGN"), t("EOL"), t("INDENT")]
     add("integration/numbers_program", program_header +
         "  val whole: Int = 1_000\n  val fraction: Double = .5D\n  val exponent: Double = 1e00\n"
         "  print(whole)\n  print(fraction)\n  print(exponent)\n", header_tokens + [
@@ -321,7 +350,8 @@ def cases():
             t("KEYWORD"), t("IDENTIFIER", "exponent"), t("COLON"), t("KEYWORD"), t("OPERATOR", "OP_ASSIGN"), t("DOUBLE", 1.0), t("EOL"),
             t("IDENTIFIER", "print"), t("OPEN_PAREN"), t("IDENTIFIER", "whole"), t("CLOSE_PAREN"), t("EOL"),
             t("IDENTIFIER", "print"), t("OPEN_PAREN"), t("IDENTIFIER", "fraction"), t("CLOSE_PAREN"), t("EOL"),
-            t("IDENTIFIER", "print"), t("OPEN_PAREN"), t("IDENTIFIER", "exponent"), t("CLOSE_PAREN"), t("EOL")],
+            t("IDENTIFIER", "print"), t("OPEN_PAREN"), t("IDENTIFIER", "exponent"), t("CLOSE_PAREN"), t("EOL"),
+            t("DEDENT")],
         "Complete base program: typed declarations, digit separators, Double suffix, all-zero exponent and calls.")
     add("integration/strings_comments_program", program_header +
         '  val text = "Hello\\nworld\\t!" // escaped text\n'
@@ -330,19 +360,22 @@ def cases():
             t("KEYWORD"), t("IDENTIFIER", "text"), t("OPERATOR", "OP_ASSIGN"), t("STRING", "Hello\nworld\t!"), t("EOL"),
             t("KEYWORD"), t("IDENTIFIER", "raw"), t("OPERATOR", "OP_ASSIGN"), t("STRING", "first\n  second\\n"), t("EOL"),
             t("IDENTIFIER", "print"), t("OPEN_PAREN"), t("IDENTIFIER", "text"), t("CLOSE_PAREN"), t("EOL"),
-            t("IDENTIFIER", "print"), t("OPEN_PAREN"), t("IDENTIFIER", "raw"), t("CLOSE_PAREN"), t("EOL")],
+            t("IDENTIFIER", "print"), t("OPEN_PAREN"), t("IDENTIFIER", "raw"), t("CLOSE_PAREN"), t("EOL"),
+            t("DEDENT")],
         "Complete base program: ordinary escapes, literal multiline content, line comments and nested block comments.")
     add("integration/control_flow_program", program_header +
         "  var count: Int = 2\n  while count > 0 do\n    if count == 1 then\n"
         '      print("last")\n    else\n      print(count)\n    count = count - 1\n', header_tokens + [
             t("KEYWORD"), t("IDENTIFIER", "count"), t("COLON"), t("KEYWORD"), t("OPERATOR", "OP_ASSIGN"), t("INT", 2), t("EOL"),
             t("KEYWORD"), t("IDENTIFIER", "count"), t("OPERATOR", "OP_GREATER"), t("INT", 0), t("KEYWORD"), t("EOL"),
-            t("KEYWORD"), t("IDENTIFIER", "count"), t("OPERATOR", "OP_EQUAL"), t("INT", 1), t("KEYWORD"), t("EOL"),
-            t("IDENTIFIER", "print"), t("OPEN_PAREN"), t("STRING", "last"), t("CLOSE_PAREN"), t("EOL"),
-            t("KEYWORD"), t("EOL"),
-            t("IDENTIFIER", "print"), t("OPEN_PAREN"), t("IDENTIFIER", "count"), t("CLOSE_PAREN"), t("EOL"),
-            t("IDENTIFIER", "count"), t("OPERATOR", "OP_ASSIGN"), t("IDENTIFIER", "count"),
-            t("OPERATOR", "OP_MINUS"), t("INT", 1), t("EOL")],
+            t("INDENT"), t("KEYWORD"), t("IDENTIFIER", "count"), t("OPERATOR", "OP_EQUAL"), t("INT", 1), t("KEYWORD"),
+            t("EOL"),
+            t("INDENT"), t("IDENTIFIER", "print"), t("OPEN_PAREN"), t("STRING", "last"), t("CLOSE_PAREN"), t("EOL"),
+            t("DEDENT"), t("KEYWORD"), t("EOL"),
+            t("INDENT"), t("IDENTIFIER", "print"), t("OPEN_PAREN"), t("IDENTIFIER", "count"), t("CLOSE_PAREN"), t("EOL"),
+            t("DEDENT"), t("IDENTIFIER", "count"), t("OPERATOR", "OP_ASSIGN"), t("IDENTIFIER", "count"),
+            t("OPERATOR", "OP_MINUS"), t("INT", 1), t("EOL"),
+            t("DEDENT"), t("DEDENT"), t("DEDENT")],
         "Complete base program: mutable variable, nested while/if/else, comparisons, subtraction and calls.")
     for name, source, expected in [("empty", "", []), ("identifier", "alpha", [t("IDENTIFIER", "alpha")]),
                                     ("number", "12", [t("INT", 12)]), ("operator", "<=", [t("OPERATOR", "OP_EQUAL_LESS")]),
@@ -586,7 +619,7 @@ def main():
         if options.sanitize:
             command += ["-fsanitize=address,undefined", "-fno-sanitize-recover=all", "-fno-omit-frame-pointer"]
         command += ["-I", str(ROOT / "src"), str(ROOT / "tests/lexer/probe.c")]
-        command += [str(ROOT / "src" / name) for name in ("lexer.c", "attribute_table.c", "utils.c", "error.c")]
+        command += [str(ROOT / "src" / name) for name in ("lexer.c", "attribute_table.c", "stack.c", "utils.c", "error.c")]
         command += ["-lm", "-o", str(binary)]
         report.write("IFJ26 STRICT LEXER TEST REPORT\n")
         report.write(f"Mode: {'ASan + UBSan' if options.sanitize else 'ordinary'}; selected cases: {len(selected)}\n")

@@ -97,16 +97,6 @@ static error print_token(token value, attribute_table *table)
     return err;
 }
 
-/* There is no lexer destructor in lexer.h; the caller owns these two allocations. */
-static void free_lexer(lexer *scanner)
-{
-    if (scanner != NULL)
-    {
-        free(scanner->buffer);
-        free(scanner);
-    }
-}
-
 /* Interleave scanners with separate inputs, tables and line counters. */
 static bool check_independent_instances(lexer *first)
 {
@@ -119,10 +109,6 @@ static bool check_independent_instances(lexer *first)
     if (second == NULL || err != NONE)
         return false;
     bool passed = false;
-    size_t first_line = 1;
-    size_t second_line = 1;
-    first->current_line = &first_line;
-    second->current_line = &second_line;
     if (fputs("first\nlast", first->input) >= 0 && fputs("other", input) >= 0 &&
         fseek(first->input, 0, SEEK_SET) == 0 && fseek(input, 0, SEEK_SET) == 0)
     {
@@ -143,15 +129,14 @@ static bool check_independent_instances(lexer *first)
                         {
                             char *second_value = attribute_table_get_identifier(table, &err, b.attribute_index);
                             passed = err == NONE && second_value != NULL && strcmp(second_value, "other") == 0 &&
-                                     first_line == 2 && second_line == 1;
+                                     first->current_line == 2 && second->current_line == 1;
                         }
                     }
                 }
             }
         }
     }
-    first->current_line = NULL;
-    free_lexer(second);
+    lexer_destruct(&second);
     destruct_attribute_table(&table);
     fclose(input);
     return passed;
@@ -175,8 +160,7 @@ static bool check_attribute_lifetime(lexer **scanner, attribute_table *table)
     token second = lexer_get_next_token(*scanner, &err, STATE_START);
     if (err != NONE || second.type != TOKEN_STRING)
         return false;
-    free_lexer(*scanner);
-    *scanner = NULL;
+    lexer_destruct(scanner);
     char *value = attribute_table_get_string(table, &err, first.attribute_index);
     if (err != NONE || value == NULL || strcmp(value, "first") != 0)
         return false;
@@ -223,7 +207,7 @@ static int api_test(const char *name)
             {
                 passed = scanner->input == input && scanner->attr_table == table && scanner->buffer == NULL &&
                          scanner->buffer_index == 0 && scanner->buffer_capacity == 0 && scanner->coment_depth == 0 &&
-                         !scanner->comment_sline && scanner->current_line == NULL;
+                         !scanner->comment_sline && scanner->indent_size_s != NULL && scanner->current_line == 1;
             }
             else if (strcmp(name, "sticky_error") == 0)
             {
@@ -233,10 +217,10 @@ static int api_test(const char *name)
                 token value = lexer_get_next_token(scanner, &err, STATE_START);
                 passed = value.type == TOKEN_UNDEFINED && err == GENERAL_LEXICAL && ftell(input) == 0;
             }
-            else if (strcmp(name, "null_line") == 0)
+            else if (strcmp(name, "initial_line") == 0)
             {
                 token value = lexer_get_next_token(scanner, &err, STATE_START);
-                passed = err == NONE && value.type == TOKEN_EOF && value.line == 0;
+                passed = err == NONE && value.type == TOKEN_EOF && value.line == 1;
             }
             else if (strcmp(name, "independent_instances") == 0)
                 passed = check_independent_instances(scanner);
@@ -245,7 +229,7 @@ static int api_test(const char *name)
         }
     }
     printf("API\t%s\t%s\terror=%d\n", name, passed ? "PASS" : "FAIL", err);
-    free_lexer(scanner);
+    lexer_destruct(&scanner);
     destruct_attribute_table(&table);
     fclose(input);
     return passed ? 0 : 1;
@@ -270,8 +254,6 @@ int main(int argc, char **argv)
     lexer *scanner = new_lexer(&err, input, table);
     if (err != NONE || scanner == NULL)
         return 2;
-    size_t line = 1;
-    scanner->current_line = &line;
     int eof_count = 0;
     int status = 2;
     for (size_t count = 0; count < 10000; ++count)
@@ -295,8 +277,8 @@ int main(int argc, char **argv)
             break;
         }
     }
-    printf("COUNTER\t%zu\n", line);
-    free_lexer(scanner);
+    printf("COUNTER\t%zu\n", scanner->current_line);
+    lexer_destruct(&scanner);
     destruct_attribute_table(&table);
     if (input != stdin)
         fclose(input);

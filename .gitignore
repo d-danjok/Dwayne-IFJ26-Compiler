@@ -6,4 +6,5 @@ cmake-build-debug
 *.o
 
 /test_bench*
-/tests/
+/tests/*
+!/tests/lexer/

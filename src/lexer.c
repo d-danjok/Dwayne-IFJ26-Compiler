@@ -9,6 +9,7 @@
 
 #include <ctype.h>
 #include <stdint.h>
+#include <token.h>
 
 // notes: integer followed by dot(1.) -> becomes int(1) and dot(.)(should throw error)
 // TODO: fix indentation handling in braces()
@@ -637,8 +638,21 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
             else
             {
                 self->buffer[self->buffer_index++] = '\0';
-                res.type = TOKEN_IDENTIFIER;
-                res.attribute_index = lexer_insert_identifier(self, err);
+                char *keyword_str[] = {
+    "def", "do", "Double", "else", "if", "import", "Int", "return", "String", "then", "Unit", "val", "var", "while",
+    "Boolean", "case", "class", "extension", "for", "List", "match", "type"};
+
+                for(int i = 0; i < (int)(sizeof(keyword_str) / sizeof(char *)); i++)
+                {
+                    if (strcmp(self->buffer, keyword_str[i]) == 0)
+                    {
+                        res.type = TOKEN_KEYWORD;
+                        res.attribute_index = i;
+                        break;
+                    }
+                }
+                if(res.type != TOKEN_KEYWORD){res.type = TOKEN_IDENTIFIER;
+                res.attribute_index = lexer_insert_identifier(self, err);}
             }
             break;
         // LITERALS

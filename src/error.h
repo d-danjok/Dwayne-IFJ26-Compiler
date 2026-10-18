@@ -65,10 +65,11 @@ typedef enum
     INTERNAL_INDEX_OUT_OF_BOUNDS,
     INTERNAL_INVALID_MEMORY_ALLOCATION_SIZE,
     INTERNAL_FILE_READ_ERROR,
-    INTERNAL_END_OF_FILE // not critical error - usually means there is nothing more to read
-                         // (so in case we are using function which can return this error we should check for this
-                         // particular error and do not propagate it further only stop reading)
-
+    INTERNAL_END_OF_FILE, //	not critical error - usually means there is nothing more to read
+    //							(so in case we are using function which can return this error we should check for this
+    //							particular error and do not propagate it further only stop reading)
+    INTERNAL_STACK_IS_EMPTY,
+    INTERNAL_NULL_ITEM_INSERT,
 } error;
 
 // @brief checks if error is internal

@@ -21,7 +21,7 @@ struct stack_s
 
 void item_destruct_recursively(stack_item **self)
 {
-    if (*self == NULL || self == NULL)
+    if (self == NULL || *self == NULL)
     {
         return;
     }
@@ -51,7 +51,7 @@ stack *new_stack(error *err)
 
 void stack_destruct(stack **self)
 {
-    if (*self == NULL || self == NULL)
+    if (self == NULL || *self == NULL)
     {
         return;
     }

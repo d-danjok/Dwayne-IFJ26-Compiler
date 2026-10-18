@@ -11,8 +11,7 @@
 #include <stdint.h>
 
 // notes: integer followed by dot(1.) -> becomes int(1) and dot(.)(should throw error)
-//  TODO: rewrite get_next_token to use loop instead of recursion to avoid stack overflow
-// TODO: implement indentation and dedentation tokens
+// TODO: fix indentation handling in braces()
 // TODO: implement keywords
 
 // ------ HELPERS -------
@@ -210,6 +209,8 @@ lexer *new_lexer(error *err, FILE *input, attribute_table *attr_table)
     self->last_was_eol = false;
     self->last_was_eof = false;
     self->empty_line = true;
+    self->parentaces = 0;
+    self->m_comment = false;
     self->current_line = 1;
 
     return self;
@@ -249,13 +250,15 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
             if (c == ' ')
             {
                 lexer_get_char(err, &internal_err, in, line);
-                self->indent_cnt++;
+                if (!self->m_comment)
+                    self->indent_cnt++;
                 current_state = STATE_EOL;
             }
             else if (c == '\n')
             {
                 lexer_get_char(err, &internal_err, in, line);
                 self->indent_cnt = 0;
+                self->m_comment = false;
                 current_state = STATE_EOL;
             }
             else if (c == '/')
@@ -266,6 +269,7 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
             else if (c == '\0' && internal_err == INTERNAL_END_OF_FILE)
             {
                 self->indent_cnt = 0;
+                self->m_comment = false;
                 self->last_was_eol = true;
                 self->last_was_eof = true;
                 current_state = STATE_START;
@@ -283,6 +287,7 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
             {
                 lexer_get_char(err, &internal_err, in, line);
                 self->indent_cnt = 0;
+                self->m_comment = false;
                 current_state = STATE_S_COMMENT;
             }
             else if (c == '*')
@@ -290,6 +295,7 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
                 lexer_get_char(err, &internal_err, in, line);
                 self->coment_depth = 1;
                 self->comment_sline = true;
+                self->m_comment = true;
                 current_state = STATE_M_COMMENT;
             }
             else
@@ -311,14 +317,14 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
                     return res;
                 }
             }
-            if (self->indent_cnt > lexer_indent_top(self, err))
+            if (self->indent_cnt > lexer_indent_top(self, err) && self->parentaces == 0)
             {
                 res.type = TOKEN_INDENT;
                 res.line = self->current_line;
                 lexer_indent_push(self, err, self->indent_cnt);
                 return res;
             }
-            else if (self->indent_cnt < lexer_indent_top(self, err))
+            else if (self->indent_cnt < lexer_indent_top(self, err) && self->parentaces == 0)
             {
 
                 error stack_err = NONE;
@@ -355,13 +361,17 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
                 break;
             // EOL, EOF
             case '\n':
-                self->indent_cnt = 0;
-                current_state = STATE_EOL;
+                if (self->parentaces != 0)
+                    self->indent_cnt = 0;
+                self->m_comment = false;
+                current_state = STATE_EOL; // could throw errpr on negative par
+                
                 break;
             case '\0':
                 if (internal_err == INTERNAL_END_OF_FILE)
                 {
                     self->indent_cnt = 0;
+                    self->m_comment = false;
                     self->last_was_eof = true;
                     self->last_was_eol = true;
                 }
@@ -382,9 +392,11 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
                 break;
             case '(':
                 res.type = TOKEN_OPEN_PAREN;
+                self->parentaces++;
                 break;
             case ')':
                 res.type = TOKEN_CLOSE_PAREN;
+                self->parentaces--;
                 break;
             // Operators
             case '+':
@@ -534,7 +546,17 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
             if (c == '\n' || internal_err == INTERNAL_END_OF_FILE)
             {
                 self->indent_cnt = 0;
-                current_state = STATE_EOL;
+                if (self->parentaces == 0)
+                {
+                        if(self->m_comment)
+                            self->indent_cnt = 0;
+                    current_state = STATE_EOL;
+                }
+                else
+                {
+                    current_state = STATE_START;
+                }
+                self->m_comment = false;
             }
             else
                 current_state = STATE_S_COMMENT;
@@ -547,6 +569,7 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
             {
                 self->comment_sline = false;
                 self->indent_cnt = 0;
+                self->m_comment = false;
                 current_state = STATE_M_COMMENT;
             }
             else if (c == '/' && lexer_peek_char(err, &internal_err, in, 0) == '*')
@@ -562,8 +585,13 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
                 if (self->coment_depth == 0)
                 {
 
-                    if (self->comment_sline)
-                        current_state = STATE_START;
+                    if (self->comment_sline){
+
+                        if(self->m_comment)
+                            current_state = STATE_EOL;
+                        else
+                            current_state = STATE_START;
+                }
                     else
                         current_state = STATE_WAITING_EOL;
                 }
@@ -581,6 +609,7 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
             {
 
                 self->indent_cnt = 0;
+                self->m_comment = false;
                 current_state = STATE_EOL;
             }
             else if (c == ' ')

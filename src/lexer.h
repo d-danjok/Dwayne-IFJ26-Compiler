@@ -28,6 +28,8 @@ typedef struct
     bool last_was_eol;
     bool last_was_eof;
     bool empty_line;
+    int parentaces;
+    bool m_comment;
     size_t current_line;
 } lexer;
 

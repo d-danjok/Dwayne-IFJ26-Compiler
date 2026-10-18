@@ -25,6 +25,9 @@ typedef struct
     bool comment_sline;
     stack *indent_size_s;
     int indent_cnt;
+    bool last_was_eol;
+    bool last_was_eof;
+    bool empty_line;
     size_t current_line;
 } lexer;
 

@@ -207,6 +207,9 @@ lexer *new_lexer(error *err, FILE *input, attribute_table *attr_table)
     self->coment_depth = 0;
     self->comment_sline = false;
     self->indent_cnt = 0;
+    self->last_was_eol = false;
+    self->last_was_eof = false;
+    self->empty_line = true;
     self->current_line = 1;
 
     return self;
@@ -228,7 +231,6 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
     size_t *line = &self->current_line;
     size_t *strt_line = line;
     char c;
-    int indent_cnt = 0;
     token res = {TOKEN_UNDEFINED, -1, 0};
 
     while (*err == NONE && res.type == TOKEN_UNDEFINED)
@@ -261,9 +263,17 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
                 lexer_get_char(err, &internal_err, in, line);
                 current_state = STATE_INDENT_DIV;
             }
+            else if (c == '\0' && internal_err == INTERNAL_END_OF_FILE)
+            {
+                self->indent_cnt = 0;
+                self->last_was_eol = true;
+                self->last_was_eof = true;
+                current_state = STATE_START;
+            }
             else
             {
-                res.type = TOKEN_EOL;
+                self->last_was_eol = true;
+                current_state = STATE_START;
             }
         }
         break;
@@ -291,6 +301,16 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
         }
         break;
         case STATE_START: {
+            if (self->last_was_eol)
+            {
+                self->last_was_eol = false;
+                if (!self->empty_line)
+                {
+                    res.type = TOKEN_EOL;
+                    res.line = self->current_line;
+                    return res;
+                }
+            }
             if (self->indent_cnt > lexer_indent_top(self, err))
             {
                 res.type = TOKEN_INDENT;
@@ -309,12 +329,26 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
                     return res;
                 }
                 free(ptr);
-
+                if (self->indent_cnt > lexer_indent_top(self, err))
+                {
+                    *err = INVALID_INDENTATION;
+                    return res;
+                }
                 res.type = TOKEN_DEDENT;
                 res.line = self->current_line;
                 return res;
             }
+            if (self->last_was_eof)
+            {
+                res.type = TOKEN_EOF;
+                res.line = self->current_line;
+                return res;
+            }
             c = lexer_get_char(err, &internal_err, in, line);
+            if (c != '\0' && c != '\n' && c != ' ' && c != '/')
+            {
+                self->empty_line = false;
+            }
             switch (c)
             {
             case ' ':
@@ -328,8 +362,10 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
                 if (internal_err == INTERNAL_END_OF_FILE)
                 {
                     self->indent_cnt = 0;
-                    res.type = TOKEN_EOF;
+                    self->last_was_eof = true;
+                    self->last_was_eol = true;
                 }
+
                 else
                     *err = INVALID_SYMBOL;
                 break;

@@ -47,6 +47,9 @@ typedef enum
 
     LITERAL, // Int, Double, Bool, Unit, String
     IDENTIFIER,
+
+    // nodes for semantic analyser output
+    INT_TO_DOUBLE, // specification page 4, section 1.3
 } ast_node_type;
 
 typedef enum
@@ -65,7 +68,7 @@ typedef enum
     AST_OP_PLUS,
     AST_OP_MINUS,
     AST_OP_MINUS_UNARY,
-    AST_OP_MULT,
+    AST_OP_MULTIPLY,
     AST_OP_DIV,
     AST_OP_GREATER,       //	>
     AST_OP_GREATER_EQUAL, //	>=

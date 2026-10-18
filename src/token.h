@@ -55,6 +55,33 @@ typedef enum
     OP_EQUAL_LESS,    // <=
 } operator_list;
 
+typedef enum
+{
+    KW_DEF,
+    KW_DO,
+    KW_DOUBLE,
+    KW_ELSE,
+    KW_IF,
+    KW_IMPORT,
+    KW_INT,
+    KW_RETURN,
+    KW_STRING,
+    KW_THEN,
+    KW_UNIT,
+    KW_VAL,
+    KW_VAR,
+    KW_WHILE,
+
+    KW_BOOLEAN,
+    KW_CASE,
+    KW_CLASS,
+    KW_EXTENSION,
+    KW_FOR,
+    KW_LIST,
+    KW_MATCH,
+    KW_TYPE
+} keyword_list;
+
 typedef struct
 {
     token_type type;

@@ -2,7 +2,8 @@
 .DS_Store
 cmake-build-debug
 *devenv*
-
+__pycache__
+*.output
 *.o
 
 /test_bench*

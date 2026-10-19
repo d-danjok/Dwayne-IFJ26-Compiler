@@ -94,9 +94,11 @@ The base keyword list is taken from specification §1.1, page 2:
 `def do Double else if import Int return String then Unit val var while`.
 Every keyword is checked on its own and in a sequence. Changed case, a digit
 suffix, or an underscore prefix must produce identifiers instead. Tests also
-check that comments and punctuation terminate keywords correctly. Extension-only
-keywords are not imposed on the base language: §1.1 says those situations are
-not tested without the corresponding extensions.
+check that comments and punctuation terminate keywords correctly. The extension
+group (`Boolean case class extension for List match type`) is also expected as
+`TOKEN_KEYWORD`: §1.1 says it is advisable not to accept them as identifiers and
+`token.h` defines a `KW_` value for each. `to`, `until`, `by` and `s` must stay
+identifiers (forum answers of 2026-09-29 and 2026-10-11).
 
 The exact source inputs are available in [`exmaples_to_test`](exmaples_to_test/README.md).
 Its `programs/` folder contains four complete IFJ26 programs exercised by integration
@@ -105,11 +107,16 @@ inputs. The index describes each file and its expected lexical error code. Regen
 missing snapshots with `python3 tests/lexer/run.py --export-examples`; editing a
 snapshot does not change the embedded test fixture.
 
-The project's clarified leading-zero rule applies to integer literals and exponent
-digits: after an initial zero, only more zero digits are allowed (including with
-valid digit separators). Thus `1e00`, `1e-00` and `1e0_0` are valid, while `1e01`,
-`1e+01` and `1e0_1` must produce lexical error 1. Splitting a malformed number into
-multiple otherwise valid tokens does not satisfy this requirement.
+Number rules follow §1.1 and the forum answer of 2026-10-11: a nonzero Int must
+not start with zero (`01`, `0_1` are lexical error 1; `00`, `0_0` are zero), but the
+exponent and the integer part of a Double may (`1e01`, `2e-001`, `01.5` are valid).
+Several consecutive separators between two digits are valid (`1__2`, `1.2__3`); a
+separator not between two digits is lexical error 1 (`1_`, `1_.5`, `1e_2`, `1.5_D`).
+Ambiguous points were cross-checked with Scala 3; see `SPEC_AUDIT.md`.
+Team decisions of 2026-10-19 (stricter than Scala, which splits these into tokens):
+a number glued to a letter or to a second fraction (`12abc`, `1.5x`, `2e0.01`),
+unsupported forms (`0x1F`, `0b101`, `1L`, `1.5f`) and digits with only a suffix
+(`1d`, `1D`) are lexical error 1.
 
 These tests target the current **raw scanner interface**, not a complete compiler.
 Module/API conventions are identified explicitly in each case's reference;
@@ -126,9 +133,12 @@ currently documents that token only for `|`, so its meaning must be coordinated
 with the parser. Keyword attribute IDs cannot yet be checked because no keyword
 enum is exposed in the headers.
 
-Indent/dedent policy, blank/comment-only line suppression, parenthesized logical
-lines, trailing-comma restrictions, and other syntax/semantic errors need a defined
-layout/parser interface and separate integration tests. Unselected extensions,
+The `layout/` group checks INDENT/DEDENT levels, blank and comment-only line
+suppression and LF inside parentheses (S §1.2). A dedent to a width never opened
+is lexical error 1 (team decision). Not covered yet: continuation-line indentation
+inside parentheses, tabs at the start of comment-only lines, and an indented first
+line. Trailing-comma restrictions and other syntax/semantic errors
+belong to parser tests. Unselected extensions,
 unspecified annotation boundaries and numeric-suffix tokenization, range overflow
 (excluded by the assignment), allocation failure injection, and every possible
 unbounded input are not claimed as covered. Requirements and unresolved boundaries

@@ -22,6 +22,10 @@ LAYOUT = "IFJ26 S §1.2 (pp. 3–4); assignment-context/02-lexical-and-layout.md
 API = "Module interface/test conventions (src/lexer.h, src/token.h), not language-specification requirements"
 BASE_KEYWORDS = tuple("def do Double else if import Int return String then Unit val var while".split())
 KEYWORDS_REFERENCE = "IFJ26 S §1.1 (p. 2); assignment-context/source-text/specification.txt:65–70"
+EXTENSION_KEYWORDS = tuple("Boolean case class extension for List match type".split())
+FORUM_NUMBERS = ("IFJ26 forum (Ondryas, 2026-10-11): repeated separators are allowed; "
+                 "2e001 and 2e-001 are valid Double literals")
+TEAM_DECISION = "Team decision 2026-10-19 (SPEC_AUDIT.md §8), within IFJ26 S §1.1/§1.2 and §6 code 1"
 STACK_LIMIT = 8 * 1024 * 1024
 
 
@@ -112,10 +116,18 @@ def cases():
     ]:
         add("stream/" + name, source, expected, "Raw scanner termination and stable repeated EOF.", API)
 
-    for word in ("a", "Z", "abc123", "_a", "_1", "__", "a_b_C9", "foo_", "main", "ifj26",
+    for word in ("a", "Z", "abc123", "_a", "_1", "__", "___", "a_b_C9", "foo_", "main", "ifj26",
                  "If", "DEF", "int", "double", "unit", "defx", "if_", "while2"):
         add("identifier/" + word, word, [t("IDENTIFIER", word)],
             "Identifiers preserve spelling and case; a keyword prefix is not a keyword.")
+    for word in ("to", "until", "by", "s"):
+        add("identifier/" + word, word, [t("IDENTIFIER", word)],
+            "Not a keyword: to/until/by are Scala methods used by CONTROL, and 's' is an identifier unless glued "
+            "to a string quote (INTERPOLATEDS).",
+            "IFJ26 forum (Ondryas, 2026-09-29 and 2026-10-11); IFJ26 S §1.1 keyword list")
+    add("identifier/s_space_string", 's "x"', [t("IDENTIFIER", "s"), t("STRING", "x")],
+        "'s' separated from the quote by whitespace is an identifier followed by an ordinary string.",
+        "IFJ26 forum (Ondryas, 2026-10-11): 's' must be immediately before the opening quote")
     add("identifier/standalone_underscore", "_", [t("UNDERSCORE")],
         "A lone underscore must not become an identifier; token.h exposes TOKEN_UNDERSCORE.")
     add("identifier/distinct_values", "same Same same other", [t("IDENTIFIER", x) for x in
@@ -129,6 +141,10 @@ def cases():
             add(f"keyword_boundary/{word}_{label}", identifier, [t("IDENTIFIER", identifier)],
                 f"Only the exact spelling '{word}' is reserved; '{identifier}' is an identifier. "
                 "Identifiers and keywords are case-sensitive.", KEYWORDS_REFERENCE)
+    for word in EXTENSION_KEYWORDS:
+        add("keyword/extension_" + word, word, [t("KEYWORD")],
+            f"'{word}' is in the S §1.1 keyword list (extension group: 'v základním zadání je vhodné je na místě "
+            "identifikátoru nepřijímat'); token.h defines a KW_ value for it.", KEYWORDS_REFERENCE)
     add("keyword/all_base", " ".join(BASE_KEYWORDS), [t("KEYWORD") for _ in BASE_KEYWORDS],
         "Every base keyword from the assignment's first group must remain a keyword in a token sequence.",
         KEYWORDS_REFERENCE)
@@ -157,21 +173,41 @@ def cases():
         add("punctuation/" + kind.lower(), spelling, [t(kind)], "Recognize punctuation at EOF.")
     add("punctuation/unit", "()", [t("OPEN_PAREN"), t("CLOSE_PAREN")],
         "Raw scanner convention: Unit syntax is a pair of parentheses; semantic Unit belongs to the parser.", API)
+    add("punctuation/unit_nested", "(((())))", [t("OPEN_PAREN")] * 4 + [t("CLOSE_PAREN")] * 4,
+        "Unit wrapped in parentheses may appear in tests; same paren-pair convention as punctuation/unit.",
+        "IFJ26 forum (Ondryas, 2026-10-13); team convention: Unit is OPEN_PAREN CLOSE_PAREN")
+    add("punctuation/unit_expression", "()+42", [t("OPEN_PAREN"), t("CLOSE_PAREN"),
+        t("OPERATOR", "OP_PLUS"), t("INT", 42)],
+        "Unit may stand wherever a term is expected, e.g. 'val a = () + 42' (syntactically valid).",
+        "IFJ26 forum (Ondryas, 2026-10-13); team convention: Unit is OPEN_PAREN CLOSE_PAREN")
     add("punctuation/semicolon", "1;2", [t("INT", 1), t("SEPARATOR"), t("INT", 2)],
         "S §1.2 requires semicolon statement separation. This suite uses TOKEN_SEPARATOR for ';'; "
         "the header currently only documents '|', so that token convention needs to be agreed with the parser.", LAYOUT)
     add("annotation/main", "@main", [t("ANNOTATION")], "Recognize the exact @main annotation.",
         "IFJ26 S §2 (p. 4); assignment-context/04-program-scopes-functions-control.md")
-    for source in ("@", "@m", "@ma", "@mai", "@Main", "@ main"):
+    for source in ("@", "@m", "@ma", "@mai", "@Main", "@ main", "@mainx"):
         add("annotation/invalid_" + source.replace(" ", "_"), source, error=1,
             reason="Incomplete or differently spelled @main cannot form the required annotation.")
+    add("annotation/main_paren", "@main(", [t("ANNOTATION"), t("OPEN_PAREN")],
+        "The annotation ends at the first character that cannot continue an identifier.",
+        "IFJ26 S §2 (p. 4)")
+    add("annotation/main_def_same_line", "@main def", [t("ANNOTATION"), t("KEYWORD")],
+        "The annotation may be on the same line as the def keyword.", "IFJ26 S §2 (p. 4)")
+    for name, source in (("spaced", "import  ifj26 . *"), ("comment", "import/* komentar */ifj26.*")):
+        add("prolog/" + name, source, [t("KEYWORD"), t("IDENTIFIER", "ifj26"), t("DOT"),
+            t("OPERATOR", "OP_MULTIPLY")],
+            "The prolog allows arbitrary whitespace between its tokens; a block comment without LF separates tokens.",
+            "IFJ26 S §2 (p. 4); IFJ26 forum (2026-09-23): 'import/* komentar */ifj26.*' is valid")
 
     integers = {"0": 0, "00": 0, "0_0": 0, "7": 7, "42": 42, "2147483647": 2147483647,
                 "1_000_000": 1000000, "2_1_4": 214}
     for source, value in integers.items():
         add("integer/" + source, source, [t("INT", value)],
             "Decimal value must be exact; digit separators do not change the value. Only nonzero integers ban leading zero.")
-    for source in ("01", "0123", "00_1", "0_1", "1_", "1__2", "0_", "0__0"):
+    for source, value in {"1__2": 12, "1___2": 12, "0__0": 0}.items():
+        add("integer/" + source, source, [t("INT", value)],
+            "Several consecutive separators between two digits are allowed, as in Scala.", FORUM_NUMBERS)
+    for source in ("01", "0123", "00_1", "0_1", "1_", "0_"):
         add("integer/invalid_" + source, source, error=1,
             reason="A malformed integer is a lexical error (1), not several valid tokens or an internal error.")
 
@@ -188,18 +224,45 @@ def cases():
     for source, value in doubles.items():
         add("double/" + source, source, [t("DOUBLE", value)],
             "Check binary64 value exactly, including signs, all-zero exponents, separators and optional d/D.")
-    for source in ("1e01", "1e+01", "1e-01", "1e0_1", "1.5E00_2D", "1e09"):
+    forum_doubles = {
+        "1e01": 10.0, "1e+01": 10.0, "1e-01": 0.1, "1e09": 1e9, "2e001": 20.0, "2e-001": 0.2,
+        "1e0_1": 10.0, "1.5E00_2D": 150.0, "1e2__3": 1e23, "1e0__0": 1.0, "1.2__3": 1.23,
+        "1_2__3.4__5e6__7": 123.45e67,
+    }
+    for source, value in forum_doubles.items():
+        add("double/" + source, source, [t("DOUBLE", value)],
+            "Exponent digits may start with zero and separators may repeat; the value is exact binary64.",
+            FORUM_NUMBERS)
+    for source, value in {"01.5": 1.5, "00.5": 0.5}.items():
+        add("double/" + source, source, [t("DOUBLE", value)],
+            "The leading-zero ban applies to Int literals only; the integer part of a Double is any digit sequence "
+            "(Scala 3 accepts it too).")
+    for source in ("1e", "1E", "1e+", "1e-", "1e_2", "1e+_2", "1e--2", "1e2_",
+                   "1e0_", "1.2_", ".5_", "1.2e", "1.2e+", "1_e2", "1_.5", "1.5_D"):
         add("double/invalid_" + source, source, error=1,
-            reason="An exponent starting with zero may contain only more zero digits. Reject the entire malformed "
-                   "literal with lexical error 1; do not split it into a Double and an Int.",
-            reference="Project clarification: after a leading zero, only another zero digit is allowed.")
-    for source in ("1e", "1E", "1e+", "1e-", "1e_2", "1e+_2", "1e--2", "1e2_", "1e2__3",
-                   "1e0_", "1e0__0", "1.2_", "1.2__3", ".5_", "1.2e", "1.2e+", "1_e2"):
-        add("double/invalid_" + source, source, error=1,
-            reason="Missing exponent digits or misplaced separators must return lexical error 1 and UNDEFINED.")
+            reason="Missing exponent digits or a separator not between two digits must return lexical error 1 "
+                   "(Scala: 'trailing separator is not allowed').")
     add("number/dot_lookahead", "1.foo 1. .5", [t("INT", 1), t("DOT"), t("IDENTIFIER", "foo"),
         t("INT", 1), t("DOT"), t("DOUBLE", .5)],
-        "A dot without a following fractional digit remains punctuation (lexer.c's explicit boundary convention).", API)
+        "A dot without a following fractional digit is punctuation: the Double form requires a fractional part.")
+    add("number/dot_identifier", "1.e5 1._5", [t("INT", 1), t("DOT"), t("IDENTIFIER", "e5"),
+        t("INT", 1), t("DOT"), t("IDENTIFIER", "_5")],
+        "Without a fractional digit after the dot, 'e5' and '_5' are identifiers (Scala: member selection).")
+    add("number/minus_zero", "-0", [t("OPERATOR", "OP_MINUS"), t("INT", 0)],
+        "Unary minus before zero is valid; the sign is a separate operator.",
+        "IFJ26 forum (Ondryas, 2026-09-22): '-0' is valid")
+    for source in ("12abc", "0abc", "1.5x", "1e5e", "1.5Dx", "2e0.01", "1.5.5"):
+        add("number/invalid_glued_" + source, source, error=1,
+            reason="A number immediately followed by a letter or by another fraction is one malformed lexeme "
+                   "(lexical error 1), not several tokens.", reference=TEAM_DECISION)
+    for source in ("0x1F", "0X1f", "0b101", "1L", "1l", "1.5f", "1.5F", "1f", "1e2f"):
+        add("number/invalid_unsupported_" + source, source, error=1,
+            reason="Other number bases, the L suffix and the f/F suffixes are not supported in IFJ26 "
+                   "(S §1.1); the unsupported literal is lexical error 1.", reference=TEAM_DECISION)
+    for source in ("1d", "1D", "0d", "1_000D"):
+        add("number/invalid_int_suffix_" + source, source, error=1,
+            reason="The d/D suffix only ends the two Double forms (with a fraction or an exponent); digits + suffix "
+                   "alone is lexical error 1.", reference=TEAM_DECISION)
     add("number/adjacency", "12+34*(.5-2e1)", [t("INT", 12), t("OPERATOR", "OP_PLUS"), t("INT", 34),
         t("OPERATOR", "OP_MULTIPLY"), t("OPEN_PAREN"), t("DOUBLE", .5), t("OPERATOR", "OP_MINUS"),
         t("DOUBLE", 20.0), t("CLOSE_PAREN")], "Number scanning must not swallow punctuation or operators.")
@@ -213,7 +276,9 @@ def cases():
                ("multiline_raw", '"""\\q\\n\\t // /* */"""', "\\q\\n\\t // /* */"),
                ("multiline_one_quote", '"""a"b"""', 'a"b'),
                ("multiline_two_quotes", '"""a""b"""', 'a""b'),
-               ("multiline_physical_tab", '"""a\tb\n c"""', "a\tb\n c")]
+               ("multiline_physical_tab", '"""a\tb\n c"""', "a\tb\n c"),
+               ("physical_tab", '"a\tb"', "a\tb"),
+               ("multiline_four_quotes", '"""a""""', 'a"')]
     for name, source, value in strings:
         add("string/" + name, source, [t("STRING", value)],
             "String value must match byte for byte; ordinary strings decode escapes, triple-quoted strings preserve content.")
@@ -242,6 +307,8 @@ def cases():
         "Every printable ASCII character except delimiter/escape characters is preserved literally.")
     add("string/buffer_reuse", '"first" "" "last" first', [t("STRING", "first"), t("STRING", ""),
         t("STRING", "last"), t("IDENTIFIER", "first")], "Later tokens must not mutate earlier attribute values.")
+    add("string/multiline_then_tokens", '"""a\nb""" + y', [t("STRING", "a\nb"), t("OPERATOR", "OP_PLUS"),
+        t("IDENTIFIER", "y")], "A multiline string is part of its logical line; tokens may follow on its last line.")
 
     for name, source, expected in [
         ("line_eof", "// no LF", []), ("line_lf", "x//ignored\ny", [t("IDENTIFIER", "x"), t("EOL"), t("IDENTIFIER", "y")]),
@@ -256,22 +323,27 @@ def cases():
         ("slashes_in_block", "/* // text */x", [t("IDENTIFIER", "x")]),
         ("asterisks", "/* **/x", [t("IDENTIFIER", "x")]),
         ("reset_after_multiline", "/*a\nb*/\n/*c*/x", [t("EOL"), t("IDENTIFIER", "x")]),
+        ("line_after_multiline", "x/*a\nb*///text\ny", [t("IDENTIFIER", "x"), t("EOL"), t("IDENTIFIER", "y")]),
+        ("block_after_multiline", "x/*a\nb*/ /*c*/\ny", [t("IDENTIFIER", "x"), t("EOL"), t("IDENTIFIER", "y")]),
+        ("close_marker_outside", "*/", [t("OPERATOR", "OP_MULTIPLY"), t("OPERATOR", "OP_DIVISION")]),
     ]:
         add("comment/" + name, source, expected,
             "Comments preserve token boundaries and nesting; raw scanner emits physical EOL at comment termination.")
     for name, source in [("open", "/*"), ("text", "/* text"), ("star_eof", "/*x*"),
                          ("nested", "/* outer /* inner */"), ("overlap", "/*/"),
-                         ("nested_overlap", "/* /*/ */"), ("code_after_multiline", "/*a\nb*/x"),
-                         ("comment_after_multiline", "/*a\nb*///text")]:
+                         ("nested_overlap", "/* /*/ */"), ("code_after_multiline", "/*a\nb*/x")]:
         add("comment/invalid_" + name, source, error=1,
             reason="All nesting must close. After a block comment containing LF, only whitespace is allowed until line end.")
     add("comment/deep_nesting", "/*" * 64 + "body" + "*/" * 64 + "x", [t("IDENTIFIER", "x")],
         "Nested comments must close at the matching depth, without leaking comment state.")
 
-    for char in "!#$&?`'\\{}[]~":
+    for char in "!#$%&?^`'\\{}[]~":
         add("invalid/ascii_" + str(ord(char)), char, error=1,
             reason="This character cannot begin a base-language lexeme (standalone ! is not !=).")
     add("invalid/nul", b"\0", error=1, reason="An input NUL byte must not be mistaken for EOF.")
+    for code in (0x01, 0x7F):
+        add(f"invalid/control_{code:02x}", bytes([code]), error=1,
+            reason="A control character outside strings and comments is an unknown character (lexical error 1).")
     for name, source in (("first_column", "\tx"), ("after_space", " \tx"), ("after_lf", "\n\tx")):
         prefix = [t("EOL")] if source.startswith("\n") else []
         add("layout/leading_tab_" + name, source, prefix, error=1, reference=LAYOUT,
@@ -331,6 +403,74 @@ def cases():
                     for i in range(150)]
         add("attributes/growth_" + kind, " ".join(words + [words[0]]), expected + [expected[0]],
             "More than 100 distinct attributes trigger table growth; a repeated value must still be readable.", API)
+
+    def lid(*names):
+        return [t("IDENTIFIER", n) for n in names]
+
+    ind, ded, eol = t("INDENT"), t("DEDENT"), t("EOL")
+    a, b, c, d = lid("a", "b", "c", "d")
+    block_cases = [
+        ("indent_same_depth", "a\n  b\n  c\n", [a, eol, ind, b, eol, c, eol, ded],
+         "Same width as the stack top emits no further INDENT; one DEDENT at EOF."),
+        ("indent_two_levels_dedent_all", "a\n  b\n    c\nd\n", [a, eol, ind, b, eol, ind, c, eol, ded, ded, d, eol],
+         "One DEDENT per popped level, emitted before the first token of the dedented line."),
+        ("dedent_partial", "a\n  b\n    c\n  d\n", [a, eol, ind, b, eol, ind, c, eol, ded, d, eol, ded],
+         "Dedent to a width still on the stack pops exactly one level; the rest close at EOF."),
+        ("dedent_at_eof_no_lf", "a\n  b\n    c", [a, eol, ind, b, eol, ind, c, eol, ded, ded],
+         "EOF without LF ends the logical line, then one DEDENT per remaining level."),
+        ("reindent_after_dedent", "a\n  b\nc\n  d\n", [a, eol, ind, b, eol, ded, c, eol, ind, d, eol, ded],
+         "A new deeper line after a dedent pushes a fresh level and emits INDENT again."),
+        ("blank_line_in_block", "a\n  b\n\n  c\n", [a, eol, ind, b, eol, c, eol, ded],
+         "Empty physical lines are ignored and do not change the indentation level."),
+        ("whitespace_line_wider", "a\n  b\n      \n  c\n", [a, eol, ind, b, eol, c, eol, ded],
+         "Whitespace-only lines do not change the indentation level, whatever their width."),
+        ("whitespace_line_narrower", "a\n  b\n \nc\n", [a, eol, ind, b, eol, ded, c, eol],
+         "A whitespace-only line of smaller width does not dedent; the next content line does."),
+        ("tab_on_blank_line", "a\n  b\n\t\n  c\n", [a, eol, ind, b, eol, c, eol, ded],
+         "The tab rule applies only to non-empty lines; a whitespace-only tab line is ignored."),
+        ("comment_line_deeper", "a\n  b\n      // c\n  d\n", [a, eol, ind, b, eol, d, eol, ded],
+         "Comment-only lines are ignored regardless of their indentation."),
+        ("comment_line_column0", "a\n  b\n// c\n  d\n", [a, eol, ind, b, eol, d, eol, ded],
+         "A comment-only line at column 0 does not dedent."),
+        ("block_comment_line", "a\n  b\n    /* c */\n  d\n", [a, eol, ind, b, eol, d, eol, ded],
+         "A line containing only a block comment is ignored for indentation."),
+        ("multiline_block_comment_line", "a\n  b\n      /* x\ny */\n  c\n", [a, eol, ind, b, eol, c, eol, ded],
+         "A multi-line block comment line is ignored; its inner lines never produce INDENT/DEDENT."),
+        ("paren_continuation", "f(a,\n    b)\nc\n",
+         lid("f") + [t("OPEN_PAREN"), a, t("COMMA"), b, t("CLOSE_PAREN"), eol, c, eol],
+         "LF inside parentheses is whitespace: no EOL and no INDENT for the continuation line."),
+        ("paren_nested_continuation", "f((a,\n  b),\n c)\n",
+         lid("f") + [t("OPEN_PAREN"), t("OPEN_PAREN"), a, t("COMMA"), b, t("CLOSE_PAREN"), t("COMMA"), c,
+                     t("CLOSE_PAREN"), eol],
+         "Nested parentheses keep LF as whitespace across several physical lines."),
+        ("paren_continuation_in_block", "a\n  f(b,\n      c)\n  d\n",
+         [a, eol, ind] + lid("f") + [t("OPEN_PAREN"), b, t("COMMA"), c, t("CLOSE_PAREN"), eol, d, eol, ded],
+         "A continuation line inside parentheses neither indents nor dedents the block."),
+        ("multiline_string_inner_indent", "a\n  x = \"\"\"p\n        q\"\"\"\n  y\n",
+         [a, eol, ind] + lid("x") + [t("OPERATOR", "OP_ASSIGN"), t("STRING", "p\n        q"), eol] +
+         lid("y") + [eol, ded],
+         "A multi-line string belongs to the logical line it starts on; inner lines give no INDENT."),
+        ("if_else_shape", "if a then\n  b\nelse\n  c\n",
+         [t("KEYWORD"), a, t("KEYWORD"), eol, ind, b, eol, ded, t("KEYWORD"), eol, ind, c, eol, ded],
+         "Block bodies after if/then and else each get an INDENT and a DEDENT."),
+        ("blank_line_at_eof", "a\n  b\n\n", [a, eol, ind, b, eol, ded],
+         "Trailing blank lines are ignored; remaining levels close with DEDENT before EOF."),
+        ("while_block", "while a do\n  b\nc\n", [t("KEYWORD"), a, t("KEYWORD"), eol, ind, b, eol, ded, c, eol],
+         "A while body is an indented block closed by a DEDENT on return to column 0."),
+        ("deep_nesting_dedent_to_zero", "a\n b\n  c\n   d\n    a\nb\n",
+         [a, eol, ind, b, eol, ind, c, eol, ind, d, eol, ind, a, eol, ded, ded, ded, ded, b, eol],
+         "Four nested levels all close with four DEDENTs when returning to column 0."),
+    ]
+    for lay_name, lay_source, lay_expected, lay_reason in block_cases:
+        add("layout/" + lay_name, lay_source, lay_expected, lay_reason, reference=LAYOUT)
+    for lay_name, lay_source, lay_prefix in [
+        ("invalid_dedent_unknown_width", "a\n    b\n  c\n", [a, eol, ind, b, eol]),
+        ("invalid_dedent_between_levels", "a\n  b\n    c\n   d\n", [a, eol, ind, b, eol, ind, c, eol]),
+        ("invalid_dedent_below_inner_block", "a\n  b\n      c\n    d\n", [a, eol, ind, b, eol, ind, c, eol]),
+    ]:
+        add("layout/" + lay_name, lay_source, lay_prefix, error=1, reference=TEAM_DECISION + "; S §1.2",
+            reason="Dedenting to a width that was never opened is lexical error 1 (§6: 'chybná struktura … "
+                   "odsazení'); tokens of earlier lines are returned first.")
 
     add("integration/minimal_program", "import ifj26.*\n@main def main(): Unit =\n  ()\n", [
         t("KEYWORD"), t("IDENTIFIER", "ifj26"), t("DOT"), t("OPERATOR", "OP_MULTIPLY"), t("EOL"),
@@ -636,8 +776,8 @@ def main():
         report.write(f"Probe stack limit: {stack} bytes (8 MiB unless the OS hard limit is lower).\n")
         report.write("Successful scans must reach EOF twice; all token values and consumed physical LFs are checked.\n")
         report.write("Positions use 1-based token START lines when explicitly asserted.\n")
-        report.write("Scope: raw scanner, not parser. INDENT/DEDENT policy, blank-line suppression, parenthesized layout,\n")
-        report.write("trailing-comma legality and malformed program syntax need parser/layout integration tests.\n")
+        report.write("Scope: scanner incl. INDENT/DEDENT layout (S §1.2), not parser. Trailing-comma legality and\n")
+        report.write("malformed program syntax need parser integration tests.\n")
         report.write("Unselected extensions, unspecified annotation boundaries/numeric suffix tokenization, overflow,\n")
         report.write("allocation-failure injection and exhaustive unbounded inputs are not claimed as covered.\n")
         report.write("Build: " + shlex.join(command) + "\n\n")

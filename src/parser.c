@@ -2,6 +2,28 @@
 //
 // @author 	Daniil Didenko (xdidend00)
 
+#include "ast.h"
+#include "token.h"
+
+typedef enum
+{
+    ITEM_TOKEN,
+    ITEM_AST_NODE,
+    ITEM_MARKER
+} expression_parser_stack_item_type;
+
+typedef struct
+{
+    expression_parser_stack_item_type content_type;
+
+    union
+    {
+        token* item_token;
+        ast_node* ast_node;
+        void* marker;
+    };
+} expression_parser_stack_item_tagged_union;
+
 typedef enum
 {
     OP_PLUS,

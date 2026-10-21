@@ -1,16 +1,20 @@
 #ifndef SYMTABLE_H
 #define SYMTABLE_H
 
-#include "error.h"
 #include <stdbool.h>
+
+#include "error.h"
+#include "token.h"
+#include "utils.h"
 
 typedef enum
 {
-    UNIT,
-    INT,
-    DOUBLE,
-    STRING,
-    BOOL
+    DATA_TYPE_UNDEFINED,
+    DATA_TYPE_INT = TOKEN_INT,
+    DATA_TYPE_DOUBLE = TOKEN_DOUBLE,
+    DATA_TYPE_STRING = TOKEN_STRING,
+    DATA_TYPE_UNIT = TOKEN_UNIT,
+    DATA_TYPE_BOOLEAN = TOKEN_BOOLEAN,
 } data_type;
 
 typedef enum
@@ -38,15 +42,16 @@ typedef struct identifier_data_s
 
     // used only for functions
     int function_arg_count;
-    data_type function_args[]; // when allocating give more memory if you need some args
-                               // example:
-                               // for 0 args: utils_safe_malloc(err, sizeof(identifier_data));
-                               // for N args: utils_safe_malloc(err, sizeof(identifier_data) + N * sizeof(data_type))
+    data_type function_args[]; // when allocating give more memory if you need
+    // some args example: for 0 args:
+    // utils_safe_malloc(err, sizeof(identifier_data));
+    // for N args: utils_safe_malloc(err,
+    // sizeof(identifier_data) + N * sizeof(data_type))
 } identifier_data;
 
 #define NEW_IDENTIFIER_DATA(err, number_of_function_args)                                                              \
     /*Note: set number of function args to 0 allocating not for function */                                            \
-    (identifier_data *)utils_safe_malloc(err, sizeof(identifier_data) + number_of_function_args * sizeof(data_type))
+    (identifier_data *)utils_safe_malloc(err, sizeof(identifier_data) + (number_of_function_args) * sizeof(data_type))
 
 // symtable itself
 struct symtable_s;
@@ -60,13 +65,16 @@ void symtable_destruct(symtable **self);
 
 // @brief Insert item into symtable
 //
-// @param identifier_id - index of identifier in attribute table we want to insert
-// @param data - pointer to data we want to insert (only dynamically allocated, ownership transition)
+// @param identifier_id - index of identifier in attribute table we want to
+// insert
+// @param data - pointer to data we want to insert (only dynamically allocated,
+// ownership transition)
 void symtable_insert(symtable *self, error *err, int identifier_id, identifier_data **data);
 
 // @brief Remove item from symtable
 //
-// @param identifier_id - index of identifier in attribute table we want to remove
+// @param identifier_id - index of identifier in attribute table we want to
+// remove
 void symtable_remove(symtable *self, int identifier_id);
 
 // @brief Search data in symtable by identifier_id

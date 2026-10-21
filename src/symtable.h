@@ -1,10 +1,11 @@
 #ifndef SYMTABLE_H
 #define SYMTABLE_H
 
-#include "error.h"
 #include <stdbool.h>
 
+#include "error.h"
 #include "token.h"
+#include "utils.h"
 
 typedef enum
 {
@@ -42,10 +43,10 @@ typedef struct identifier_data_s
     // used only for functions
     int function_arg_count;
     data_type function_args[]; // when allocating give more memory if you need
-                               // some args example: for 0 args:
-                               // utils_safe_malloc(err, sizeof(identifier_data));
-                               // for N args: utils_safe_malloc(err,
-                               // sizeof(identifier_data) + N * sizeof(data_type))
+    // some args example: for 0 args:
+    // utils_safe_malloc(err, sizeof(identifier_data));
+    // for N args: utils_safe_malloc(err,
+    // sizeof(identifier_data) + N * sizeof(data_type))
 } identifier_data;
 
 #define NEW_IDENTIFIER_DATA(err, number_of_function_args)                                                              \

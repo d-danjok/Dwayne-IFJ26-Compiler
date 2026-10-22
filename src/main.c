@@ -13,6 +13,7 @@
 typedef struct tac_s tac; // tmp placeholder, delete it
 
 extern ast_node *semantic_analyser_run(error *err, ast_node **parser_tree, attribute_table *attr_tab);
+
 // NOTE: takes ownership of parser_tree (should free it itself if no longer needs it)
 
 extern tac *tac_generate(error *err, ast_node **ast_root, attribute_table *attr_tab);
@@ -53,7 +54,7 @@ int main()
     {
         err = convert_err_for_program_return(err);
 
-        free(attr_tab);
+        destruct_attribute_table(&attr_tab);
 
         return err;
     }
@@ -63,7 +64,7 @@ int main()
     {
         err = convert_err_for_program_return(err);
 
-        free(attr_tab);
+        destruct_attribute_table(&attr_tab);
 
         return err;
     }
@@ -72,7 +73,7 @@ int main()
     if (err != NONE)
     {
         err = convert_err_for_program_return(err);
-        free(attr_tab);
+        destruct_attribute_table(&attr_tab);
 
         return err;
     }
@@ -81,7 +82,7 @@ int main()
     if (err != NONE)
     {
         err = convert_err_for_program_return(err);
-        free(attr_tab);
+        destruct_attribute_table(&attr_tab);
 
         return err;
     }
@@ -90,7 +91,7 @@ int main()
     if (err != NONE)
     {
         err = convert_err_for_program_return(err);
-        free(attr_tab);
+        destruct_attribute_table(&attr_tab);
 
         return err;
     }

@@ -28,29 +28,39 @@
 28. \<stat_list> ::= \<statement>\<stat_list’>
 29. \<stat_list’> ::= __;__ \<statement>\<stat_list’>
 30. \<stat_list’> ::= EOL \<statement>\<stat_list’>
-31. \<stat_list’> ::= __ε__
-32. \<statement> ::= ID __=__ \<assign_val>
-33. \<statement> ::= \<definition>
-34. \<statement> ::= \<expression>
-35. \<statement> ::= \<while>
-36. \<statement> ::= \<if_else>
-37. \<statement> ::= \<return>
-38. \<definition> ::= \<val_def> __=__ \<assign_val>
-39. \<definition> ::= \<var_def> __=__ \<assign_val>
-40. \<assign_val> ::= \<expression>
-41. \<while> ::= __while__ \<expression> __do__ \<block>
-42. \<if_else> ::= __if__ \<expression> __then__ \<block> __else__ \<block>
-43. \<return> ::= __return__ \<assign_val>
-44. \<return> ::= __return__
+31. \<stat_list’> ::= __;__
+32. \<stat_list’> ::= EOL
+33. \<statement> ::= ID __=__ \<assign_val>
+34. \<statement> ::= \<definition>
+35. \<statement> ::= \<expression>
+36. \<statement> ::= \<while>
+37. \<statement> ::= \<if_list>
+38. \<statement> ::= \<return>
+39. \<definition> ::= \<val_def> __=__ \<assign_val>
+40. \<definition> ::= \<var_def> __=__ \<assign_val>
+41. \<assign_val> ::= \<expression>
+42. \<while> ::= __while__ \<expression> __do__ \<block>
+
+[//]: # (BOOLTHEN extension)
+
+43. \<if_list> ::= \<if>\<if_list'>
+44. \<if_list'> ::= \<else>\<if_list'>
+45. \<if_list'> ::= __ε__
+46. \<if> ::= __if__ \<expression> __then__ \<block>
+47. \<else> ::= __else__ \<if>
+48. \<else> ::= __else__ \<block>
+
+49. \<return> ::= __return__ \<assign_val>
+50. \<return> ::= __return__
 
 NOTE: Following will be used inside of expressions
 
-45. \<func_call> ::= ID __(__\<call_params>
-46. \<call_params> ::= __)__
-47. \<call_params> ::= EOL \<call_params>
-48. \<call_params> ::= \<call_param>\<call_params’>
-49. \<call_params’> ::= __,__ \<call_param>\<call_params’>
-50. \<call_params’> ::= __,__ EOL \<call_param>\<call_params’>
-51. \<call_params’> ::= __,__ EOL )
-52. \<call_params’> ::=  __)
-53. \<call_param>  ::= \<expression>
+1. \<func_call> ::= ID __(__\<call_params>
+2. \<call_params> ::= __)__
+3. \<call_params> ::= EOL \<call_params>
+4. \<call_params> ::= \<call_param>\<call_params’>
+5. \<call_params’> ::= __,__ \<call_param>\<call_params’>
+6. \<call_params’> ::= __,__ EOL \<call_param>\<call_params’>
+7. \<call_params’> ::= __,__ EOL )
+8. \<call_params’> ::=  __)
+9. \<call_param>  ::= \<expression>

@@ -12,44 +12,51 @@
 
 typedef enum
 {
-    UNDEFINED,
+    AST_NODE_UNDEFINED,
 
-    PROGRAM,
-    DEF_LIST,
-    VAL_DEF,
-    VAR_DEF,
-    DEF_BODY,
-    FUNC_DEF,
-    MAIN_FUNC_DEF, // main_func
-    FUNC_START,
-    FUNC_NAME,
-    FUNC_HEAD,
-    PARAM_LIST,
-    PARAM_LIST_, // param_list'
-    PARAM,
-    FUNC_BODY,
-    BLOCK,
-    STAT_LIST,
-    STAT_LIST_, // stat_list'
-    STATEMENT,
-    DEFINITION,
-    ASSIGN_VAL,
-    FUNC_CALL,
-    CALL_PARAMS,
-    CALL_PARAMS_, // call_params'
-    CALL_PARAM,
-    WHILE,
-    IF_ELSE,
-    RETURN,
+    AST_NODE_PROGRAM,
+    AST_NODE_DEF_LIST,
+    AST_NODE_VAL_DEF,
+    AST_NODE_VAR_DEF,
+    AST_NODE_DEF_BODY,
+    AST_NODE_FUNC_DEF,
+    AST_NODE_MAIN_FUNC_DEF, // main_func
+    AST_NODE_FUNC_START,
+    AST_NODE_FUNC_NAME,
+    AST_NODE_FUNC_HEAD,
+    AST_NODE_PARAM_LIST,
+    AST_NODE_PARAM_LIST_, // param_list'
+    AST_NODE_PARAM,
+    AST_NODE_FUNC_BODY,
+    AST_NODE_BLOCK,
+    AST_NODE_STAT_LIST,
+    AST_NODE_STAT_LIST_, // stat_list'
+    AST_NODE_STATEMENT,
+    AST_NODE_DEFINITION,
+    AST_NODE_ASSIGN_VAL,
+    AST_NODE_WHILE,
 
-    UNARY_OPERATION,
-    BINARY_OPERATION,
+    AST_NODE_IF_LIST,
+    AST_NODE_IF_LIST_, // if_list'
+    AST_NODE_IF,
+    AST_NODE_ELSE,
 
-    LITERAL, // Int, Double, Bool, Unit, String
-    IDENTIFIER,
+    AST_NODE_RETURN,
+
+    // used for func call
+    AST_NODE_FUNC_CALL,
+    AST_NODE_CALL_PARAMS,
+    AST_NODE_CALL_PARAMS_, // call_params'
+    AST_NODE_CALL_PARAM,
+
+    AST_NODE_UNARY_OPERATION,
+    AST_NODE_BINARY_OPERATION,
+
+    AST_NODE_LITERAL, // Int, Double, Bool, Unit, String
+    AST_NODE_IDENTIFIER,
 
     // nodes for semantic analyser output
-    INT_TO_DOUBLE, // specification page 4, section 1.3
+    AST_NODE_INT_TO_DOUBLE_CONVERSION, // specification page 4, section 1.3
 } ast_node_type;
 
 typedef enum
@@ -76,6 +83,10 @@ typedef enum
     AST_OP_LESS_EQUAL,    //	<=
     AST_OP_EQUAL,         //	==
     AST_OP_NOT_EQUAL,     //	!=
+                          //    BOOLTHEN extension operations :S
+    AST_OP_AND,           //    &&
+    AST_OP_OR,            //    ||
+    AST_OP_NOT,           //    !
 } ast_operator;
 
 typedef struct ast_node_s

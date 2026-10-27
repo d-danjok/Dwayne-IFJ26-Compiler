@@ -10,6 +10,10 @@
 
 #define EMPTY_TOKEN (token){.type = TOKEN_UNDEFINED, .attribute_index = -1, .line = 0}
 
+// flags
+static bool last_token_was_operand = false; // needed for identifying if minus is or is not unary
+static long current_paren_depth = 0;        // needed to track if we are inside of parentheses
+
 typedef struct
 {
     bool was_stored;

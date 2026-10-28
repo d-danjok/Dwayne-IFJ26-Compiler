@@ -8,11 +8,9 @@
 #include "attribute_table.h"
 #include "token.h"
 
-#define EMPTY_TOKEN (token){.type = TOKEN_UNDEFINED, .attribute_index = -1, .line = 0}
-
-// flags
-static bool last_token_was_operand = false; // needed for identifying if minus is or is not unary
-static long current_paren_depth = 0;        // needed to track if we are inside of parentheses
+#define EMPTY_TOKEN                                                                                                    \
+    (token){.type = TOKEN_UNDEFINED, .attribute_index = -1, .line = 0}                                                 \
+    // TODO: is adapt for actual implementation on lexer branch
 
 typedef struct
 {
@@ -20,43 +18,43 @@ typedef struct
     token content;
 } token_input_buffer;
 
-static token_input_buffer new_token_input_buffer()
-{
-    return (token_input_buffer){.was_stored = false, .content = EMPTY_TOKEN};
-}
+// globals
+static bool last_token_was_operand = false; // needed for identifying if minus is or is not unary
+static long current_paren_depth = 0;        // needed to track if we are inside of parentheses
+static token_input_buffer token_buffer = {.was_stored = false, .content = EMPTY_TOKEN};
 
-static token peek_token(error *err, token_input_buffer *token_buffer)
+static token peek_token(error *err)
 {
     *err = NONE;
 
-    if (token_buffer->was_stored) // if token is already in buffer
+    if (token_buffer.was_stored) // if token is already in buffer
     {
-        return token_buffer->content;
+        return token_buffer.content;
     }
 
-    token_buffer->content = lexer_get_token(); // placeholder TODO: replace with actual lexer function
+    token_buffer.content = lexer_get_token(); // placeholder TODO: replace with actual lexer function
     if (*err != NONE)
     {
         return EMPTY_TOKEN;
     }
-    token_buffer->was_stored = true;
+    token_buffer.was_stored = true;
 
-    return token_buffer->content;
+    return token_buffer.content;
 }
 
-static token get_token(error *err, token_input_buffer *token_buffer)
+static token get_token(error *err)
 {
     *err = NONE;
 
-    if (!(token_buffer->was_stored))
+    if (!(token_buffer.was_stored))
     {
         return lexer_get_token(); // placeholder TODO: replace with actual lexer function
     }
 
-    token token_to_return = token_buffer->content;
+    const token token_to_return = token_buffer.content;
 
-    token_buffer->content = EMPTY_TOKEN;
-    token_buffer->was_stored = false;
+    token_buffer.content = EMPTY_TOKEN;
+    token_buffer.was_stored = false;
 
     return token_to_return;
 }

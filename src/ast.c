@@ -14,7 +14,7 @@ ast_node *new_ast_node(error *err)
         return NULL;
     }
 
-    node->type = UNDEFINED;
+    node->type = AST_NODE_UNDEFINED;
     node->left_child = NULL;
     node->right_child = NULL;
     node->literal_type = AST_TYPE_NONE;

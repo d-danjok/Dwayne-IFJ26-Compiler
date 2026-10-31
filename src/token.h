@@ -28,13 +28,25 @@ typedef enum
     TOKEN_KEYWORD,    // if, else, while...
     TOKEN_OPERATOR,   // +, -, *, /, =, ==, !=, >= ...
 
-    TOKEN_DOT,         // .
-    TOKEN_COMMA,       // ,
-    TOKEN_UNDERSCORE,  // _
-    TOKEN_SEPARATOR,   // |
-    TOKEN_OPEN_PAREN,  // (
-    TOKEN_CLOSE_PAREN, // )
-    TOKEN_COLON,       // :
+    TOKEN_DOT,        // .
+    TOKEN_COMMA,      // ,
+    TOKEN_UNDERSCORE, // _
+    TOKEN_SEPARATOR,  // | (ALGEBDT extension)
+    TOKEN_COLON,      // :
+    TOKEN_SEMICOLON,  // ;
+
+    TOKEN_OPEN_PAREN,    // (
+    TOKEN_CLOSE_PAREN,   // )
+    TOKEN_OPEN_BRACKET,  // [ (LISTS extension)
+    TOKEN_CLOSE_BRACKET, // ]
+    TOKEN_OPEN_BRACE,    // { (only inside ${...}(interpolated string extension))
+    TOKEN_CLOSE_BRACE,   // }
+    TOKEN_ARROW,         // => (LAMBDAS extension)
+    TOKEN_LEFT_ARROW,    // <- (CONTROL extension)
+
+    TOKEN_INTERP_BEGIN, // s" or s"""       (INTERPOLATEDS extension)
+    TOKEN_INTERP_END,   // closing " or """
+    // s"a$x${e}b" -> INTERP_BEGIN STRING("a") IDENTIFIER(x) OPEN_BRACE ... CLOSE_BRACE STRING("b") INTERP_END
 
     TOKEN_INDENT, // ADD INDENTATION
     TOKEN_DEDENT, // DECREASE INDENTATION
@@ -53,6 +65,10 @@ typedef enum
     OP_EQUAL_GREATER, // >=
     OP_LESS,          // <
     OP_EQUAL_LESS,    // <=
+    OP_NOT,           // !  (BOOLTHEN)
+    OP_AND,           // &&
+    OP_OR,            // ||
+    OP_CONCAT,        // ++
 } operator_list;
 
 typedef enum

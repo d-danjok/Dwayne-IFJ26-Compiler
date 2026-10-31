@@ -47,6 +47,9 @@ The report contains
 every case's input bytes, requirement and source reference. Failures include token
 positions within the sequence, expected and actual values, error codes, and the
 probe trace or sanitizer diagnostic. A list of failing case names follows the totals.
+A `BY SOURCE` line splits the totals into assignment rules, API contracts and team
+decisions/conventions, so a failed team decision is not read as a proven violation of
+the assignment. Expected INDENT/DEDENT sequences are balance-checked before any C code runs.
 `Required`/`expected` means the behavior demanded by the test; `lexer returned`/
 `actual` means what the unmodified lexer produced. For example, a required
 `TOKEN_KEYWORD` but returned `TOKEN_IDENTIFIER value='def'` is a lexer failure:
@@ -92,16 +95,43 @@ constructor contracts, line metadata, and piped input.
 
 The base keyword list is taken from specification §1.1, page 2:
 `def do Double else if import Int return String then Unit val var while`.
-Every keyword is checked on its own and in a sequence. Changed case, a digit
+Every keyword is checked on its own and in a sequence, including its `keyword_list`
+value from `token.h` (`KW_IF`, `KW_ELSE`, ...). Changed case, a digit
 suffix, or an underscore prefix must produce identifiers instead. Tests also
 check that comments and punctuation terminate keywords correctly. The extension
 group (`Boolean case class extension for List match type`) is also expected as
-`TOKEN_KEYWORD`: §1.1 says it is advisable not to accept them as identifiers and
-`token.h` defines a `KW_` value for each. `to`, `until`, `by` and `s` must stay
-identifiers (forum answers of 2026-09-29 and 2026-10-11).
+`TOKEN_KEYWORD`, because the project implements all extensions (§5). `to`, `until`,
+`by` and `s` must stay identifiers (forum answers of 2026-09-29 and 2026-10-11).
+
+## Extensions
+
+All ten extensions of §5 are tested (groups `boolthen/`, `control/`, `valmem/`,
+`algebdt/`, `lambdas/`, `lists/`, `extkw/`, `funexp/`, `paramlists/`, `interpolateds/`).
+Their tokens, as declared in `src/token.h`:
+
+| Source | Token |
+| --- | --- |
+| `true` / `false` | `TOKEN_BOOLEAN`, attribute 1 / 0 |
+| `!` `&&` `\|\|` `++` | `TOKEN_OPERATOR` with `OP_NOT` `OP_AND` `OP_OR` `OP_CONCAT` |
+| `\|` (union type) | `TOKEN_SEPARATOR` |
+| `;` | `TOKEN_SEMICOLON` |
+| `=>` / `<-` | `TOKEN_ARROW` / `TOKEN_LEFT_ARROW` (also when glued: `i<-0`, `x=>y`) |
+| `[` `]` | `TOKEN_OPEN_BRACKET` `TOKEN_CLOSE_BRACKET` |
+| `s"..."`, `s"""..."""` | see below |
+
+An interpolated string is `TOKEN_INTERP_BEGIN`, then `TOKEN_STRING` chunks that always
+alternate with splices, then `TOKEN_INTERP_END`. A chunk may be empty. A `$id` splice is
+one `TOKEN_IDENTIFIER`; a `${...}` splice is `TOKEN_OPEN_BRACE`, ordinary tokens and
+`TOKEN_CLOSE_BRACE`. `$$` is a `$` inside the chunk; one-line chunks decode escapes like
+ordinary strings. Example: `s"a$x${n}"` gives `INTERP_BEGIN STRING("a") IDENTIFIER(x)
+STRING("") OPEN_BRACE IDENTIFIER(n) CLOSE_BRACE STRING("") INTERP_END`. A chunk is
+returned only after its splice or closing quote is reached, so an error inside a chunk
+leaves only `INTERP_BEGIN` before it. This split is a team convention and is reported
+under "team decision". `{`, `}` and `$` outside an interpolated string, and a lone `&`,
+remain lexical error 1.
 
 The exact source inputs are available in [`exmaples_to_test`](exmaples_to_test/README.md).
-Its `programs/` folder contains four complete IFJ26 programs exercised by integration
+Its `programs/` folder contains five complete IFJ26 programs exercised by integration
 lexer cases. Its `fragments/` folder contains the remaining valid and invalid lexer
 inputs. The index describes each file and its expected lexical error code. Regenerate
 missing snapshots with `python3 tests/lexer/run.py --export-examples`; editing a
@@ -111,7 +141,9 @@ Number rules follow §1.1 and the forum answer of 2026-10-11: a nonzero Int must
 not start with zero (`01`, `0_1` are lexical error 1; `00`, `0_0` are zero), but the
 exponent and the integer part of a Double may (`1e01`, `2e-001`, `01.5` are valid).
 Several consecutive separators between two digits are valid (`1__2`, `1.2__3`); a
-separator not between two digits is lexical error 1 (`1_`, `1_.5`, `1e_2`, `1.5_D`).
+separator not between two digits is lexical error 1 (`1_`, `1__`, `1_.5`, `1e_2`, `1e2__`, `1.5_D`).
+Finite binary64 boundaries (`1e-308`, `5e-324`, `2.2250738585072014e-308`,
+`1.7976931348623157e308`) are valid Doubles even though `strtod` sets `ERANGE` for subnormals.
 Ambiguous points were cross-checked with Scala 3; see `SPEC_AUDIT.md`.
 Team decisions of 2026-10-19 (stricter than Scala, which splits these into tokens):
 a number glued to a letter or to a second fraction (`12abc`, `1.5x`, `2e0.01`),
@@ -128,18 +160,19 @@ tokens: `logical_lines()` in `run.py` keeps an EOL only after a line that produc
 (blank and comment-only lines emit none), drops EOLs inside parentheses, and expects a
 synthesized EOL before EOF when the last line has no final LF. The integration programs
 also expect INDENT/DEDENT. Line metadata expectations use 1-based token start lines, with the caller
-installing `current_line`. The semicolon case expects `TOKEN_SEPARATOR`; the header
-currently documents that token only for `|`, so its meaning must be coordinated
-with the parser. Keyword attribute IDs cannot yet be checked because no keyword
-enum is exposed in the headers.
+installing `current_line`.
 
 The `layout/` group checks INDENT/DEDENT levels, blank and comment-only line
-suppression and LF inside parentheses (S §1.2). A dedent to a width never opened
-is lexical error 1 (team decision). Not covered yet: continuation-line indentation
-inside parentheses, tabs at the start of comment-only lines, and an indented first
-line. Trailing-comma restrictions and other syntax/semantic errors
-belong to parser tests. Unselected extensions,
-unspecified annotation boundaries and numeric-suffix tokenization, range overflow
-(excluded by the assignment), allocation failure injection, and every possible
+suppression (also after a tab), LF inside parentheses, CR/CRLF, and continuation
+indentation measured from the logical line start (S §1.2). A dedent to a width never
+opened and an insufficient continuation indent are lexical error 1 (team decision;
+the code for the latter still needs to be agreed). The `line/` group checks that
+commas and closing parentheses keep their physical lines (`f(1,)` vs `f(1,` + LF + `)`),
+so the parser can enforce the trailing-comma rule; its legality itself belongs to
+parser tests. Not covered yet: an indented first line, multiline block comments
+inside parentheses, escapes in `s"""..."""` (Scala's `s` processes them, the
+assignment does not say), LF inside `[...]`. Unspecified annotation boundaries and
+numeric-suffix tokenization, Int range overflow (excluded by the assignment's Int
+rule), allocation failure injection, and every possible
 unbounded input are not claimed as covered. Requirements and unresolved boundaries
 were read from the sibling `assignment-context` directory; it is not needed at runtime.

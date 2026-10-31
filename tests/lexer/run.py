@@ -26,6 +26,11 @@ EXTENSION_KEYWORDS = tuple("Boolean case class extension for List match type".sp
 FORUM_NUMBERS = ("IFJ26 forum (Ondryas, 2026-10-11): repeated separators are allowed; "
                  "2e001 and 2e-001 are valid Double literals")
 TEAM_DECISION = "Team decision 2026-10-19 (SPEC_AUDIT.md §8), within IFJ26 S §1.1/§1.2 and §6 code 1"
+EXTENSIONS = "IFJ26 S §5 (pp. 10–17): the project implements all extensions"
+INTERP_CONVENTION = ("IFJ26 S §5.6 INTERPOLATEDS (pp. 13–14); team convention (token.h): INTERP_BEGIN, then STRING "
+                     "chunks (possibly empty) alternating with $id / ${...} splices, then INTERP_END")
+CR_REFERENCE = ("IFJ26 S §1.2 (p. 3): LF ends a physical line; Scala 3.4 lexical syntax: CR is whitespace "
+                "(https://www.scala-lang.org/files/archive/spec/3.4/01-lexical-syntax.html)")
 STACK_LIMIT = 8 * 1024 * 1024
 
 
@@ -51,6 +56,31 @@ class Case:
 def t(kind, value=None, line=None):
     """Keep expected sequences readable without copying token enum numbers."""
     return Token("TOKEN_" + kind, value, line)
+
+
+def kw(word):
+    """Keyword token with its keyword_list name, e.g. kw("Double") -> KW_DOUBLE."""
+    return t("KEYWORD", "KW_" + word.upper())
+
+
+def category(case):
+    """Report source of an expectation: assignment rule, module/API contract, or team decision."""
+    if case.api or case.reference.startswith(API):
+        return "API contract"
+    if "team " in case.reference.lower():
+        return "team decision"
+    return "assignment"
+
+
+def check_layout_balance(name, expected, complete):
+    """Catch impossible INDENT/DEDENT expectations before any C code runs."""
+    depth = 0
+    for token in expected:
+        depth += {"TOKEN_INDENT": 1, "TOKEN_DEDENT": -1}.get(token.kind, 0)
+        if depth < 0:
+            raise ValueError(f"{name}: expected DEDENT below indentation level 0")
+    if complete and depth:
+        raise ValueError(f"{name}: expected sequence leaves {depth} INDENT level(s) open at EOF")
 
 
 def logical_lines(expected, at_eof):
@@ -90,6 +120,7 @@ def cases():
         if isinstance(source, str):
             source = source.encode("ascii")
         expected = logical_lines(expected, at_eof=not error)
+        check_layout_balance(name, expected, complete=not error)
         if not error and not api:
             expected += (t("EOF"), t("EOF"))
         result.append(Case(name, source, expected, reason, reference, error, pipe, api))
@@ -134,23 +165,24 @@ def cases():
         ("same", "Same", "same", "other")], "Attribute values remain valid across buffer reuse and interning.")
 
     for word in BASE_KEYWORDS:
-        add("keyword/" + word, word, [t("KEYWORD")],
-            f"The assignment reserves '{word}' as a keyword: the lexer must return TOKEN_KEYWORD. "
-            "Keyword attribute IDs are not defined in the current headers.", KEYWORDS_REFERENCE)
+        add("keyword/" + word, word, [kw(word)],
+            f"The assignment reserves '{word}' as a keyword: the lexer must return TOKEN_KEYWORD "
+            f"with attribute KW_{word.upper()} from token.h keyword_list.", KEYWORDS_REFERENCE)
         for label, identifier in (("case", word.swapcase()), ("suffix", word + "0"), ("prefix", "_" + word)):
             add(f"keyword_boundary/{word}_{label}", identifier, [t("IDENTIFIER", identifier)],
                 f"Only the exact spelling '{word}' is reserved; '{identifier}' is an identifier. "
                 "Identifiers and keywords are case-sensitive.", KEYWORDS_REFERENCE)
     for word in EXTENSION_KEYWORDS:
-        add("keyword/extension_" + word, word, [t("KEYWORD")],
+        add("keyword/extension_" + word, word, [kw(word)],
             f"'{word}' is in the S §1.1 keyword list (extension group: 'v základním zadání je vhodné je na místě "
-            "identifikátoru nepřijímat'); token.h defines a KW_ value for it.", KEYWORDS_REFERENCE)
-    add("keyword/all_base", " ".join(BASE_KEYWORDS), [t("KEYWORD") for _ in BASE_KEYWORDS],
+            "identifikátoru nepřijímat'); all extensions are implemented, so it is a real keyword.",
+            KEYWORDS_REFERENCE + "; " + EXTENSIONS)
+    add("keyword/all_base", " ".join(BASE_KEYWORDS), [kw(word) for word in BASE_KEYWORDS],
         "Every base keyword from the assignment's first group must remain a keyword in a token sequence.",
         KEYWORDS_REFERENCE)
-    add("keyword/def_comment_boundary", "def/**/name", [t("KEYWORD"), t("IDENTIFIER", "name")],
+    add("keyword/def_comment_boundary", "def/**/name", [kw("def"), t("IDENTIFIER", "name")],
         "A block comment separates tokens: 'def' stays a keyword and 'name' stays an identifier.", KEYWORDS_REFERENCE)
-    add("keyword/def_parenthesis_boundary", "def(", [t("KEYWORD"), t("OPEN_PAREN")],
+    add("keyword/def_parenthesis_boundary", "def(", [kw("def"), t("OPEN_PAREN")],
         "A punctuation boundary ends 'def'; lexical classification must not depend on parser validity.", KEYWORDS_REFERENCE)
 
     operators = {"=": "ASSIGN", "+": "PLUS", "-": "MINUS", "*": "MULTIPLY", "/": "DIVISION",
@@ -180,9 +212,9 @@ def cases():
         t("OPERATOR", "OP_PLUS"), t("INT", 42)],
         "Unit may stand wherever a term is expected, e.g. 'val a = () + 42' (syntactically valid).",
         "IFJ26 forum (Ondryas, 2026-10-13); team convention: Unit is OPEN_PAREN CLOSE_PAREN")
-    add("punctuation/semicolon", "1;2", [t("INT", 1), t("SEPARATOR"), t("INT", 2)],
-        "S §1.2 requires semicolon statement separation. This suite uses TOKEN_SEPARATOR for ';'; "
-        "the header currently only documents '|', so that token convention needs to be agreed with the parser.", LAYOUT)
+    add("punctuation/semicolon", "1;2", [t("INT", 1), t("SEMICOLON"), t("INT", 2)],
+        "S §1.2 requires semicolon statement separation; ';' is TOKEN_SEMICOLON ('|' keeps TOKEN_SEPARATOR).",
+        LAYOUT)
     add("annotation/main", "@main", [t("ANNOTATION")], "Recognize the exact @main annotation.",
         "IFJ26 S §2 (p. 4); assignment-context/04-program-scopes-functions-control.md")
     for source in ("@", "@m", "@ma", "@mai", "@Main", "@ main", "@mainx"):
@@ -191,10 +223,10 @@ def cases():
     add("annotation/main_paren", "@main(", [t("ANNOTATION"), t("OPEN_PAREN")],
         "The annotation ends at the first character that cannot continue an identifier.",
         "IFJ26 S §2 (p. 4)")
-    add("annotation/main_def_same_line", "@main def", [t("ANNOTATION"), t("KEYWORD")],
+    add("annotation/main_def_same_line", "@main def", [t("ANNOTATION"), kw("def")],
         "The annotation may be on the same line as the def keyword.", "IFJ26 S §2 (p. 4)")
     for name, source in (("spaced", "import  ifj26 . *"), ("comment", "import/* komentar */ifj26.*")):
-        add("prolog/" + name, source, [t("KEYWORD"), t("IDENTIFIER", "ifj26"), t("DOT"),
+        add("prolog/" + name, source, [kw("import"), t("IDENTIFIER", "ifj26"), t("DOT"),
             t("OPERATOR", "OP_MULTIPLY")],
             "The prolog allows arbitrary whitespace between its tokens; a block comment without LF separates tokens.",
             "IFJ26 S §2 (p. 4); IFJ26 forum (2026-09-23): 'import/* komentar */ifj26.*' is valid")
@@ -207,7 +239,7 @@ def cases():
     for source, value in {"1__2": 12, "1___2": 12, "0__0": 0}.items():
         add("integer/" + source, source, [t("INT", value)],
             "Several consecutive separators between two digits are allowed, as in Scala.", FORUM_NUMBERS)
-    for source in ("01", "0123", "00_1", "0_1", "1_", "0_"):
+    for source in ("01", "0123", "00_1", "0_1", "1_", "0_", "1__"):
         add("integer/invalid_" + source, source, error=1,
             reason="A malformed integer is a lexical error (1), not several valid tokens or an internal error.")
 
@@ -220,6 +252,9 @@ def cases():
         "1e0": 1.0, "1e00": 1.0, "1e+00": 1.0, "1e-00": 1.0,
         "1e0_0": 1.0, "1.5E00_0D": 1.5,
         "1e-100": 1e-100, "1e100": 1e100, "1.0000000000000002": 1.0000000000000002,
+        # Finite binary64 boundaries: subnormal results set ERANGE in strtod but are valid literals.
+        "1e-308": 1e-308, "5e-324": 5e-324, "2.2250738585072014e-308": 2.2250738585072014e-308,
+        "1.7976931348623157e308": 1.7976931348623157e308,
     }
     for source, value in doubles.items():
         add("double/" + source, source, [t("DOUBLE", value)],
@@ -238,7 +273,7 @@ def cases():
             "The leading-zero ban applies to Int literals only; the integer part of a Double is any digit sequence "
             "(Scala 3 accepts it too).")
     for source in ("1e", "1E", "1e+", "1e-", "1e_2", "1e+_2", "1e--2", "1e2_",
-                   "1e0_", "1.2_", ".5_", "1.2e", "1.2e+", "1_e2", "1_.5", "1.5_D"):
+                   "1e0_", "1.2_", ".5_", "1.2e", "1.2e+", "1_e2", "1_.5", "1.5_D", "1.2__", "1e2__"):
         add("double/invalid_" + source, source, error=1,
             reason="Missing exponent digits or a separator not between two digits must return lexical error 1 "
                    "(Scala: 'trailing separator is not allowed').")
@@ -278,7 +313,8 @@ def cases():
                ("multiline_two_quotes", '"""a""b"""', 'a""b'),
                ("multiline_physical_tab", '"""a\tb\n c"""', "a\tb\n c"),
                ("physical_tab", '"a\tb"', "a\tb"),
-               ("multiline_four_quotes", '"""a""""', 'a"')]
+               ("multiline_four_quotes", '"""a""""', 'a"'),
+               ("multiline_crlf", '"""x\r\ny"""', "x\r\ny")]
     for name, source, value in strings:
         add("string/" + name, source, [t("STRING", value)],
             "String value must match byte for byte; ordinary strings decode escapes, triple-quoted strings preserve content.")
@@ -326,6 +362,8 @@ def cases():
         ("line_after_multiline", "x/*a\nb*///text\ny", [t("IDENTIFIER", "x"), t("EOL"), t("IDENTIFIER", "y")]),
         ("block_after_multiline", "x/*a\nb*/ /*c*/\ny", [t("IDENTIFIER", "x"), t("EOL"), t("IDENTIFIER", "y")]),
         ("close_marker_outside", "*/", [t("OPERATOR", "OP_MULTIPLY"), t("OPERATOR", "OP_DIVISION")]),
+        ("line_in_parens", "f(1, // c\n  2)", [t("IDENTIFIER", "f"), t("OPEN_PAREN"), t("INT", 1), t("COMMA"),
+                                               t("EOL"), t("INT", 2), t("CLOSE_PAREN")]),
     ]:
         add("comment/" + name, source, expected,
             "Comments preserve token boundaries and nesting; raw scanner emits physical EOL at comment termination.")
@@ -337,9 +375,10 @@ def cases():
     add("comment/deep_nesting", "/*" * 64 + "body" + "*/" * 64 + "x", [t("IDENTIFIER", "x")],
         "Nested comments must close at the matching depth, without leaking comment state.")
 
-    for char in "!#$%&?^`'\\{}[]~":
+    for char in "#$%&?^`'\\{}~":
         add("invalid/ascii_" + str(ord(char)), char, error=1,
-            reason="This character cannot begin a base-language lexeme (standalone ! is not !=).")
+            reason="This character cannot begin a lexeme, even with all extensions ('$', '{', '}' are valid only "
+                   "inside an interpolated string; a lone '&' is not '&&').")
     add("invalid/nul", b"\0", error=1, reason="An input NUL byte must not be mistaken for EOF.")
     for code in (0x01, 0x7F):
         add(f"invalid/control_{code:02x}", bytes([code]), error=1,
@@ -352,6 +391,10 @@ def cases():
         "Tab is whitespace between tokens; the lexical tab prohibition applies to indentation of nonempty lines.", LAYOUT)
     add("layout/tab_after_multiline_comment", "/*a\nb*/\t\nx", [t("EOL"), t("IDENTIFIER", "x")],
         "Whitespace after a multiline block comment is allowed until the physical line ends.", LAYOUT)
+    add("layout/cr_between_tokens", "a\rb", [t("IDENTIFIER", "a"), t("IDENTIFIER", "b")],
+        "CR is whitespace between tokens and does not end a physical line.", CR_REFERENCE)
+    add("layout/crlf", "a\r\nb", [t("IDENTIFIER", "a", 1), t("EOL"), t("IDENTIFIER", "b", 2)],
+        "CRLF ends a line through its LF; only LF increments the line counter.", CR_REFERENCE)
 
     for name, source, expected in [
         ("identifier", "abc", t("IDENTIFIER", "abc")), ("integer", "12", t("INT", 12)),
@@ -372,10 +415,27 @@ def cases():
         "Token positions use the 1-based starting physical line; caller supplies a counter initialized to 1.", API)
     add("line/multiline_string", '"""a\nb""" x', [t("STRING", "a\nb", 1), t("IDENTIFIER", "x", 2)],
         "A multiline token must retain its starting line, while the next token uses the updated line.", API)
-    add("line/comment_then_identifier", "/*a\nb*/\nx", [t("EOL", line=2), t("IDENTIFIER", "x", 3)],
-        "Comment LF updates the shared counter; the returned physical EOL is on line 2.", API)
+    add("line/comment_then_identifier", "y/*a\nb*/\nx",
+        [t("IDENTIFIER", "y", 1), t("EOL", line=2), t("IDENTIFIER", "x", 3)],
+        "Comment LF updates the shared counter; the EOL ending y's logical line is on line 2.", API)
     add("line/escaped_lf", '"\\n" x', [t("STRING", "\n", 1), t("IDENTIFIER", "x", 1)],
         "Decoded newline escapes must not increment the physical source line.", API)
+    add("line/multiline_crlf_string", '"""x\r\ny""" z', [t("STRING", "x\r\ny", 1), t("IDENTIFIER", "z", 2)],
+        "A multiline string keeps CR and LF; only the LF advances the line of the next token.", API)
+    # The parser needs comma/close-paren lines to tell f(1,) (error) from f(1,<LF>) (S §1.2 trailing comma).
+    f_call = [t("IDENTIFIER", "f", 1), t("OPEN_PAREN", line=1), t("INT", 1, 1), t("COMMA", line=1)]
+    for name, source, close_line in [("trailing_comma_same_line", "f(1,)", 1),
+                                     ("trailing_comma_lf", "f(1,\n  )", 2),
+                                     ("trailing_comma_comment_lf", "f(1, // c\n  )", 2)]:
+        add("line/" + name, source, f_call + [t("EOL")] * (close_line - 1) + [t("CLOSE_PAREN", line=close_line)],
+            "Comma and close-paren lines must survive EOL suppression inside parentheses; "
+            "trailing-comma legality is checked by the parser.", API)
+    add("line/trailing_comma_def_params", "def g(a: Int,\n      b: Int,\n  ): Unit = ()", [
+        kw("def"), t("IDENTIFIER", "g", 1), t("OPEN_PAREN"), t("IDENTIFIER", "a", 1), t("COLON"), kw("Int"),
+        t("COMMA", line=1), t("EOL"), t("IDENTIFIER", "b", 2), t("COLON"), kw("Int"), t("COMMA", line=2), t("EOL"),
+        t("CLOSE_PAREN", line=3), t("COLON"), kw("Unit"), t("OPERATOR", "OP_ASSIGN"), t("OPEN_PAREN"),
+        t("CLOSE_PAREN")],
+        "A multiline parameter list keeps every comma and the closing parenthesis on its own physical line.", API)
 
     for size in (126, 127, 128, 129, 254, 255, 256, 257, 1024, 4096):
         word = "a" * size
@@ -393,8 +453,8 @@ def cases():
         "Long comments must terminate without crashing or dropping the following token.")
     add("buffer/long_line_comment", "//" + "x" * 4096 + "\na", [t("EOL"), t("IDENTIFIER", "a")],
         "Long line comments must terminate and leave the next line available.")
-    add("buffer/long_whitespace", " " * 4096 + "a", [t("IDENTIFIER", "a")],
-        "Long runs of whitespace must not lose the next token.")
+    add("buffer/long_whitespace", "a" + " " * 4096 + "b", [t("IDENTIFIER", "a"), t("IDENTIFIER", "b")],
+        "Long runs of whitespace between tokens must not lose the next token (first-line indent is not tested here).")
     for kind in ("identifier", "string", "integer", "double"):
         words = [f"v{i}" if kind == "identifier" else f'"v{i}"' if kind == "string" else
                  str(i) if kind == "integer" else f"{i}.5" for i in range(150)]
@@ -451,15 +511,25 @@ def cases():
          lid("y") + [eol, ded],
          "A multi-line string belongs to the logical line it starts on; inner lines give no INDENT."),
         ("if_else_shape", "if a then\n  b\nelse\n  c\n",
-         [t("KEYWORD"), a, t("KEYWORD"), eol, ind, b, eol, ded, t("KEYWORD"), eol, ind, c, eol, ded],
+         [kw("if"), a, kw("then"), eol, ind, b, eol, ded, kw("else"), eol, ind, c, eol, ded],
          "Block bodies after if/then and else each get an INDENT and a DEDENT."),
         ("blank_line_at_eof", "a\n  b\n\n", [a, eol, ind, b, eol, ded],
          "Trailing blank lines are ignored; remaining levels close with DEDENT before EOF."),
-        ("while_block", "while a do\n  b\nc\n", [t("KEYWORD"), a, t("KEYWORD"), eol, ind, b, eol, ded, c, eol],
+        ("while_block", "while a do\n  b\nc\n", [kw("while"), a, kw("do"), eol, ind, b, eol, ded, c, eol],
          "A while body is an indented block closed by a DEDENT on return to column 0."),
         ("deep_nesting_dedent_to_zero", "a\n b\n  c\n   d\n    a\nb\n",
          [a, eol, ind, b, eol, ind, c, eol, ind, d, eol, ind, a, eol, ded, ded, ded, ded, b, eol],
          "Four nested levels all close with four DEDENTs when returning to column 0."),
+        ("paren_continuation_logical_start", "a\n  f(\n      g(\n   x))\n",
+         [a, eol, ind] + lid("f") + [t("OPEN_PAREN")] + lid("g") + [t("OPEN_PAREN")] + lid("x") +
+         [t("CLOSE_PAREN"), t("CLOSE_PAREN"), eol, ded],
+         "Continuation indent is measured from the logical line start (2), not the previous physical line (6)."),
+        ("crlf_block", "a\r\n  b\r\n", [a, eol, ind, b, eol, ded],
+         "CR before LF is trailing whitespace and does not disturb INDENT/DEDENT."),
+        ("tab_line_comment_line", "a\n  b\n\t// c\n  d\n", [a, eol, ind, b, eol, d, eol, ded],
+         "A tab before a comment-only line is allowed: the tab rule applies to indentation of nonempty lines."),
+        ("tab_block_comment_line", "a\n  b\n\t/* c */\n  d\n", [a, eol, ind, b, eol, d, eol, ded],
+         "A tab before a line holding only a block comment is allowed; the line is ignored for indentation."),
     ]
     for lay_name, lay_source, lay_expected, lay_reason in block_cases:
         add("layout/" + lay_name, lay_source, lay_expected, lay_reason, reference=LAYOUT)
@@ -471,23 +541,164 @@ def cases():
         add("layout/" + lay_name, lay_source, lay_prefix, error=1, reference=TEAM_DECISION + "; S §1.2",
             reason="Dedenting to a width that was never opened is lexical error 1 (§6: 'chybná struktura … "
                    "odsazení'); tokens of earlier lines are returned first.")
+    for lay_name, lay_source in [("invalid_continuation_same_width", "a\n  f(\n  x)\n"),
+                                 ("invalid_continuation_narrower", "a\n  f(\n x)\n")]:
+        add("layout/" + lay_name, lay_source, [a, eol, ind] + lid("f") + [t("OPEN_PAREN")], error=1,
+            reference=TEAM_DECISION + "; S §1.2 (p. 3); error code still to be agreed",
+            reason="A continuation line inside parentheses must be indented deeper than its logical line start.")
 
-    add("integration/minimal_program", "import ifj26.*\n@main def main(): Unit =\n  ()\n", [
-        t("KEYWORD"), t("IDENTIFIER", "ifj26"), t("DOT"), t("OPERATOR", "OP_MULTIPLY"), t("EOL"),
-        t("ANNOTATION"), t("KEYWORD"), t("IDENTIFIER", "main"), t("OPEN_PAREN"), t("CLOSE_PAREN"),
-        t("COLON"), t("KEYWORD"), t("OPERATOR", "OP_ASSIGN"), t("EOL"),
+    def op(name):
+        return t("OPERATOR", "OP_" + name)
+
+    lp, rp, colon, comma, arrow, larrow = (t("OPEN_PAREN"), t("CLOSE_PAREN"), t("COLON"), t("COMMA"),
+                                           t("ARROW"), t("LEFT_ARROW"))
+    ob, cb, pipe, dot = t("OPEN_BRACKET"), t("CLOSE_BRACKET"), t("SEPARATOR"), t("DOT")
+    f, i, n, v, x, y = lid("f", "i", "n", "v", "x", "y")
+    print_i = lid("print") + [lp, i, rp]
+    for name, source, expected, reason, section in [
+        ("boolthen/true", "true", [t("BOOLEAN", 1)], "'true' is a Boolean literal with attribute 1.", "5.2 BOOLTHEN"),
+        ("boolthen/false", "false", [t("BOOLEAN", 0)], "'false' is a Boolean literal with attribute 0.", "5.2 BOOLTHEN"),
+        ("boolthen/literal_boundaries", "True FALSE true_ falsey", lid("True", "FALSE", "true_", "falsey"),
+         "Only the exact lowercase spellings are Boolean literals.", "5.2 BOOLTHEN"),
+        ("boolthen/not", "!x", [op("NOT"), x], "Unary negation '!' is an operator.", "5.2 BOOLTHEN"),
+        ("boolthen/not_not", "! !x", [op("NOT"), op("NOT"), x], "Each '!' is a separate negation.", "5.2 BOOLTHEN"),
+        ("boolthen/not_vs_not_equal", "a != !b", [a, op("NOT_EQUAL"), op("NOT"), b],
+         "'!=' still takes precedence over '!' followed by '='.", "5.2 BOOLTHEN"),
+        ("boolthen/and_or", "!a&&b||c", [op("NOT"), a, op("AND"), b, op("OR"), c],
+         "'&&' and '||' are two-character operators recognized without surrounding spaces.", "5.2 BOOLTHEN"),
+        ("boolthen/else_if", "if a then\n  b\nelse if c then\n  d\n",
+         [kw("if"), a, kw("then"), eol, ind, b, eol, ded, kw("else"), kw("if"), c, kw("then"), eol, ind, d, eol, ded],
+         "'else if' aligned with 'if' closes the first block and opens another.", "5.2 BOOLTHEN"),
+        ("boolthen/if_without_else", "if a then\n  b\nc\n", [kw("if"), a, kw("then"), eol, ind, b, eol, ded, c, eol],
+         "A conditional without else is closed by the dedent alone.", "5.2 BOOLTHEN"),
+        ("control/generator", "i <- 1 to 10 by 2", [i, larrow, t("INT", 1)] + lid("to") + [t("INT", 10)] + lid("by") +
+         [t("INT", 2)], "'<-' is a token; to/by stay identifiers.", "5.3 CONTROL"),
+        ("control/left_arrow_glued", "i<-0", [i, larrow, t("INT", 0)],
+         "'<-' is one reserved token even without spaces, as in Scala.", "5.3 CONTROL"),
+        ("control/less_than_negative", "i < -1", [i, op("LESS"), op("MINUS"), t("INT", 1)],
+         "Separated '<' and '-' stay a comparison with a negated literal.", "5.3 CONTROL"),
+        ("control/for_one_line", "for i <- 0 until n do print(i)",
+         [kw("for"), i, larrow, t("INT", 0)] + lid("until") + [n, kw("do")] + print_i,
+         "Single-line for with a one-line body.", "5.3 CONTROL"),
+        ("control/for_multiline", "for\n  i <- 0 until n\n  if i != 3\ndo\n  print(i)\n",
+         [kw("for"), eol, ind, i, larrow, t("INT", 0)] + lid("until") + [n, eol, kw("if"), i, op("NOT_EQUAL"),
+         t("INT", 3), eol, ded, kw("do"), eol, ind] + print_i + [eol, ded],
+         "Generator and guards form an indented block; 'do' aligned with 'for' opens the body.", "5.3 CONTROL"),
+        ("control/if_expression", "val y = if x < 0 then 0 - x else x",
+         [kw("val"), y, op("ASSIGN"), kw("if"), x, op("LESS"), t("INT", 0), kw("then"), t("INT", 0), op("MINUS"), x,
+          kw("else"), x], "if used as a one-line expression.", "5.3 CONTROL"),
+        ("valmem/chain", 'number.floor.toInt "abc".length',
+         lid("number") + [dot] + lid("floor") + [dot] + lid("toInt") + [t("STRING", "abc"), dot] + lid("length"),
+         "Member access on identifiers and literals uses DOT and identifiers.", "5.4 VALMEM"),
+        ("valmem/double_member", "(1.2345).toString", [lp, t("DOUBLE", 1.2345), rp, dot] + lid("toString"),
+         "A parenthesized Double followed by a member.", "5.4 VALMEM"),
+        ("algebdt/union_type", "type Scalar = Int | Double | String",
+         [kw("type")] + lid("Scalar") + [op("ASSIGN"), kw("Int"), pipe, kw("Double"), pipe, kw("String")],
+         "'|' in a union type is TOKEN_SEPARATOR.", "5.5 ALGEBDT"),
+        ("algebdt/pipe_glued", "Int|String", [kw("Int"), pipe, kw("String")],
+         "A single '|' is not '||'.", "5.5 ALGEBDT"),
+        ("algebdt/case_class", "case class Point(x: Int, y: Int)",
+         [kw("case"), kw("class")] + lid("Point") + [lp, x, colon, kw("Int"), comma, y, colon, kw("Int"), rp],
+         "Product type definition.", "5.5 ALGEBDT"),
+        ("algebdt/arrow", "x=>y", [x, arrow, y], "'=>' is one token, not '=' followed by '>'.", "5.5 ALGEBDT"),
+        ("algebdt/arrow_vs_equal", "=> = == >=", [arrow, op("ASSIGN"), op("EQUAL"), op("EQUAL_GREATER")],
+         "'=>' does not disturb '=', '==' and '>='.", "5.5 ALGEBDT"),
+        ("algebdt/match", 'v match\n  case 0 => "zero"\n  case n: Int if n > 0 => "pos"\n'
+         '  case Point(a, b) => a\n  case _ => "neg"\n',
+         [v, kw("match"), eol, ind, kw("case"), t("INT", 0), arrow, t("STRING", "zero"), eol,
+          kw("case"), n, colon, kw("Int"), kw("if"), n, op("GREATER"), t("INT", 0), arrow, t("STRING", "pos"), eol,
+          kw("case")] + lid("Point") + [lp, a, comma, b, rp, arrow, a, eol,
+          kw("case"), t("UNDERSCORE"), arrow, t("STRING", "neg"), eol, ded],
+         "match with literal, typed, constructor and wildcard patterns plus a guard.", "5.5 ALGEBDT"),
+        ("lambdas/function_type", "(Int, Int) => Int", [lp, kw("Int"), comma, kw("Int"), rp, arrow, kw("Int")],
+         "Function type.", "5.7 LAMBDAS"),
+        ("lambdas/unit_function_type", "() => Int", [lp, rp, arrow, kw("Int")],
+         "Parameterless function type.", "5.7 LAMBDAS"),
+        ("lambdas/lambda_block", "val f = (v: Int) =>\n  v + 1\n",
+         [kw("val"), f, op("ASSIGN"), lp, v, colon, kw("Int"), rp, arrow, eol, ind, v, op("PLUS"), t("INT", 1), eol,
+          ded], "A lambda body may be an indented block after '=>'.", "5.7 LAMBDAS"),
+        ("lists/type", "List[List[Int]]", [kw("List"), ob, kw("List"), ob, kw("Int"), cb, cb],
+         "Type arguments use brackets; ']]' is two tokens.", "5.8 LISTS"),
+        ("lists/literal", "List(1, 2)", [kw("List"), lp, t("INT", 1), comma, t("INT", 2), rp],
+         "List construction.", "5.8 LISTS"),
+        ("lists/empty_typed", "val e: List[Int] = List()",
+         [kw("val")] + lid("e") + [colon, kw("List"), ob, kw("Int"), cb, op("ASSIGN"), kw("List"), lp, rp],
+         "Empty list with an expected type.", "5.8 LISTS"),
+        ("lists/concat", "a ++ b++c", [a, op("CONCAT"), b, op("CONCAT"), c],
+         "'++' is one operator, with or without spaces.", "5.8 LISTS"),
+        ("lists/range_members", "List.range(1, 10).drop(1).head",
+         [kw("List"), dot] + lid("range") + [lp, t("INT", 1), comma, t("INT", 10), rp, dot] + lid("drop") +
+         [lp, t("INT", 1), rp, dot] + lid("head"), "Static range and chained members.", "5.8 LISTS"),
+        ("lists/to_list", "(1 to 5).toList", [lp, t("INT", 1)] + lid("to") + [t("INT", 5), rp, dot] + lid("toList"),
+         "Range converted to a list.", "5.8 LISTS"),
+        ("extkw/block", "extension (v: Int)\n  def twice: Int = v * 2\n",
+         [kw("extension"), lp, v, colon, kw("Int"), rp, eol, ind, kw("def")] + lid("twice") +
+         [colon, kw("Int"), op("ASSIGN"), v, op("MULTIPLY"), t("INT", 2), eol, ded],
+         "Extension header followed by an indented method block.", "5.9 EXTKW"),
+        ("funexp/nested_calls", "2 * f(g() + 1)",
+         [t("INT", 2), op("MULTIPLY"), f, lp] + lid("g") + [lp, rp, op("PLUS"), t("INT", 1), rp],
+         "Calls nested inside expressions.", "5.1 FUNEXP"),
+        ("paramlists/no_list", "def foo: Int = 42",
+         [kw("def")] + lid("foo") + [colon, kw("Int"), op("ASSIGN"), t("INT", 42)],
+         "Function without a parameter list.", "5.10 PARAMLISTS"),
+        ("paramlists/two_lists", "def add(a: Int)(b: Int) = a + b",
+         [kw("def")] + lid("add") + [lp, a, colon, kw("Int"), rp, lp, b, colon, kw("Int"), rp, op("ASSIGN"), a,
+          op("PLUS"), b], "Function with two parameter lists.", "5.10 PARAMLISTS"),
+        ("interpolateds/ordinary_string_dollar", '"$x ${y}"', [t("STRING", "$x ${y}")],
+         "Without the s prefix, '$' and braces are ordinary string content.", "5.6 INTERPOLATEDS"),
+    ]:
+        add(name, source, expected, reason, f"IFJ26 S §{section}; {EXTENSIONS}")
+
+    begin, end, obrace, cbrace = t("INTERP_BEGIN"), t("INTERP_END"), t("OPEN_BRACE"), t("CLOSE_BRACE")
+    s, name_id = (lambda value: t("STRING", value)), t("IDENTIFIER", "name")
+    for name, source, expected in [
+        ("plain", 's"abc"', [begin, s("abc"), end]),
+        ("empty", 's""', [begin, s(""), end]),
+        ("identifier", 's"a$x b"', [begin, s("a"), x, s(" b"), end]),
+        ("identifier_boundary", 's"$name."', [begin, s(""), name_id, s("."), end]),
+        ("expression", 's"${n + 1}"', [begin, s(""), obrace, n, op("PLUS"), t("INT", 1), cbrace, s(""), end]),
+        ("spec_example", 's"$name${n + 1} costs $$0"',
+         [begin, s(""), name_id, s(""), obrace, n, op("PLUS"), t("INT", 1), cbrace, s(" costs $0"), end]),
+        ("dollar_dollar", 's"$$"', [begin, s("$"), end]),
+        ("escapes", 's"\\"q\\"\\t"', [begin, s('"q"\t'), end]),
+        ("nested_string", 's"${f("}")}"', [begin, s(""), obrace, f, lp, s("}"), rp, cbrace, s(""), end]),
+        ("multiline", 's"""He said "hello", $name.\nSecond line."""',
+         [begin, s('He said "hello", '), name_id, s(".\nSecond line."), end]),
+        ("then_tokens", 's"a" + b', [begin, s("a"), end, op("PLUS"), b]),
+    ]:
+        add("interpolateds/" + name, source, expected,
+            "Interpolated string split into chunks and splices; '$$' is a literal dollar.", INTERP_CONVENTION)
+    for name, source, prefix in [
+        ("unterminated", 's"abc', [begin]), ("lone_dollar", 's"$"', [begin]), ("dollar_digit", 's"$1"', [begin]),
+        ("dollar_space", 's"$ x"', [begin]), ("physical_lf", 's"a\nb"', [begin]), ("escape", 's"\\q"', [begin]),
+        ("unclosed_splice", 's"${x', [begin, s(""), obrace, x]),
+    ]:
+        add("interpolateds/invalid_" + name, source, prefix, error=1, reference=INTERP_CONVENTION,
+            reason="Unterminated interpolation, '$' without id/{/$, LF in a one-line string and bad escapes are "
+                   "lexical error 1; a chunk is returned only after its splice or closing quote is reached.")
+
+    prolog_tokens = [kw("import"), t("IDENTIFIER", "ifj26"), t("DOT"), t("OPERATOR", "OP_MULTIPLY"), t("EOL")]
+    add("integration/minimal_program", "import ifj26.*\n@main def main(): Unit =\n  ()\n", prolog_tokens + [
+        t("ANNOTATION"), kw("def"), t("IDENTIFIER", "main"), t("OPEN_PAREN"), t("CLOSE_PAREN"),
+        t("COLON"), kw("Unit"), t("OPERATOR", "OP_ASSIGN"), t("EOL"),
         t("INDENT"), t("OPEN_PAREN"), t("CLOSE_PAREN"), t("EOL"), t("DEDENT")],
         "Scan a minimal complete base program, including the indented body's INDENT/DEDENT pair.")
+    add("integration/annotation_own_line_program", "import ifj26.*\n@main\ndef run(): Unit =\n  ()\n", prolog_tokens + [
+        t("ANNOTATION"), t("EOL"), kw("def"), t("IDENTIFIER", "run"), t("OPEN_PAREN"), t("CLOSE_PAREN"),
+        t("COLON"), kw("Unit"), t("OPERATOR", "OP_ASSIGN"), t("EOL"),
+        t("INDENT"), t("OPEN_PAREN"), t("CLOSE_PAREN"), t("EOL"), t("DEDENT")],
+        "S §2 allows @main on its own line before def; the entry function need not be named main.",
+        "IFJ26 S §2 (p. 4)")
     program_header = "import ifj26.*\n@main def main(): Unit =\n"
-    header_tokens = [t("KEYWORD"), t("IDENTIFIER", "ifj26"), t("DOT"), t("OPERATOR", "OP_MULTIPLY"), t("EOL"),
-                     t("ANNOTATION"), t("KEYWORD"), t("IDENTIFIER", "main"), t("OPEN_PAREN"), t("CLOSE_PAREN"),
-                     t("COLON"), t("KEYWORD"), t("OPERATOR", "OP_ASSIGN"), t("EOL"), t("INDENT")]
+    header_tokens = prolog_tokens + [
+        t("ANNOTATION"), kw("def"), t("IDENTIFIER", "main"), t("OPEN_PAREN"), t("CLOSE_PAREN"),
+        t("COLON"), kw("Unit"), t("OPERATOR", "OP_ASSIGN"), t("EOL"), t("INDENT")]
     add("integration/numbers_program", program_header +
         "  val whole: Int = 1_000\n  val fraction: Double = .5D\n  val exponent: Double = 1e00\n"
         "  print(whole)\n  print(fraction)\n  print(exponent)\n", header_tokens + [
-            t("KEYWORD"), t("IDENTIFIER", "whole"), t("COLON"), t("KEYWORD"), t("OPERATOR", "OP_ASSIGN"), t("INT", 1000), t("EOL"),
-            t("KEYWORD"), t("IDENTIFIER", "fraction"), t("COLON"), t("KEYWORD"), t("OPERATOR", "OP_ASSIGN"), t("DOUBLE", .5), t("EOL"),
-            t("KEYWORD"), t("IDENTIFIER", "exponent"), t("COLON"), t("KEYWORD"), t("OPERATOR", "OP_ASSIGN"), t("DOUBLE", 1.0), t("EOL"),
+            kw("val"), t("IDENTIFIER", "whole"), t("COLON"), kw("Int"), t("OPERATOR", "OP_ASSIGN"), t("INT", 1000), t("EOL"),
+            kw("val"), t("IDENTIFIER", "fraction"), t("COLON"), kw("Double"), t("OPERATOR", "OP_ASSIGN"), t("DOUBLE", .5), t("EOL"),
+            kw("val"), t("IDENTIFIER", "exponent"), t("COLON"), kw("Double"), t("OPERATOR", "OP_ASSIGN"), t("DOUBLE", 1.0), t("EOL"),
             t("IDENTIFIER", "print"), t("OPEN_PAREN"), t("IDENTIFIER", "whole"), t("CLOSE_PAREN"), t("EOL"),
             t("IDENTIFIER", "print"), t("OPEN_PAREN"), t("IDENTIFIER", "fraction"), t("CLOSE_PAREN"), t("EOL"),
             t("IDENTIFIER", "print"), t("OPEN_PAREN"), t("IDENTIFIER", "exponent"), t("CLOSE_PAREN"), t("EOL"),
@@ -497,8 +708,8 @@ def cases():
         '  val text = "Hello\\nworld\\t!" // escaped text\n'
         '  val raw = """first\n  second\\n"""\n'
         '  /* outer /* nested */ comment */ print(text)\n  print(raw)\n', header_tokens + [
-            t("KEYWORD"), t("IDENTIFIER", "text"), t("OPERATOR", "OP_ASSIGN"), t("STRING", "Hello\nworld\t!"), t("EOL"),
-            t("KEYWORD"), t("IDENTIFIER", "raw"), t("OPERATOR", "OP_ASSIGN"), t("STRING", "first\n  second\\n"), t("EOL"),
+            kw("val"), t("IDENTIFIER", "text"), t("OPERATOR", "OP_ASSIGN"), t("STRING", "Hello\nworld\t!"), t("EOL"),
+            kw("val"), t("IDENTIFIER", "raw"), t("OPERATOR", "OP_ASSIGN"), t("STRING", "first\n  second\\n"), t("EOL"),
             t("IDENTIFIER", "print"), t("OPEN_PAREN"), t("IDENTIFIER", "text"), t("CLOSE_PAREN"), t("EOL"),
             t("IDENTIFIER", "print"), t("OPEN_PAREN"), t("IDENTIFIER", "raw"), t("CLOSE_PAREN"), t("EOL"),
             t("DEDENT")],
@@ -506,16 +717,16 @@ def cases():
     add("integration/control_flow_program", program_header +
         "  var count: Int = 2\n  while count > 0 do\n    if count == 1 then\n"
         '      print("last")\n    else\n      print(count)\n    count = count - 1\n', header_tokens + [
-            t("KEYWORD"), t("IDENTIFIER", "count"), t("COLON"), t("KEYWORD"), t("OPERATOR", "OP_ASSIGN"), t("INT", 2), t("EOL"),
-            t("KEYWORD"), t("IDENTIFIER", "count"), t("OPERATOR", "OP_GREATER"), t("INT", 0), t("KEYWORD"), t("EOL"),
-            t("INDENT"), t("KEYWORD"), t("IDENTIFIER", "count"), t("OPERATOR", "OP_EQUAL"), t("INT", 1), t("KEYWORD"),
+            kw("var"), t("IDENTIFIER", "count"), t("COLON"), kw("Int"), t("OPERATOR", "OP_ASSIGN"), t("INT", 2), t("EOL"),
+            kw("while"), t("IDENTIFIER", "count"), t("OPERATOR", "OP_GREATER"), t("INT", 0), kw("do"), t("EOL"),
+            t("INDENT"), kw("if"), t("IDENTIFIER", "count"), t("OPERATOR", "OP_EQUAL"), t("INT", 1), kw("then"),
             t("EOL"),
             t("INDENT"), t("IDENTIFIER", "print"), t("OPEN_PAREN"), t("STRING", "last"), t("CLOSE_PAREN"), t("EOL"),
-            t("DEDENT"), t("KEYWORD"), t("EOL"),
+            t("DEDENT"), kw("else"), t("EOL"),
             t("INDENT"), t("IDENTIFIER", "print"), t("OPEN_PAREN"), t("IDENTIFIER", "count"), t("CLOSE_PAREN"), t("EOL"),
             t("DEDENT"), t("IDENTIFIER", "count"), t("OPERATOR", "OP_ASSIGN"), t("IDENTIFIER", "count"),
             t("OPERATOR", "OP_MINUS"), t("INT", 1), t("EOL"),
-            t("DEDENT"), t("DEDENT"), t("DEDENT")],
+            t("DEDENT"), t("DEDENT")],
         "Complete base program: mutable variable, nested while/if/else, comparisons, subtraction and calls.")
     for name, source, expected in [("empty", "", []), ("identifier", "alpha", [t("IDENTIFIER", "alpha")]),
                                     ("number", "12", [t("INT", 12)]), ("operator", "<=", [t("OPERATOR", "OP_EQUAL_LESS")]),
@@ -560,8 +771,8 @@ def export_examples(fixtures):
     introduction = """# IFJ26 inputs used by the lexer tests
 
 `programs/` contains complete base-language programs with `import ifj26.*` and
-`@main`: a minimal program, numeric declarations, strings/comments, and control flow.
-All four are included in the lexer suite. Their parser, semantic and runtime behavior
+`@main`: a minimal program, `@main` on its own line, numeric declarations,
+strings/comments, and control flow. All five are included in the lexer suite. Their parser, semantic and runtime behavior
 has not been tested: this repository's test harness exercises the lexer only.
 
 `fragments/` contains every other source-input fixture, organized by test category.
@@ -608,11 +819,11 @@ def decode_output(output):
             value = None
             if kind in ("TOKEN_STRING", "TOKEN_IDENTIFIER"):
                 value = bytes.fromhex(raw).decode("ascii")
-            elif kind == "TOKEN_INT":
+            elif kind in ("TOKEN_INT", "TOKEN_BOOLEAN"):
                 value = int(raw)
             elif kind == "TOKEN_DOUBLE":
                 value = float.fromhex(raw)
-            elif kind == "TOKEN_OPERATOR":
+            elif kind in ("TOKEN_OPERATOR", "TOKEN_KEYWORD"):
                 value = raw
             tokens.append(Token(kind, value, int(line)))
         elif fields[0] == "ERROR" and len(fields) == 4:
@@ -828,6 +1039,13 @@ def main():
         failed = len(failed_names)
         summary = f"TOTAL: {len(selected)} | PASS: {len(selected) - failed} | FAIL: {failed}"
         report.write(summary + "\n")
+        # Keep team decisions and API contracts apart from proven assignment violations.
+        sources = {}
+        for case in selected:
+            total, fails = sources.get(category(case), (0, 0))
+            sources[category(case)] = (total + 1, fails + (case.name in failed_names))
+        report.write("BY SOURCE: " + " | ".join(f"{name}: {total - fails}/{total} pass"
+                                                for name, (total, fails) in sorted(sources.items())) + "\n")
         if failed_names:
             report.write("Failed cases (search their names above for full details):\n")
             report.write("".join("  " + name + "\n" for name in failed_names))

@@ -27,9 +27,18 @@ static const char *token_name(token_type type)
         NAME(TOKEN_COMMA);
         NAME(TOKEN_UNDERSCORE);
         NAME(TOKEN_SEPARATOR);
+        NAME(TOKEN_SEMICOLON);
         NAME(TOKEN_OPEN_PAREN);
         NAME(TOKEN_CLOSE_PAREN);
         NAME(TOKEN_COLON);
+        NAME(TOKEN_OPEN_BRACKET);
+        NAME(TOKEN_CLOSE_BRACKET);
+        NAME(TOKEN_OPEN_BRACE);
+        NAME(TOKEN_CLOSE_BRACE);
+        NAME(TOKEN_ARROW);
+        NAME(TOKEN_LEFT_ARROW);
+        NAME(TOKEN_INTERP_BEGIN);
+        NAME(TOKEN_INTERP_END);
         NAME(TOKEN_INDENT);
         NAME(TOKEN_DEDENT);
     }
@@ -54,9 +63,46 @@ static const char *operator_name(int value)
         NAME(OP_EQUAL_GREATER);
         NAME(OP_LESS);
         NAME(OP_EQUAL_LESS);
+        NAME(OP_NOT);
+        NAME(OP_AND);
+        NAME(OP_OR);
+        NAME(OP_CONCAT);
     }
 #undef NAME
     return "INVALID_OPERATOR_ENUM";
+}
+
+/* Expose keyword identity, so one shared index for every keyword fails. */
+static const char *keyword_name(int value)
+{
+#define NAME(value) case value: return #value
+    switch (value)
+    {
+        NAME(KW_DEF);
+        NAME(KW_DO);
+        NAME(KW_DOUBLE);
+        NAME(KW_ELSE);
+        NAME(KW_IF);
+        NAME(KW_IMPORT);
+        NAME(KW_INT);
+        NAME(KW_RETURN);
+        NAME(KW_STRING);
+        NAME(KW_THEN);
+        NAME(KW_UNIT);
+        NAME(KW_VAL);
+        NAME(KW_VAR);
+        NAME(KW_WHILE);
+        NAME(KW_BOOLEAN);
+        NAME(KW_CASE);
+        NAME(KW_CLASS);
+        NAME(KW_EXTENSION);
+        NAME(KW_FOR);
+        NAME(KW_LIST);
+        NAME(KW_MATCH);
+        NAME(KW_TYPE);
+    }
+#undef NAME
+    return "INVALID_KEYWORD_ENUM";
 }
 
 /* Hex encoding preserves tabs, newlines, quotes and backslashes in the protocol. */
@@ -89,6 +135,12 @@ static error print_token(token value, attribute_table *table)
         break;
     case TOKEN_OPERATOR:
         printf("%s", operator_name(value.attribute_index));
+        break;
+    case TOKEN_KEYWORD:
+        printf("%s", keyword_name(value.attribute_index));
+        break;
+    case TOKEN_BOOLEAN:
+        printf("%d", value.attribute_index);
         break;
     default:
         break;

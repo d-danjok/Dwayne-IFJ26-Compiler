@@ -1,0 +1,5 @@
+v match
+  case 0 => "zero"
+  case n: Int if n > 0 => "pos"
+  case Point(a, b) => a
+  case _ => "neg"

@@ -6,7 +6,6 @@
 
 #include "utils.h"
 
-
 // @brief Enum of possible operation in TAC
 typedef enum
 {
@@ -15,44 +14,49 @@ typedef enum
     TAC_UNARY_MINUS,
     TAC_MUL,
     TAC_DIV,
-    TAC_CALL, // (CALL, NAME_OF_FUNCTION, NUM_OF_PARAMS, VAR_OF_RESULT)
-    TAC_GOTO, // (GOTO, ---, ---, NAME_OF_LABEL)
+    TAC_CALL,  // (CALL, NAME_OF_FUNCTION, NUM_OF_PARAMS, VAR_OF_RESULT)
+    TAC_GOTO,  // (GOTO, ---, ---, NAME_OF_LABEL)
     TAC_PARAM, // (PARAM, PARAM_1, ---, ---)
     TAC_ASSIGNMENT,
-    TAC_RETURN, // (RETURN, ---, ---, ID || EXP)
+    TAC_RETURN,  // (RETURN, ---, ---, ID || EXP)
     TAC_IF_JUMP, // (IF_JUMP, TRUE_LABEL, FALSE_LABEL, EXP)
-    TAC_LABEL,  // (LABEL, ---, ---, NAME)
+    TAC_LABEL,   // (LABEL, ---, ---, NAME)
     TAC_EQUALS,
     TAC_GREATER,
     TAC_LESSER,
     TAC_NOT_EQ,
-    TAC_FUNC_START, // (FUNC_START, ---, ---, NAME_OF_FUNCTION)
+    TAC_FUNC_START,  // (FUNC_START, ---, ---, NAME_OF_FUNCTION)
     TAC_FUNC_END,    // (FUNC_END, ---, ---, NAME_OF_FUNCTION)
     TAC_INT_TO_FLOAT // (INT_TO_FLOAT, ARG_1, ---, VAR_OF_RESULT)
 } tac_operator;
 
+typedef enum
+{
+    ARG_NONE,
+    ARG_ID,
+    ARG_STRING,
+    ARG_INT,
+    ARG_TEMPORARY_VAR,
+    ARG_FLOAT,
+    ARG_BOOL,
+    ARG_LABEL_ARG,
+    ARG_FUNC
+} tac_argument_type;
 
-typedef enum {
-    TAC_NONE,
-    TAC_SYMBOL,
-    TAC_STRING,
-    TAC_INT,
-    TAC_TEMPORARY_VAR,
-    TAC_FLOAT,
-    TAC_BOOL,
-    TAC_LABEL_ARG,
-    TAC_FUNC
-}tac_argument_type;
-
-
-typedef struct tac_arg_s {
+typedef struct tac_arg_s
+{
     tac_argument_type type;
     union {
         unsigned int attribute_index_tac; // for identifiers and literals
-        unsigned int temporary_var_id; // for t1,t2, ..., tn, kde n je N U {0}
-        unsigned int label_id; // for L1, L2, ..., Ln, kde n je N U {0}
+        unsigned int temporary_var_id;    // for t1,t2, ..., tn, kde n je N U {0}
+        unsigned int label_id;            // for L1, L2, ..., Ln, kde n je N U {0}
+
+        // Constants used for convenient constant folding
+        int const_int;
+        double const_double;
+        bool const_bool;
     } value;
-}tac_argument;
+} tac_argument;
 
 // @brief Structure of Three Address Instruction (Quadruple)
 typedef struct tac_instruction_s

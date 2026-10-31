@@ -15,18 +15,24 @@ typedef enum op
     UNARY_MINUS,
     MUL,
     DIV,
-    CALL,
-    GOTO,
-    PARAM,
+    CALL, // (CALL, NUM_OF_PARAMS, ---, NAME_OF_FUNCTION)
+    GOTO, // (GOTO, ---, ---, NAME_OF_LABEL)
+    PARAM, // (PARAM, PARAM_1, PARAM_2, ---)
     ASSIGNMENT,
-    RETURN,
-    IF_STM,
-    LABEL,
+    RETURN, // (RETURN, ---, ---, ID || EXP)
+    IF_JUMP, // (IF_JUMP, TRUE_LABEL, FALSE_LABEL, EXP)
+    LABEL,  // (LABEL, ---, ---, NAME)
+    EQUALS,
+    GREATER,
+    LESSER,
+    FUNC_START, // (FUNC_START, ---, ---, NAME_OF_FUNCTION)
+    FUNC_END    // (FUNC_END, ---, ---, NAME_OF_FUNCTION)
 } t_operator;
 
 // @brief Structure of Three Address Instruction (Quadruple)
 typedef struct tac_instruction_s
 {
+    unsigned int id;
     t_operator op; // Operation (+,-, =, goto, call)
     char *arg1;  // Pointer to item in symtable
     char *arg2;  // Pointer to item in symtable

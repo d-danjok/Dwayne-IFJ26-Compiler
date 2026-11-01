@@ -102,8 +102,8 @@ typedef struct ast_node_s
     ast_literal_type literal_type; // also represents function return type
     int attribute_index;           // for literals
 
-    long
-        block_index; // represents block index for blocks, and index of block where variable was created for identifiers
+    long block_index;
+    // represents block index for blocks, and index of block where variable was created for identifiers
 
     ast_operator operator; // for operations
 

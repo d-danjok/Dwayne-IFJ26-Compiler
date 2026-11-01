@@ -21,44 +21,44 @@ void destruct_attribute_table(attribute_table **self);
 //
 // @param val - integer value we want to insert
 // @return index in by which value can be accessed
-int attribute_table_insert_integer(attribute_table *self, error *err, int val);
+int attribute_table_insert_integer(const attribute_table *self, error *err, int val);
 
 // @brief inserts double value into attribute table and returns index by which it can be accessed
 //
 // @param val - double value we want to insert
 // @return index in by which value can be accessed
-int attribute_table_insert_double(attribute_table *self, error *err, double val);
+int attribute_table_insert_double(const attribute_table *self, error *err, double val);
 
 // @brief inserts string value into attribute table and returns index by which it can be accessed
 //
 // @param val - pointer to string value we want to insert (ownership transition)
 // @return index in by which value can be accessed
-int attribute_table_insert_string(attribute_table *self, error *err, char **val);
+int attribute_table_insert_string(const attribute_table *self, error *err, char **val);
 
 // @brief inserts identifier into attribute table and returns index by which it can be accessed
 //
 // @param identifier - pointer to identifier we want to insert (ownership transition)
 // @return index in by which identifier can be accessed
-int attribute_table_insert_identifier(attribute_table *self, error *err, char **identifier);
+int attribute_table_insert_identifier(const attribute_table *self, error *err, char **identifier);
 
 // @brief get integer value by index
 //
 // @param index value from which we want to get
-int attribute_table_get_integer(attribute_table *self, error *err, int index);
+int attribute_table_get_integer(const attribute_table *self, error *err, int index);
 
 // @brief get double value by index
 //
 // @param index value from which we want to get
-double attribute_table_get_double(attribute_table *self, error *err, int index);
+double attribute_table_get_double(const attribute_table *self, error *err, int index);
 
 // @brief get string value by index
 //
 // @param index value from which we want to get
-char *attribute_table_get_string(attribute_table *self, error *err, int index);
+char *attribute_table_get_string(const attribute_table *self, error *err, int index);
 
 // @brief get identifier by index
 //
 // @param index value from which we want to get
-char *attribute_table_get_identifier(attribute_table *self, error *err, int index);
+char *attribute_table_get_identifier(const attribute_table *self, error *err, int index);
 
 #endif

@@ -35,7 +35,7 @@ typedef struct
 } string_slice;
 
 // constructors
-int_slice *new_int_slice(error *err)
+static int_slice *new_int_slice(error *err)
 {
     int_slice *self = (int_slice *)utils_safe_malloc(err, sizeof(int_slice));
     if (*err != NONE)
@@ -55,7 +55,7 @@ int_slice *new_int_slice(error *err)
     return self;
 }
 
-double_slice *new_double_slice(error *err)
+static double_slice *new_double_slice(error *err)
 {
     double_slice *self = (double_slice *)utils_safe_malloc(err, sizeof(double_slice));
     if (*err != NONE)
@@ -75,7 +75,7 @@ double_slice *new_double_slice(error *err)
     return self;
 }
 
-string_slice *new_string_slice(error *err)
+static string_slice *new_string_slice(error *err)
 {
     string_slice *self = (string_slice *)utils_safe_malloc(err, sizeof(string_slice));
     if (*err != NONE)
@@ -96,7 +96,7 @@ string_slice *new_string_slice(error *err)
 }
 
 // insert (returns index where val was placed)
-int int_slice_insert(int_slice *self, error *err, int val)
+static int int_slice_insert(int_slice *self, error *err, int val)
 {
     *err = NONE;
     // check if is already in list
@@ -125,7 +125,7 @@ int int_slice_insert(int_slice *self, error *err, int val)
     return insertion_index;
 }
 
-int double_slice_insert(double_slice *self, error *err, double val)
+static int double_slice_insert(double_slice *self, error *err, double val)
 {
     *err = NONE;
     // check if is already in list
@@ -155,7 +155,7 @@ int double_slice_insert(double_slice *self, error *err, double val)
     return insertion_index;
 }
 
-int string_slice_insert(string_slice *self, error *err, char *val)
+static int string_slice_insert(string_slice *self, error *err, char *val)
 {
     *err = NONE;
     // check if is already in list
@@ -186,7 +186,7 @@ int string_slice_insert(string_slice *self, error *err, char *val)
     return insertion_index;
 }
 
-void int_slice_destruct(int_slice *self)
+static void int_slice_destruct(int_slice *self)
 {
     if (self == NULL)
     {
@@ -196,7 +196,7 @@ void int_slice_destruct(int_slice *self)
     UTILS_SAFE_FREE(&self);
 }
 
-void double_slice_destruct(double_slice *self)
+static void double_slice_destruct(double_slice *self)
 {
     if (self == NULL)
     {
@@ -207,7 +207,7 @@ void double_slice_destruct(double_slice *self)
     UTILS_SAFE_FREE(&self);
 }
 
-void string_slice_destruct(string_slice *self)
+static void string_slice_destruct(string_slice *self)
 {
     if (self == NULL)
     {
@@ -292,17 +292,17 @@ void destruct_attribute_table(attribute_table **self)
     UTILS_SAFE_FREE(self);
 }
 
-int attribute_table_insert_integer(attribute_table *self, error *err, int val)
+int attribute_table_insert_integer(const attribute_table *self, error *err, const int val)
 {
     return int_slice_insert(self->int_values, err, val);
 }
 
-int attribute_table_insert_double(attribute_table *self, error *err, double val)
+int attribute_table_insert_double(const attribute_table *self, error *err, const double val)
 {
     return double_slice_insert(self->double_values, err, val);
 }
 
-int attribute_table_insert_string(attribute_table *self, error *err, char **val)
+int attribute_table_insert_string(const attribute_table *self, error *err, char **val)
 {
     int value_storage_index = string_slice_insert(self->string_values, err, *val);
     if (*err == NONE)
@@ -312,7 +312,7 @@ int attribute_table_insert_string(attribute_table *self, error *err, char **val)
     return value_storage_index;
 }
 
-int attribute_table_insert_identifier(attribute_table *self, error *err, char **identifier)
+int attribute_table_insert_identifier(const attribute_table *self, error *err, char **identifier)
 {
     int value_storage_index = string_slice_insert(self->identifiers, err, *identifier);
     if (*err == NONE)
@@ -322,7 +322,7 @@ int attribute_table_insert_identifier(attribute_table *self, error *err, char **
     return value_storage_index;
 }
 
-int attribute_table_get_integer(attribute_table *self, error *err, int index)
+int attribute_table_get_integer(const attribute_table *self, error *err, const int index)
 {
     *err = NONE;
     if (index < 0 || index >= (self->int_values)->len)
@@ -333,7 +333,7 @@ int attribute_table_get_integer(attribute_table *self, error *err, int index)
     return ((self->int_values)->content)[index];
 }
 
-double attribute_table_get_double(attribute_table *self, error *err, int index)
+double attribute_table_get_double(const attribute_table *self, error *err, const int index)
 {
     *err = NONE;
     if (index < 0 || index >= (self->double_values)->len)
@@ -344,7 +344,7 @@ double attribute_table_get_double(attribute_table *self, error *err, int index)
     return ((self->double_values)->content)[index];
 }
 
-char *attribute_table_get_string(attribute_table *self, error *err, int index)
+char *attribute_table_get_string(const attribute_table *self, error *err, const int index)
 {
     *err = NONE;
     if (index < 0 || index >= (self->string_values)->len)
@@ -355,7 +355,7 @@ char *attribute_table_get_string(attribute_table *self, error *err, int index)
     return ((self->string_values)->content)[index];
 }
 
-char *attribute_table_get_identifier(attribute_table *self, error *err, int index)
+char *attribute_table_get_identifier(const attribute_table *self, error *err, const int index)
 {
     *err = NONE;
     if (index < 0 || index >= (self->identifiers)->len)

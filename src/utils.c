@@ -71,3 +71,14 @@ char utils_peek_char(error *err, FILE *stream)
     ungetc(c, stream);
     return (char)c;
 }
+
+void log_printf(const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+
+    va_end(args);
+}

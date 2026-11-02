@@ -34,7 +34,7 @@ typedef union {
 
 typedef struct identifier_data_s
 {
-    data_type data_type; // in case of function return type
+    data_type value_type; // in case of function return type
     identifier_type type;
 
     // used only for functions

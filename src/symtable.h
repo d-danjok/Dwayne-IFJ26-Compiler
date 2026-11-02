@@ -34,11 +34,8 @@ typedef union {
 
 typedef struct identifier_data_s
 {
-    identifier_value value;
     data_type data_type; // in case of function return type
-
     identifier_type type;
-    bool is_initialised;
 
     // used only for functions
     int function_arg_count;

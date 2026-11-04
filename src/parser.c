@@ -216,6 +216,8 @@ static ast_node *node_if_block(error *err, FILE *src_stream, attribute_table *at
 static ast_node *node_else_block(error *err, FILE *src_stream, attribute_table *attr_tab);
 
 static ast_node *node_func_call(error *err, FILE *src_stream, attribute_table *attr_tab);
+// also used for identifiers inside expressions
+
 static ast_node *node_call_params(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_call_params_(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_call_param(error *err, FILE *src_stream, attribute_table *attr_tab);
@@ -230,6 +232,129 @@ ast_node *parser_run(error *err, FILE *src_stream, attribute_table *attr_tab)
         return NULL;
     }
     return node_program(err, src_stream, attr_tab);
+}
+
+static ast_node *node_program(error *err, FILE *src_stream, attribute_table *attr_tab)
+{
+    *err = NONE;
+    const token current_token = get_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    // TODO: create prologue check
+    if (prologue_missing)
+    {
+        *err = PROLOGUE_MISSING;
+
+        log_printf("ERROR: prologue is missing\n");
+        return NULL;
+    }
+
+    return node_def_list(err, src_stream, attr_tab);
+}
+
+static ast_node *node_def_list(error *err, FILE *src_stream, attribute_table *attr_tab)
+{
+    *err = NONE;
+    const token next_token = peek_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    if (next_token.type == TOKEN_KEYWORD && next_token.attribute_index == (int)KW_DEF)
+    {
+        return node_func_def(err, src_stream, attr_tab);
+    }
+
+    if (next_token.type == TOKEN_ANNOTATION)
+    {
+        return node_main_func(err, src_stream, attr_tab);
+    }
+
+    *err = GENERAL_SYNTAX;
+
+    log_printf("%lu: @main or def expected\n", next_token.line);
+    return NULL;
+}
+
+static ast_node *node_val_def(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_var_def(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_def_body(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_type_notation(error *err, FILE *src_stream, attribute_table *attr_tab);
+
+static ast_node *node_func_def(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_main_func(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_func_start(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_func_head(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_func_name(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_param_list(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_param_list_(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_param(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_func_body(error *err, FILE *src_stream, attribute_table *attr_tab);
+
+static ast_node *node_block(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_stat_list(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_stat_list_(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_statement(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_definition(error *err, FILE *src_stream, attribute_table *attr_tab);
+
+static ast_node *node_expression(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_while_loop(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_return_statement(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_assign_val(error *err, FILE *src_stream, attribute_table *attr_tab);
+
+static ast_node *node_if_list(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_if_block(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_else_block(error *err, FILE *src_stream, attribute_table *attr_tab);
+
+static ast_node *node_func_call(error *err, FILE *src_stream, attribute_table *attr_tab)
+{
+    *err = NONE;
+    const token current_token = get_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    const token next_token = peek_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    ast_node *id_node = new_ast_node(err);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+    id_node->type = (ast_node_type)current_token.type;
+    id_node->attribute_index = current_token.attribute_index;
+
+    if (next_token.type != TOKEN_OPEN_PAREN)
+    {
+        // we are pretending this just being id
+        return id_node;
+    }
+
+    ast_node *func_call_node = new_ast_node(err);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    func_call_node->type = AST_NODE_FUNC_CALL;
+    func_call_node->left_child = id_node;
+    func_call_node->right_child = node_call_params(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&func_call_node);
+        return NULL;
+    }
+
+    return func_call_node;
 }
 
 static ast_node *node_expression(error *err, FILE *src_stream, attribute_table *attr_tab)
@@ -253,6 +378,11 @@ static ast_node *node_expression(error *err, FILE *src_stream, attribute_table *
 
     token current_token = EMPTY_TOKEN;
     token next_token = peek_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        stack_destruct(&expression_parse_stack);
+        return NULL;
+    }
 
     while (is_expression_member(next_token))
     {

@@ -14,12 +14,14 @@ ast_node *new_ast_node(error *err)
         return NULL;
     }
 
-    node->type = UNDEFINED;
+    node->type = AST_NODE_UNDEFINED;
     node->left_child = NULL;
     node->right_child = NULL;
     node->literal_type = AST_TYPE_NONE;
     node->attribute_index = -1; // sentinel value
     node->operator = AST_OP_NONE;
+
+    node->block_index = -1; // sentinel value
 
     return node;
 }

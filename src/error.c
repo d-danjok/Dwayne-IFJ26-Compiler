@@ -5,7 +5,7 @@
 
 #include "error.h"
 
-bool error_is_internal(error err)
+bool error_is_internal(const error err)
 {
     return err >= INTERNAL_MEMORY_ALLOCATION;
 }

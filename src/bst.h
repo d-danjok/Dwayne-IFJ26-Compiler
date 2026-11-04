@@ -32,12 +32,12 @@ void bst_remove(bst_table *self, int key);
 //
 // @param key - key for data we want to find
 // @return true if found, otherwise else
-bool bst_search(bst_table *self, int key);
+bool bst_search(const bst_table *self, int key);
 
 // @brief Get data from table by key
 //
 // @param key - key for data we want to get
 // @return pointer to data stored by key
-void *bst_getdata(bst_table *self, int key);
+void *bst_getdata(const bst_table *self, int key);
 
 #endif

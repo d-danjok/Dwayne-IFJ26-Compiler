@@ -19,7 +19,7 @@ struct stack_s
     int item_count;
 };
 
-void item_destruct_recursively(stack_item **self)
+static void item_destruct_recursively(stack_item **self)
 {
     if (self == NULL || *self == NULL)
     {
@@ -105,7 +105,7 @@ void *stack_pop(stack *self, error *err)
     return data;
 }
 
-void *stack_peek(stack *self, error *err, int depth)
+void *stack_peek(const stack *self, error *err, const int depth)
 {
     *err = NONE;
     if (depth < 0 || depth >= self->item_count)
@@ -115,7 +115,7 @@ void *stack_peek(stack *self, error *err, int depth)
     }
 
     int current_depth = 0;
-    stack_item *current_item = self->top;
+    const stack_item *current_item = self->top;
     while (depth != current_depth && current_item != NULL)
     {
         current_item = current_item->next;

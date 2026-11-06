@@ -13,9 +13,8 @@ typedef enum
     // TODO: complete list
     TOKEN_UNDEFINED,
 
-    TOKEN_WHITESPACE, // ' ', '\t', '\r', '\n'
-    TOKEN_EOL,        // \n
-    TOKEN_EOF,        // EOF
+    TOKEN_EOL, // \n
+    TOKEN_EOF, // EOF
 
     TOKEN_INT,     // 1,2,3...
     TOKEN_DOUBLE,  // 2.2,122.05e2,21e435
@@ -31,7 +30,6 @@ typedef enum
     TOKEN_DOT,        // .
     TOKEN_COMMA,      // ,
     TOKEN_UNDERSCORE, // _
-    TOKEN_SEPARATOR,  // | (ALGEBDT extension)
     TOKEN_COLON,      // :
     TOKEN_SEMICOLON,  // ;
 
@@ -41,8 +39,6 @@ typedef enum
     TOKEN_CLOSE_BRACKET, // ]
     TOKEN_OPEN_BRACE,    // { (only inside ${...}(interpolated string extension))
     TOKEN_CLOSE_BRACE,   // }
-    TOKEN_ARROW,         // => (LAMBDAS extension)
-    TOKEN_LEFT_ARROW,    // <- (CONTROL extension)
 
     TOKEN_INTERP_BEGIN, // s" or s"""       (INTERPOLATEDS extension)
     TOKEN_INTERP_END,   // closing " or """
@@ -67,8 +63,11 @@ typedef enum
     OP_EQUAL_LESS,    // <=
     OP_NOT,           // !  (BOOLTHEN)
     OP_AND,           // &&
+    OP_SEPARATOR,     // | (ALGEBDT extension)
     OP_OR,            // ||
     OP_CONCAT,        // ++
+    OP_ARROW,         // => (LAMBDAS extension)
+    OP_LEFT_ARROW,    // <- (CONTROL extension)
 } operator_list;
 
 typedef enum

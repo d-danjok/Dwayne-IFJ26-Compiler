@@ -123,7 +123,8 @@ double utils_string_to_double(error *err, char *string)
     char *endptr;
     double num = strtod(string, &endptr);
 
-    if (endptr == string || *endptr != '\0' || errno == ERANGE || !isfinite(num))
+    // ERANGE flags subnormal results; only reject underflow to zero
+    if (endptr == string || *endptr != '\0' || !isfinite(num) || (errno == ERANGE && num == 0.0))
     {
         *err = INTERNAL_WRONG_NUMERIC_FORMAT;
         return 0;

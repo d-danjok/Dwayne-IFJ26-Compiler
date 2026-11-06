@@ -366,7 +366,7 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
                     self->indent_cnt = 0;
                 self->m_comment = false;
                 current_state = STATE_EOL; // could throw errpr on negative par
-                
+
                 break;
             case '\0':
                 if (internal_err == INTERNAL_END_OF_FILE)
@@ -390,6 +390,9 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
                 break;
             case ':':
                 res.type = TOKEN_COLON;
+                break;
+            case ';':
+                res.type = TOKEN_SEMICOLON;
                 break;
             case '(':
                 res.type = TOKEN_OPEN_PAREN;
@@ -470,14 +473,15 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
         break;
         // ANNOTATION
         case STATE_ANNOTATION: {
-            if (lexer_peek_char(err, &internal_err, in, 0) == 'm' &&
-                lexer_peek_char(err, &internal_err, in, 1) == 'a' &&
-                lexer_peek_char(err, &internal_err, in, 2) == 'i' && lexer_peek_char(err, &internal_err, in, 3) == 'n')
-            {
-                for (int i = 0; i < 4; i++)
-                    lexer_get_char(err, &internal_err, in, line);
+            if (lexer_get_char(err, &internal_err, in, line) == 'm' &&
+                lexer_get_char(err, &internal_err, in, line) == 'a' &&
+                lexer_get_char(err, &internal_err, in, line) == 'i' &&
+                lexer_get_char(err, &internal_err, in, line) == 'n' &&
+                (lexer_peek_char(err, &internal_err, in, 0) == ' ' ||
+                 lexer_peek_char(err, &internal_err, in, 0) == '\n' ||
+                 lexer_peek_char(err, &internal_err, in, 0) == '\t' ||
+                 lexer_peek_char(err, &internal_err, in, 0) == '\0'))
                 res.type = TOKEN_ANNOTATION;
-            }
             else
                 *err = INVALID_SYMBOL;
         }
@@ -549,8 +553,8 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
                 self->indent_cnt = 0;
                 if (self->parentaces == 0)
                 {
-                        if(self->m_comment)
-                            self->indent_cnt = 0;
+                    if (self->m_comment)
+                        self->indent_cnt = 0;
                     current_state = STATE_EOL;
                 }
                 else
@@ -586,13 +590,14 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
                 if (self->coment_depth == 0)
                 {
 
-                    if (self->comment_sline){
+                    if (self->comment_sline)
+                    {
 
-                        if(self->m_comment)
+                        if (self->m_comment)
                             current_state = STATE_EOL;
                         else
                             current_state = STATE_START;
-                }
+                    }
                     else
                         current_state = STATE_WAITING_EOL;
                 }
@@ -638,11 +643,11 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
             else
             {
                 self->buffer[self->buffer_index++] = '\0';
-                char *keyword_str[] = {
-    "def", "do", "Double", "else", "if", "import", "Int", "return", "String", "then", "Unit", "val", "var", "while",
-    "Boolean", "case", "class", "extension", "for", "List", "match", "type"};
+                char *keyword_str[] = {"def",    "do",        "Double", "else", "if",    "import", "Int",     "return",
+                                       "String", "then",      "Unit",   "val",  "var",   "while",  "Boolean", "case",
+                                       "class",  "extension", "for",    "List", "match", "type"};
 
-                for(int i = 0; i < (int)(sizeof(keyword_str) / sizeof(char *)); i++)
+                for (int i = 0; i < (int)(sizeof(keyword_str) / sizeof(char *)); i++)
                 {
                     if (strcmp(self->buffer, keyword_str[i]) == 0)
                     {
@@ -651,8 +656,11 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
                         break;
                     }
                 }
-                if(res.type != TOKEN_KEYWORD){res.type = TOKEN_IDENTIFIER;
-                res.attribute_index = lexer_insert_identifier(self, err);}
+                if (res.type != TOKEN_KEYWORD)
+                {
+                    res.type = TOKEN_IDENTIFIER;
+                    res.attribute_index = lexer_insert_identifier(self, err);
+                }
             }
             break;
         // LITERALS
@@ -800,13 +808,18 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
             }
             else if (c == '.')
             {
-                current_state = STATE_DOT_OR_DOUBLE;
+                current_state = STATE_DOT_DOUBLE;
             }
             else if (c == 'e' || c == 'E')
             {
                 lexer_get_char(err, &internal_err, in, line); // eat e/E
                 self->buffer[self->buffer_index++] = c;
                 current_state = STATE_EXP;
+            }
+            else if (c == 'd' || c == 'D')
+            {
+                lexer_get_char(err, &internal_err, in, line);
+                current_state = STATE_D_SUFF;
             }
             else
             {
@@ -823,20 +836,25 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
             c = lexer_peek_char(err, &internal_err, in, 0);
             if (isdigit(c))
                 current_state = STATE_INT;
+            else if (c == '_')
+            {
+                lexer_get_char(err, &internal_err, in, line); // eat underscore
+                current_state = STATE_UINT;
+            }
             else
                 *err = INVALID_SYMBOL;
             break;
 
         case STATE_ZERO:
             c = lexer_peek_char(err, &internal_err, in, 0);
-            if (c == '0')
+            if (isdigit(c))
             {
                 self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
-                current_state = STATE_ZERO;
+                current_state = c == '0' ? STATE_ZERO : STATE_DOUBLE_START;
             }
             else if (c == '.')
             {
-                current_state = STATE_DOT_OR_DOUBLE;
+                current_state = STATE_DOT_DOUBLE;
             }
             else if (c == '_')
             {
@@ -848,6 +866,11 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
                 lexer_get_char(err, &internal_err, in, line);
                 self->buffer[self->buffer_index++] = c;
                 current_state = STATE_EXP;
+            }
+            else if (c == 'd' || c == 'D')
+            {
+                lexer_get_char(err, &internal_err, in, line);
+                current_state = STATE_D_SUFF;
             }
             else
             {
@@ -861,6 +884,57 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
             c = lexer_peek_char(err, &internal_err, in, 0);
             if (c == '0')
                 current_state = STATE_ZERO;
+            else if (c == '_')
+            {
+                lexer_get_char(err, &internal_err, in, line); // eat underscore
+                current_state = STATE_UZERO;
+            }
+            else
+                *err = INVALID_SYMBOL;
+            break;
+
+        case STATE_DOUBLE_START:
+            c = lexer_peek_char(err, &internal_err, in, 0);
+            if (isdigit(c))
+            {
+                self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
+                current_state = STATE_DOUBLE_START;
+            }
+            else if (c == '.')
+            {
+                // self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
+                current_state = STATE_DOT_DOUBLE;
+            }
+            else if (c == '_')
+            {
+                lexer_get_char(err, &internal_err, in, line);
+                current_state = STATE_UDOUBLE_START;
+            }
+            else if (c == 'e' || c == 'E')
+            {
+                lexer_get_char(err, &internal_err, in, line);
+                self->buffer[self->buffer_index++] = c;
+                current_state = STATE_EXP;
+            }
+            else if (c == 'd' || c == 'D')
+            {
+                lexer_get_char(err, &internal_err, in, line);
+                current_state = STATE_D_SUFF;
+            }
+            else
+            {
+                *err = INVALID_SYMBOL;
+            }
+            break;
+        case STATE_UDOUBLE_START:
+            c = lexer_peek_char(err, &internal_err, in, 0);
+            if (isdigit(c))
+                current_state = STATE_DOUBLE_START;
+            else if (c == '_')
+            {
+                lexer_get_char(err, &internal_err, in, line); // eat underscore
+                current_state = STATE_UDOUBLE_START;
+            }
             else
                 *err = INVALID_SYMBOL;
             break;
@@ -875,7 +949,7 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
                 res.type = TOKEN_DOT;
             }
             break;
-        case STATE_DOT_OR_DOUBLE: // current char is dot
+        case STATE_DOT_DOUBLE: // current char is dot
             if (isdigit(lexer_peek_char(err, &internal_err, in, 1)))
             {
                 self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
@@ -883,6 +957,8 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
             }
             else
             {
+                // #uncertainty: error or int and dot
+                // *err = INVALID_SYMBOL;
                 // process as integer and dot separately if there is no digit after dot
                 res.type = TOKEN_INT;
                 self->buffer[self->buffer_index++] = '\0';
@@ -930,6 +1006,11 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
             c = lexer_peek_char(err, &internal_err, in, 0);
             if (isdigit(c))
                 current_state = STATE_DOUBLE;
+            else if (c == '_')
+            {
+                lexer_get_char(err, &internal_err, in, line); // eat underscore
+                current_state = STATE_UDOUBLE;
+            }
             else
                 *err = INVALID_SYMBOL;
             break;
@@ -939,10 +1020,7 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
             if (isdigit(c))
             {
                 self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
-                if (c == '0')
-                    current_state = STATE_EXP_ZERO;
-                else
-                    current_state = STATE_EXP_PART;
+                current_state = STATE_EXP_PART;
             }
             else if (c == '+' || c == '-')
             {
@@ -952,49 +1030,10 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
                 *err = INVALID_SYMBOL;
             break;
 
-        case STATE_EXP_ZERO:
-            c = lexer_peek_char(err, &internal_err, in, 0);
-            if (c == '0')
-            {
-                self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
-                current_state = STATE_EXP_ZERO;
-            }
-            else if (c == '_')
-            {
-                lexer_get_char(err, &internal_err, in, line);
-                current_state = STATE_UEXP_ZERO;
-            }
-            else if (c == 'd' || c == 'D')
-            {
-                lexer_get_char(err, &internal_err, in, line);
-                current_state = STATE_D_SUFF;
-            }
-            else
-            {
-                res.type = TOKEN_DOUBLE;
-                self->buffer[self->buffer_index++] = '\0';
-                double result = utils_string_to_double(&internal_err, self->buffer);
-                if (!lexer_check_error(err, internal_err))
-                    break;
-                res.attribute_index = attribute_table_insert_double(self->attr_table, err, result);
-            }
-            break;
-        case STATE_UEXP_ZERO:
-            c = lexer_peek_char(err, &internal_err, in, 0);
-            if (c == '0')
-                current_state = STATE_EXP_ZERO;
-            else
-                *err = INVALID_SYMBOL;
-            break;
-
         case STATE_EXP_SIGN:
             self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
             c = lexer_peek_char(err, &internal_err, in, 0);
-            if (c == '0')
-            {
-                current_state = STATE_EXP_ZERO;
-            }
-            else if (isdigit(c))
+            if (isdigit(c))
                 current_state = STATE_EXP_PART;
             else
                 *err = INVALID_SYMBOL;
@@ -1032,6 +1071,11 @@ token lexer_get_next_token(lexer *self, error *err, state current_state)
             if (isdigit(c))
             {
                 current_state = STATE_EXP_PART;
+            }
+            else if (c == '_')
+            {
+                lexer_get_char(err, &internal_err, in, line);
+                current_state = STATE_UEXP_PART;
             }
             else
                 *err = INVALID_SYMBOL;

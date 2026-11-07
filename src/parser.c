@@ -405,8 +405,98 @@ static ast_node *node_var_def(error *err, FILE *src_stream, attribute_table *att
 static ast_node *node_def_body(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_type_notation(error *err, FILE *src_stream, attribute_table *attr_tab);
 
-static ast_node *node_func_def(error *err, FILE *src_stream, attribute_table *attr_tab);
-static ast_node *node_main_func(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_func_def(error *err, FILE *src_stream, attribute_table *attr_tab)
+{
+    *err = NONE;
+    const token next_token = peek_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    ast_node *func_def_node = new_ast_node(err);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+    func_def_node->type = AST_NODE_FUNC_DEF;
+    func_def_node->src_line_number = next_token.line;
+
+    if (!(next_token.type == TOKEN_KEYWORD && next_token.attribute_index == KW_DEF))
+    {
+        *err = GENERAL_SYNTAX;
+        ast_node_destruct_recursively(&func_def_node);
+
+        log_expected_errorf(TOKEN_KEYWORD, next_token.type, next_token.line);
+        return NULL;
+    }
+
+    func_def_node->left_child = node_func_start(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&func_def_node);
+        return NULL;
+    }
+    func_def_node->right_child = node_func_body(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&func_def_node);
+        return NULL;
+    }
+
+    return func_def_node;
+}
+
+static ast_node *node_main_func(error *err, FILE *src_stream, attribute_table *attr_tab)
+{
+    *err = NONE;
+
+    ast_node *main_func_def_node = new_ast_node(err);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+    main_func_def_node->type = AST_NODE_FUNC_DEF;
+
+
+    token next_token = get_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+    main_func_def_node->src_line_number = next_token.line;
+    if (next_token.type != TOKEN_ANNOTATION)
+    {
+        ast_node_destruct_recursively(&main_func_def_node);
+        return NULL;
+    }
+    // TODO: implement main string consumption
+
+    next_token = peek_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&main_func_def_node);
+        return NULL;
+    }
+    if (!(next_token.type == TOKEN_KEYWORD && next_token.attribute_index == KW_DEF))
+    {
+        *err = GENERAL_SYNTAX;
+        ast_node_destruct_recursively(&main_func_def_node);
+
+        log_expected_errorf(TOKEN_KEYWORD, next_token.type, next_token.line);
+        return NULL;
+    }
+
+    main_func_def_node->left_child = node_func_def(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&main_func_def_node);
+        return NULL;
+    }
+
+    return main_func_def_node;
+}
+
 static ast_node *node_func_start(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_func_head(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_func_name(error *err, FILE *src_stream, attribute_table *attr_tab);

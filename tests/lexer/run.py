@@ -213,7 +213,7 @@ def cases():
         "Unit may stand wherever a term is expected, e.g. 'val a = () + 42' (syntactically valid).",
         "IFJ26 forum (Ondryas, 2026-10-13); team convention: Unit is OPEN_PAREN CLOSE_PAREN")
     add("punctuation/semicolon", "1;2", [t("INT", 1), t("SEMICOLON"), t("INT", 2)],
-        "S §1.2 requires semicolon statement separation; ';' is TOKEN_SEMICOLON ('|' keeps TOKEN_SEPARATOR).",
+        "S §1.2 requires semicolon statement separation; ';' is TOKEN_SEMICOLON ('|' is OP_SEPARATOR).",
         LAYOUT)
     add("annotation/main", "@main", [t("ANNOTATION")], "Recognize the exact @main annotation.",
         "IFJ26 S §2 (p. 4); assignment-context/04-program-scopes-functions-control.md")
@@ -294,10 +294,10 @@ def cases():
         add("number/invalid_unsupported_" + source, source, error=1,
             reason="Other number bases, the L suffix and the f/F suffixes are not supported in IFJ26 "
                    "(S §1.1); the unsupported literal is lexical error 1.", reference=TEAM_DECISION)
-    for source in ("1d", "1D", "0d", "1_000D"):
-        add("number/invalid_int_suffix_" + source, source, error=1,
-            reason="The d/D suffix only ends the two Double forms (with a fraction or an exponent); digits + suffix "
-                   "alone is lexical error 1.", reference=TEAM_DECISION)
+    for source, value in (("1d", 1.0), ("1D", 1.0), ("0d", 0.0), ("1_000D", 1000.0)):
+        add("number/int_suffix_" + source, source, [t("DOUBLE", value)],
+            reason="Digits plus the d/D suffix are a Double.",
+            reference="IFJ26 S §1.1: d/D may end a Double 've všech případech'; Scala accepts it too (SPEC_AUDIT.md §6)")
     add("number/adjacency", "12+34*(.5-2e1)", [t("INT", 12), t("OPERATOR", "OP_PLUS"), t("INT", 34),
         t("OPERATOR", "OP_MULTIPLY"), t("OPEN_PAREN"), t("DOUBLE", .5), t("OPERATOR", "OP_MINUS"),
         t("DOUBLE", 20.0), t("CLOSE_PAREN")], "Number scanning must not swallow punctuation or operators.")
@@ -551,8 +551,8 @@ def cases():
         return t("OPERATOR", "OP_" + name)
 
     lp, rp, colon, comma, arrow, larrow = (t("OPEN_PAREN"), t("CLOSE_PAREN"), t("COLON"), t("COMMA"),
-                                           t("ARROW"), t("LEFT_ARROW"))
-    ob, cb, pipe, dot = t("OPEN_BRACKET"), t("CLOSE_BRACKET"), t("SEPARATOR"), t("DOT")
+                                           op("ARROW"), op("LEFT_ARROW"))
+    ob, cb, pipe, dot = t("OPEN_BRACKET"), t("CLOSE_BRACKET"), op("SEPARATOR"), t("DOT")
     f, i, n, v, x, y = lid("f", "i", "n", "v", "x", "y")
     print_i = lid("print") + [lp, i, rp]
     for name, source, expected, reason, section in [
@@ -594,7 +594,7 @@ def cases():
          "A parenthesized Double followed by a member.", "5.4 VALMEM"),
         ("algebdt/union_type", "type Scalar = Int | Double | String",
          [kw("type")] + lid("Scalar") + [op("ASSIGN"), kw("Int"), pipe, kw("Double"), pipe, kw("String")],
-         "'|' in a union type is TOKEN_SEPARATOR.", "5.5 ALGEBDT"),
+         "'|' in a union type is OP_SEPARATOR.", "5.5 ALGEBDT"),
         ("algebdt/pipe_glued", "Int|String", [kw("Int"), pipe, kw("String")],
          "A single '|' is not '||'.", "5.5 ALGEBDT"),
         ("algebdt/case_class", "case class Point(x: Int, y: Int)",

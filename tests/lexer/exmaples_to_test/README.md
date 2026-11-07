@@ -162,7 +162,7 @@ the file is present and still matches the tested bytes.
 | [fragments/punctuation/unit_167695b2.ifj](fragments/punctuation/unit_167695b2.ifj) | `punctuation/unit` | 0 | Raw scanner convention: Unit syntax is a pair of parentheses; semantic Unit belongs to the parser. |
 | [fragments/punctuation/unit_nested_63fb4c21.ifj](fragments/punctuation/unit_nested_63fb4c21.ifj) | `punctuation/unit_nested` | 0 | Unit wrapped in parentheses may appear in tests; same paren-pair convention as punctuation/unit. |
 | [fragments/punctuation/unit_expression_889cc736.ifj](fragments/punctuation/unit_expression_889cc736.ifj) | `punctuation/unit_expression` | 0 | Unit may stand wherever a term is expected, e.g. 'val a = () + 42' (syntactically valid). |
-| [fragments/punctuation/semicolon_9448a5ca.ifj](fragments/punctuation/semicolon_9448a5ca.ifj) | `punctuation/semicolon` | 0 | S §1.2 requires semicolon statement separation; ';' is TOKEN_SEMICOLON ('&#124;' keeps TOKEN_SEPARATOR). |
+| [fragments/punctuation/semicolon_9448a5ca.ifj](fragments/punctuation/semicolon_9448a5ca.ifj) | `punctuation/semicolon` | 0 | S §1.2 requires semicolon statement separation; ';' is TOKEN_SEMICOLON ('&#124;' is OP_SEPARATOR). |
 | [fragments/annotation/main_9733ed2a.ifj](fragments/annotation/main_9733ed2a.ifj) | `annotation/main` | 0 | Recognize the exact @main annotation. |
 | [fragments/annotation/invalid_4b81f6eb.ifj](fragments/annotation/invalid_4b81f6eb.ifj) | `annotation/invalid_@` | 1 | Incomplete or differently spelled @main cannot form the required annotation. |
 | [fragments/annotation/invalid__m_977f30e0.ifj](fragments/annotation/invalid__m_977f30e0.ifj) | `annotation/invalid_@m` | 1 | Incomplete or differently spelled @main cannot form the required annotation. |
@@ -277,10 +277,10 @@ the file is present and still matches the tested bytes.
 | [fragments/number/invalid_unsupported_1_5f_2f0a1e22.ifj](fragments/number/invalid_unsupported_1_5f_2f0a1e22.ifj) | `number/invalid_unsupported_1.5F` | 1 | Other number bases, the L suffix and the f/F suffixes are not supported in IFJ26 (S §1.1); the unsupported literal is lexical error 1. |
 | [fragments/number/invalid_unsupported_1f_d0941296.ifj](fragments/number/invalid_unsupported_1f_d0941296.ifj) | `number/invalid_unsupported_1f` | 1 | Other number bases, the L suffix and the f/F suffixes are not supported in IFJ26 (S §1.1); the unsupported literal is lexical error 1. |
 | [fragments/number/invalid_unsupported_1e2f_a7f55c59.ifj](fragments/number/invalid_unsupported_1e2f_a7f55c59.ifj) | `number/invalid_unsupported_1e2f` | 1 | Other number bases, the L suffix and the f/F suffixes are not supported in IFJ26 (S §1.1); the unsupported literal is lexical error 1. |
-| [fragments/number/invalid_int_suffix_1d_dec2dd02.ifj](fragments/number/invalid_int_suffix_1d_dec2dd02.ifj) | `number/invalid_int_suffix_1d` | 1 | The d/D suffix only ends the two Double forms (with a fraction or an exponent); digits + suffix alone is lexical error 1. |
-| [fragments/number/invalid_int_suffix_1d_c162d116.ifj](fragments/number/invalid_int_suffix_1d_c162d116.ifj) | `number/invalid_int_suffix_1D` | 1 | The d/D suffix only ends the two Double forms (with a fraction or an exponent); digits + suffix alone is lexical error 1. |
-| [fragments/number/invalid_int_suffix_0d_4bf19689.ifj](fragments/number/invalid_int_suffix_0d_4bf19689.ifj) | `number/invalid_int_suffix_0d` | 1 | The d/D suffix only ends the two Double forms (with a fraction or an exponent); digits + suffix alone is lexical error 1. |
-| [fragments/number/invalid_int_suffix_1_000d_c8e9f5ab.ifj](fragments/number/invalid_int_suffix_1_000d_c8e9f5ab.ifj) | `number/invalid_int_suffix_1_000D` | 1 | The d/D suffix only ends the two Double forms (with a fraction or an exponent); digits + suffix alone is lexical error 1. |
+| [fragments/number/int_suffix_1d_fc9bc26a.ifj](fragments/number/int_suffix_1d_fc9bc26a.ifj) | `number/int_suffix_1d` | 0 | Digits plus the d/D suffix are a Double. |
+| [fragments/number/int_suffix_1d_9e7b10a4.ifj](fragments/number/int_suffix_1d_9e7b10a4.ifj) | `number/int_suffix_1D` | 0 | Digits plus the d/D suffix are a Double. |
+| [fragments/number/int_suffix_0d_dd36c4c8.ifj](fragments/number/int_suffix_0d_dd36c4c8.ifj) | `number/int_suffix_0d` | 0 | Digits plus the d/D suffix are a Double. |
+| [fragments/number/int_suffix_1_000d_5d1b3b4e.ifj](fragments/number/int_suffix_1_000d_5d1b3b4e.ifj) | `number/int_suffix_1_000D` | 0 | Digits plus the d/D suffix are a Double. |
 | [fragments/number/adjacency_42fb9352.ifj](fragments/number/adjacency_42fb9352.ifj) | `number/adjacency` | 0 | Number scanning must not swallow punctuation or operators. |
 | [fragments/string/empty_056c2f3b.ifj](fragments/string/empty_056c2f3b.ifj) | `string/empty` | 0 | String value must match byte for byte; ordinary strings decode escapes, triple-quoted strings preserve content. |
 | [fragments/string/ascii_063563b7.ifj](fragments/string/ascii_063563b7.ifj) | `string/ascii` | 0 | String value must match byte for byte; ordinary strings decode escapes, triple-quoted strings preserve content. |
@@ -595,7 +595,7 @@ the file is present and still matches the tested bytes.
 | [fragments/control/if_expression_b95a93c1.ifj](fragments/control/if_expression_b95a93c1.ifj) | `control/if_expression` | 0 | if used as a one-line expression. |
 | [fragments/valmem/chain_94556baf.ifj](fragments/valmem/chain_94556baf.ifj) | `valmem/chain` | 0 | Member access on identifiers and literals uses DOT and identifiers. |
 | [fragments/valmem/double_member_09214618.ifj](fragments/valmem/double_member_09214618.ifj) | `valmem/double_member` | 0 | A parenthesized Double followed by a member. |
-| [fragments/algebdt/union_type_5fa60a3c.ifj](fragments/algebdt/union_type_5fa60a3c.ifj) | `algebdt/union_type` | 0 | '&#124;' in a union type is TOKEN_SEPARATOR. |
+| [fragments/algebdt/union_type_5fa60a3c.ifj](fragments/algebdt/union_type_5fa60a3c.ifj) | `algebdt/union_type` | 0 | '&#124;' in a union type is OP_SEPARATOR. |
 | [fragments/algebdt/pipe_glued_744aa89e.ifj](fragments/algebdt/pipe_glued_744aa89e.ifj) | `algebdt/pipe_glued` | 0 | A single '&#124;' is not '&#124;&#124;'. |
 | [fragments/algebdt/case_class_d758536f.ifj](fragments/algebdt/case_class_d758536f.ifj) | `algebdt/case_class` | 0 | Product type definition. |
 | [fragments/algebdt/arrow_1acef37b.ifj](fragments/algebdt/arrow_1acef37b.ifj) | `algebdt/arrow` | 0 | '=>' is one token, not '=' followed by '>'. |

@@ -11,7 +11,6 @@ static const char *token_name(token_type type)
     switch (type)
     {
         NAME(TOKEN_UNDEFINED);
-        NAME(TOKEN_WHITESPACE);
         NAME(TOKEN_EOL);
         NAME(TOKEN_EOF);
         NAME(TOKEN_INT);
@@ -26,7 +25,6 @@ static const char *token_name(token_type type)
         NAME(TOKEN_DOT);
         NAME(TOKEN_COMMA);
         NAME(TOKEN_UNDERSCORE);
-        NAME(TOKEN_SEPARATOR);
         NAME(TOKEN_SEMICOLON);
         NAME(TOKEN_OPEN_PAREN);
         NAME(TOKEN_CLOSE_PAREN);
@@ -35,8 +33,6 @@ static const char *token_name(token_type type)
         NAME(TOKEN_CLOSE_BRACKET);
         NAME(TOKEN_OPEN_BRACE);
         NAME(TOKEN_CLOSE_BRACE);
-        NAME(TOKEN_ARROW);
-        NAME(TOKEN_LEFT_ARROW);
         NAME(TOKEN_INTERP_BEGIN);
         NAME(TOKEN_INTERP_END);
         NAME(TOKEN_INDENT);
@@ -65,8 +61,11 @@ static const char *operator_name(int value)
         NAME(OP_EQUAL_LESS);
         NAME(OP_NOT);
         NAME(OP_AND);
+        NAME(OP_SEPARATOR);
         NAME(OP_OR);
         NAME(OP_CONCAT);
+        NAME(OP_ARROW);
+        NAME(OP_LEFT_ARROW);
     }
 #undef NAME
     return "INVALID_OPERATOR_ENUM";

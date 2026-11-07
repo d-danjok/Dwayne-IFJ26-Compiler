@@ -113,9 +113,9 @@ Their tokens, as declared in `src/token.h`:
 | --- | --- |
 | `true` / `false` | `TOKEN_BOOLEAN`, attribute 1 / 0 |
 | `!` `&&` `\|\|` `++` | `TOKEN_OPERATOR` with `OP_NOT` `OP_AND` `OP_OR` `OP_CONCAT` |
-| `\|` (union type) | `TOKEN_SEPARATOR` |
+| `\|` (union type) | `TOKEN_OPERATOR` with `OP_SEPARATOR` |
 | `;` | `TOKEN_SEMICOLON` |
-| `=>` / `<-` | `TOKEN_ARROW` / `TOKEN_LEFT_ARROW` (also when glued: `i<-0`, `x=>y`) |
+| `=>` / `<-` | `TOKEN_OPERATOR` with `OP_ARROW` / `OP_LEFT_ARROW` (also when glued: `i<-0`, `x=>y`) |
 | `[` `]` | `TOKEN_OPEN_BRACKET` `TOKEN_CLOSE_BRACKET` |
 | `s"..."`, `s"""..."""` | see below |
 
@@ -146,9 +146,9 @@ Finite binary64 boundaries (`1e-308`, `5e-324`, `2.2250738585072014e-308`,
 `1.7976931348623157e308`) are valid Doubles even though `strtod` sets `ERANGE` for subnormals.
 Ambiguous points were cross-checked with Scala 3; see `SPEC_AUDIT.md`.
 Team decisions of 2026-10-19 (stricter than Scala, which splits these into tokens):
-a number glued to a letter or to a second fraction (`12abc`, `1.5x`, `2e0.01`),
-unsupported forms (`0x1F`, `0b101`, `1L`, `1.5f`) and digits with only a suffix
-(`1d`, `1D`) are lexical error 1.
+a number glued to a letter or to a second fraction (`12abc`, `1.5x`, `2e0.01`) and
+unsupported forms (`0x1F`, `0b101`, `1L`, `1.5f`) are lexical error 1.
+Digits with only a suffix (`1d`, `1D`) are a Double (`1.0`), as in Scala.
 
 These tests target the current **raw scanner interface**, not a complete compiler.
 Module/API conventions are identified explicitly in each case's reference;

@@ -181,6 +181,93 @@ static bool is_expression_member(const token tok)
     }
 }
 
+static void log_token_type(const token_type type)
+{
+    switch (type)
+    {
+    case TOKEN_EOL:
+        log_printf("end of line");
+        break;
+    case TOKEN_EOF:
+        log_printf("end of file");
+        break;
+    case TOKEN_INT:
+        log_printf("int literal");
+        break;
+    case TOKEN_DOUBLE:
+        log_printf("double literal");
+        break;
+    case TOKEN_STRING:
+        log_printf("string literal");
+        break;
+    case TOKEN_UNIT:
+        log_printf("unit");
+        break;
+    case TOKEN_BOOLEAN:
+        log_printf("boolean literal");
+        break;
+    case TOKEN_ANNOTATION:
+        log_printf("@");
+        break;
+    case TOKEN_IDENTIFIER:
+        log_printf("identifier");
+        break;
+    case TOKEN_KEYWORD:
+        log_printf("keyword");
+        break;
+    case TOKEN_OPERATOR:
+        log_printf("operator");
+        break;
+    case TOKEN_DOT:
+        log_printf("dot");
+        break;
+    case TOKEN_COMMA:
+        log_printf("comma");
+        break;
+    case TOKEN_UNDERSCORE:
+        log_printf("_");
+        break;
+    case TOKEN_COLON:
+        log_printf("colon (:)");
+        break;
+    case TOKEN_SEMICOLON:
+        log_printf("semicolon (;)");
+        break;
+
+    case TOKEN_OPEN_PAREN:
+        log_printf("open paren");
+        break;
+    case TOKEN_CLOSE_PAREN:
+        log_printf("close paren");
+        break;
+    case TOKEN_OPEN_BRACKET:
+        log_printf("open bracket");
+        break;
+    case TOKEN_CLOSE_BRACKET:
+        log_printf("close bracket");
+        break;
+    case TOKEN_INDENT:
+        log_printf("indent");
+        break;
+    case TOKEN_DEDENT:
+        log_printf("dedent");
+        break;
+    default:
+        log_printf("unknown");
+    }
+}
+
+static void log_expected_errorf(const token_type expected, token_type got, const size_t line)
+{
+    log_printf("[%lu] expected: ", line);
+    log_token_type(expected);
+
+    log_printf(" got: ");
+    log_token_type(got);
+
+    log_printf("\n");
+}
+
 // LL-rule function representations declaration
 static ast_node *node_program(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_def_list(error *err, FILE *src_stream, attribute_table *attr_tab);
@@ -264,20 +351,53 @@ static ast_node *node_def_list(error *err, FILE *src_stream, attribute_table *at
         return NULL;
     }
 
-    if (next_token.type == TOKEN_KEYWORD && next_token.attribute_index == (int)KW_DEF)
+    ast_node *func_def_list_node = new_ast_node(err);
+    if (*err != NONE)
     {
-        return node_func_def(err, src_stream, attr_tab);
+        return NULL;
+    }
+    func_def_list_node->type = AST_NODE_DEF_LIST;
+    func_def_list_node->src_line_number = next_token.line;
+
+    ast_node *node_to_append = NULL;
+    if (next_token.type == TOKEN_KEYWORD && next_token.attribute_index == KW_DEF)
+    {
+        node_to_append = node_func_def(err, src_stream, attr_tab);
+    }
+    else if (next_token.type == TOKEN_ANNOTATION)
+    {
+        node_to_append = node_main_func(err, src_stream, attr_tab);
+    }
+    else if (next_token.type == TOKEN_EOF)
+    {
+        ast_node_destruct_recursively(&func_def_list_node);
+        return NULL;
+    }
+    else
+    {
+        *err = GENERAL_SYNTAX;
+
+        log_expected_errorf(TOKEN_KEYWORD, next_token.type, next_token.line);
+        return NULL;
     }
 
-    if (next_token.type == TOKEN_ANNOTATION)
+    if (*err != NONE)
     {
-        return node_main_func(err, src_stream, attr_tab);
+        ast_node_destruct_recursively(&func_def_list_node);
+        return NULL;
     }
 
-    *err = GENERAL_SYNTAX;
+    func_def_list_node->left_child = node_to_append;
 
-    log_printf("%lu: @main or def expected\n", next_token.line);
-    return NULL;
+    node_to_append = node_def_list(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&func_def_list_node);
+        return NULL;
+    }
+    func_def_list_node->right_child = node_to_append;
+
+    return func_def_list_node;
 }
 
 static ast_node *node_val_def(error *err, FILE *src_stream, attribute_table *attr_tab);

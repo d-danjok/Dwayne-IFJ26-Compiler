@@ -42,6 +42,9 @@ typedef enum
     STATE_NOT,
     STATE_MORE,
     STATE_LESS,
+    STATE_OR,
+    STATE_AND,
+    STATE_PLUS,
 
     // Identifiers
     STATE_IDENTIFIER,
@@ -76,6 +79,8 @@ typedef enum
     STATE_UEXP_PART,
 
     STATE_D_SUFF,
+    STATE_PROCESS_INT,
+    STATE_PROCESS_DOUBLE,
 
     STATE_S_COMMENT,
     STATE_M_COMMENT,

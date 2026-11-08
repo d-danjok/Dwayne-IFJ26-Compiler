@@ -54,6 +54,7 @@ typedef enum
 
     AST_NODE_LITERAL, // Int, Double, Bool, Unit, String
     AST_NODE_IDENTIFIER,
+    AST_NODE_TYPE,
 
     // nodes for semantic analyser output
     AST_NODE_INT_TO_DOUBLE_CONVERSION, // specification page 4, section 1.3
@@ -83,10 +84,12 @@ typedef enum
     AST_OP_LESS_EQUAL,    //	<=
     AST_OP_EQUAL,         //	==
     AST_OP_NOT_EQUAL,     //	!=
-                          //    BOOLTHEN extension operations :S
+                          //    BOOLTHEN extension operations :
     AST_OP_AND,           //    &&
     AST_OP_OR,            //    ||
     AST_OP_NOT,           //    !
+
+    AST_OP_CONCAT, // generated on semantic analysis stage from AST_OP_PLUS if both operands have String type
 } ast_operator;
 
 typedef struct ast_node_s
@@ -99,6 +102,9 @@ typedef struct ast_node_s
     // fields for literal/identifier
     ast_literal_type literal_type; // also represents function return type
     int attribute_index;           // for literals
+
+    long block_index;
+    // represents block index for blocks, and index of block where variable was created for identifiers
 
     ast_operator operator; // for operations
 

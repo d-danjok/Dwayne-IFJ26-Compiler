@@ -58,33 +58,33 @@ static expression_parser_stack_item *new_expression_parser_stack_item(error *err
 
 typedef enum
 {
-    OP_PLUS,
-    OP_MINUS,
+    PRECEDENTIAL_OP_PLUS,
+    PRECEDENTIAL_OP_MINUS,
 
-    OP_MULTIPLY,
-    OP_DIVIDE,
+    PRECEDENTIAL_OP_MULTIPLY,
+    PRECEDENTIAL_OP_DIVIDE,
 
-    OP_UNARY_MINUS,
+    PRECEDENTIAL_OP_UNARY_MINUS,
 
     // comp operators
-    OP_LESS,          // <
-    OP_LESS_EQUAL,    // <=
-    OP_GREATER,       // >
-    OP_GREATER_EQUAL, // >=
+    PRECEDENTIAL_OP_LESS,          // <
+    PRECEDENTIAL_OP_LESS_EQUAL,    // <=
+    PRECEDENTIAL_OP_GREATER,       // >
+    PRECEDENTIAL_OP_GREATER_EQUAL, // >=
 
-    OP_EQUALS,
-    OP_NOT_EQUALS,
+    PRECEDENTIAL_OP_EQUALS,
+    PRECEDENTIAL_OP_NOT_EQUALS,
 
-    OP_NOT, // !
-    OP_AND, // &&
-    OP_OR,  // ||
+    PRECEDENTIAL_OP_NOT, // !
+    PRECEDENTIAL_OP_AND, // &&
+    PRECEDENTIAL_OP_OR,  // ||
 
-    LPAREN, // (
-    RPAREN, // )
+    PRECEDENTIAL_LPAREN, // (
+    PRECEDENTIAL_RPAREN, // )
 
-    OPERAND,
+    PRECEDENTIAL_OPERAND,
 
-    EXPR_TERMINATOR
+    PRECEDENTIAL_EXPR_TERMINATOR
 } precedence_table_member;
 
 typedef enum
@@ -96,7 +96,7 @@ typedef enum
     IV, // invalid
 } operator_priority;
 
-static const operator_priority precedence_table[EXPR_TERMINATOR + 1][EXPR_TERMINATOR + 1] = {
+static const operator_priority precedence_table[PRECEDENTIAL_EXPR_TERMINATOR + 1][PRECEDENTIAL_EXPR_TERMINATOR + 1] = {
     //  +   -   *   /   u-  <   <=  >   >=  ==  !=  !   &&  ||  (   )   Op  $
     {GR, GR, LS, LS, LS, GR, GR, GR, GR, GR, GR, LS, GR, GR, LS, GR, LS, GR}, // +
     {GR, GR, LS, LS, LS, GR, GR, GR, GR, GR, GR, LS, GR, GR, LS, GR, LS, GR}, // -
@@ -485,7 +485,6 @@ static ast_node *node_main_func(error *err, FILE *src_stream, attribute_table *a
     }
     main_func_def_node->type = AST_NODE_MAIN_FUNC_DEF;
 
-
     token next_token = get_token(err, src_stream, attr_tab);
     if (*err != NONE)
     {
@@ -609,7 +608,7 @@ static ast_node *node_func_head(error *err, FILE *src_stream, attribute_table *a
         return func_head_node;
     }
 
-    next_token = get_token(err, src_stream, attr_tab); //just consuming
+    next_token = get_token(err, src_stream, attr_tab); // just consuming
     next_token = get_token(err, src_stream, attr_tab);
     if (!is_type(next_token))
     {

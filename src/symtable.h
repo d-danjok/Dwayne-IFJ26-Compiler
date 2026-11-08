@@ -34,11 +34,8 @@ typedef union {
 
 typedef struct identifier_data_s
 {
-    identifier_value value;
-    data_type data_type; // in case of function return type
-
+    data_type value_type; // in case of function return type
     identifier_type type;
-    bool is_initialised;
 
     // used only for functions
     int function_arg_count;
@@ -69,24 +66,24 @@ void symtable_destruct(symtable **self);
 // insert
 // @param data - pointer to data we want to insert (only dynamically allocated,
 // ownership transition)
-void symtable_insert(symtable *self, error *err, int identifier_id, identifier_data **data);
+void symtable_insert(const symtable *self, error *err, int identifier_id, identifier_data **data);
 
 // @brief Remove item from symtable
 //
 // @param identifier_id - index of identifier in attribute table we want to
 // remove
-void symtable_remove(symtable *self, int identifier_id);
+void symtable_remove(const symtable *self, int identifier_id);
 
 // @brief Search data in symtable by identifier_id
 //
 // @param identifier_id - index of identifier in attribute table we want to find
 // @return true if found, otherwise else
-bool symtable_search(symtable *self, int identifier_id);
+bool symtable_search(const symtable *self, int identifier_id);
 
 // @brief Get data from symtable by identifier_id
 //
 // @param identifier_id - index of identifier in attribute table we want to get
 // @return pointer to data stored of identifier
-identifier_data *symtable_getdata(symtable *self, int identifier_id);
+identifier_data *symtable_getdata(const symtable *self, int identifier_id);
 
 #endif

@@ -32,6 +32,7 @@ void *stack_pop(stack *self, error *err);
 //
 // @param depth - how far item we want to check related to top of the stack (index 0 -> top of the stack)
 // @return pointer to data which were stored on given depth level
-void *stack_peek(stack *self, error *err, int depth); // added this because some time it is useful to check other items
+void *stack_peek(const stack *self, error *err,
+                 int depth); // added this because some time it is useful to check other items
 
 #endif

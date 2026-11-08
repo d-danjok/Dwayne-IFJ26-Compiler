@@ -35,22 +35,22 @@ void symtable_destruct(symtable **self)
     UTILS_SAFE_FREE(self);
 }
 
-void symtable_insert(symtable *self, error *err, int identifier_id, identifier_data **data)
+void symtable_insert(const symtable *self, error *err, const int identifier_id, identifier_data **data)
 {
     bst_insert(self->table, err, identifier_id, (void **)data);
 }
 
-void symtable_remove(symtable *self, int identifier_id)
+void symtable_remove(const symtable *self, const int identifier_id)
 {
     bst_remove(self->table, identifier_id);
 }
 
-bool symtable_search(symtable *self, int identifier_id)
+bool symtable_search(const symtable *self, const int identifier_id)
 {
     return bst_search(self->table, identifier_id);
 }
 
-identifier_data *symtable_getdata(symtable *self, int identifier_id)
+identifier_data *symtable_getdata(const symtable *self, const int identifier_id)
 {
     return (identifier_data *)bst_getdata(self->table, identifier_id);
 }

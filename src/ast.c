@@ -21,6 +21,8 @@ ast_node *new_ast_node(error *err)
     node->attribute_index = -1; // sentinel value
     node->operator = AST_OP_NONE;
 
+    node->block_index = -1; // sentinel value
+
     return node;
 }
 

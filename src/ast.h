@@ -54,6 +54,7 @@ typedef enum
 
     AST_NODE_LITERAL, // Int, Double, Bool, Unit, String
     AST_NODE_IDENTIFIER,
+    AST_NODE_TYPE,
 
     // nodes for semantic analyser output
     AST_NODE_INT_TO_DOUBLE_CONVERSION, // specification page 4, section 1.3

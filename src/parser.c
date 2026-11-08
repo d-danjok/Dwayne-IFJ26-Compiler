@@ -268,6 +268,30 @@ static void log_error_expected(const token_type expected, token_type got, const 
     log_printf("\n");
 }
 
+static bool is_type(const token tok)
+{
+    if (tok.type != TOKEN_KEYWORD)
+    {
+        return false;
+    }
+
+    switch (tok.attribute_index)
+    {
+    case KW_BOOLEAN:
+    case KW_INT:
+    case KW_DOUBLE:
+    case KW_STRING:
+    case KW_UNIT:
+        return true;
+        break;
+
+    default:
+        return false;
+    }
+
+    return false;
+}
+
 // LL-rule function representations declaration
 static ast_node *node_program(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_def_list(error *err, FILE *src_stream, attribute_table *attr_tab);
@@ -534,7 +558,100 @@ static ast_node *node_func_start(error *err, FILE *src_stream, attribute_table *
     return func_start_node;
 }
 
-static ast_node *node_func_head(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_func_head(error *err, FILE *src_stream, attribute_table *attr_tab)
+{
+    *err = NONE;
+    token next_token = peek_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    ast_node *func_head_node = new_ast_node(err);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+    func_head_node->type = AST_NODE_FUNC_HEAD;
+    func_head_node->src_line_number = next_token.line;
+
+    if (next_token.type != TOKEN_OPEN_PAREN)
+    {
+        ast_node_destruct_recursively(&func_head_node);
+        log_error_expected(TOKEN_OPEN_PAREN, next_token.type, next_token.line);
+
+        return NULL;
+    }
+
+    ast_node *param_list_node = node_param_list(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&func_head_node);
+        return NULL;
+    }
+
+    func_head_node->left_child = param_list_node;
+
+    next_token = peek_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&func_head_node);
+        return NULL;
+    }
+
+    if (next_token.type != TOKEN_COLON)
+    {
+        return func_head_node;
+    }
+
+    next_token = get_token(err, src_stream, attr_tab); //just consuming
+    next_token = get_token(err, src_stream, attr_tab);
+    if (!is_type(next_token))
+    {
+        ast_node_destruct_recursively(&func_head_node);
+
+        log_printf("[%lu] expected: TYPE got :", next_token.line);
+        log_token_type(next_token.type);
+        log_printf("\n");
+
+        return NULL;
+    }
+
+    ast_node *func_return_type = new_ast_node(err);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&func_head_node);
+        return NULL;
+    }
+    func_return_type->type = AST_NODE_TYPE;
+    func_return_type->src_line_number = next_token.line;
+    switch (next_token.attribute_index)
+    {
+    case KW_BOOLEAN:
+        func_return_type->literal_type = AST_TYPE_BOOLEAN;
+        break;
+    case KW_INT:
+        func_return_type->literal_type = AST_TYPE_INT;
+        break;
+    case KW_DOUBLE:
+        func_return_type->literal_type = AST_TYPE_DOUBLE;
+        break;
+    case KW_STRING:
+        func_return_type->literal_type = AST_TYPE_STRING;
+        break;
+    case KW_UNIT:
+        func_return_type->literal_type = AST_TYPE_UNIT;
+        break;
+    default:
+        ast_node_destruct_recursively(&func_head_node);
+        ast_node_destruct_recursively(&func_return_type);
+        return NULL;
+    }
+    func_head_node->right_child = func_return_type;
+
+    return func_head_node;
+}
+
 static ast_node *node_func_name(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_param_list(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_param_list_(error *err, FILE *src_stream, attribute_table *attr_tab);

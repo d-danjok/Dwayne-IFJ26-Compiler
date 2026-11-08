@@ -170,7 +170,6 @@ static bool is_expression_member(const token tok)
     case TOKEN_OPEN_PAREN:
     case TOKEN_CLOSE_PAREN:
         return true;
-        break;
 
     case TOKEN_EOL:
         if (current_paren_depth > 0)
@@ -319,7 +318,7 @@ static ast_node *node_stat_list_(error *err, FILE *src_stream, attribute_table *
 static ast_node *node_statement(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_definition(error *err, FILE *src_stream, attribute_table *attr_tab);
 
-static ast_node *node_expression(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_expression_or_assignment_to_id((error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_while_loop(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_return_statement(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_assign_val(error *err, FILE *src_stream, attribute_table *attr_tab);
@@ -669,7 +668,8 @@ static ast_node *node_stat_list_(error *err, FILE *src_stream, attribute_table *
 static ast_node *node_statement(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_definition(error *err, FILE *src_stream, attribute_table *attr_tab);
 
-static ast_node *node_expression(error *err, FILE *src_stream, attribute_table *attr_tab)
+static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_stream, attribute_table *attr_tab,
+                                                     bool can_be_assignment)
 {
     *err = NONE;
     stack *expression_parse_stack = new_stack(err);
@@ -696,11 +696,110 @@ static ast_node *node_expression(error *err, FILE *src_stream, attribute_table *
         return NULL;
     }
 
+    bool is_first_cycle = true && can_be_assignment;
     while (is_expression_member(next_token))
     {
         current_token = get_token(err, src_stream, attr_tab);
 
+        expression_parser_stack_item *new_item = new_expression_parser_stack_item(err);
+        if (*err != NONE)
+        {
+            stack_destruct(&expression_parse_stack);
+            return NULL;
+        }
+
         // TODO: implement actual algorithm
+        switch (current_token.type)
+        {
+        case TOKEN_IDENTIFIER:
+            new_item->content_type = ITEM_AST_NODE;
+            new_item->item_ast_node = node_func_call(err, src_stream, attr_tab);
+
+            if (new_item->item_ast_node->type == AST_NODE_IDENTIFIER)
+            {
+                // there is no way to distinguish
+                // id = ...       which is assignment and
+                // id + - * / ... which is expression, so I decided to use this trick
+                next_token = peek_token(err, src_stream, attr_tab);
+                if (next_token.type == TOKEN_OPERATOR && next_token.attribute_index == OP_ASSIGN)
+                {
+                    stack_destruct(&expression_parse_stack);
+                    UTILS_SAFE_FREE(&new_item);
+
+                    ast_node *statement_node = new_ast_node(err);
+                    if (*err != NONE)
+                    {
+                        return NULL;
+                    }
+                    statement_node->type = AST_NODE_STATEMENT;
+                    statement_node->src_line_number = current_token.line;
+
+                    ast_node *id_node = new_ast_node(err);
+                    if (*err != NONE)
+                    {
+                        ast_node_destruct_recursively(&statement_node);
+                        return NULL;
+                    }
+                    id_node->type = AST_NODE_IDENTIFIER;
+                    id_node->src_line_number = current_token.line;
+                    id_node->attribute_index = current_token.attribute_index;
+                    id_node->literal_type = (ast_literal_type)current_token.type;
+
+                    statement_node->left_child = id_node;
+                    statement_node->right_child = node_expression_or_assignment_to_id(err, src_stream, attr_tab, false);
+                    if (*err != NONE)
+                    {
+                        ast_node_destruct_recursively(&statement_node);
+                        return NULL;
+                    }
+
+                    return statement_node;
+                }
+                // TODO: logic for ID
+            }
+            // TODO: logic for func_call
+
+            break;
+        case TOKEN_INT:
+
+            break;
+        case TOKEN_DOUBLE:
+
+            break;
+        case TOKEN_STRING:
+
+            break;
+        case TOKEN_UNIT:
+
+            break;
+        case TOKEN_BOOLEAN:
+
+            break;
+        case TOKEN_KEYWORD:
+
+            break;
+        case TOKEN_OPERATOR:
+
+            break;
+        case TOKEN_OPEN_PAREN:
+
+            break;
+        case TOKEN_CLOSE_PAREN:
+
+            break;
+        default:
+            log_printf("[%l] ", current_token.line);
+            log_token_type(current_token.type);
+            log_printf(" cannon be an expression member\n");
+
+            stack_destruct(&expression_parse_stack);
+            return NULL;
+        }
+
+        if (is_first_cycle)
+        {
+            is_first_cycle = false;
+        }
     }
 
     return NULL; // tmp

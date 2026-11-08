@@ -257,7 +257,7 @@ static void log_token_type(const token_type type)
     }
 }
 
-static void log_expected_errorf(const token_type expected, token_type got, const size_t line)
+static void log_error_expected(const token_type expected, token_type got, const size_t line)
 {
     log_printf("[%lu] expected: ", line);
     log_token_type(expected);
@@ -377,7 +377,7 @@ static ast_node *node_def_list(error *err, FILE *src_stream, attribute_table *at
     {
         *err = GENERAL_SYNTAX;
 
-        log_expected_errorf(TOKEN_KEYWORD, next_token.type, next_token.line);
+        log_error_expected(TOKEN_KEYWORD, next_token.type, next_token.line);
         return NULL;
     }
 
@@ -427,7 +427,7 @@ static ast_node *node_func_def(error *err, FILE *src_stream, attribute_table *at
         *err = GENERAL_SYNTAX;
         ast_node_destruct_recursively(&func_def_node);
 
-        log_expected_errorf(TOKEN_KEYWORD, next_token.type, next_token.line);
+        log_error_expected(TOKEN_KEYWORD, next_token.type, next_token.line);
         return NULL;
     }
 
@@ -483,7 +483,7 @@ static ast_node *node_main_func(error *err, FILE *src_stream, attribute_table *a
         *err = GENERAL_SYNTAX;
         ast_node_destruct_recursively(&main_func_def_node);
 
-        log_expected_errorf(TOKEN_KEYWORD, next_token.type, next_token.line);
+        log_error_expected(TOKEN_KEYWORD, next_token.type, next_token.line);
         return NULL;
     }
 

@@ -497,7 +497,43 @@ static ast_node *node_main_func(error *err, FILE *src_stream, attribute_table *a
     return main_func_def_node;
 }
 
-static ast_node *node_func_start(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_func_start(error *err, FILE *src_stream, attribute_table *attr_tab)
+{
+    *err = NONE;
+    const token next_token = peek_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    ast_node *func_start_node = new_ast_node(err);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+    func_start_node->type = AST_NODE_FUNC_START;
+    func_start_node->src_line_number = next_token.line;
+
+    ast_node *func_name_node = node_func_name(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&func_start_node);
+        return NULL;
+    }
+    ast_node *func_head_node = node_func_head(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&func_start_node);
+        ast_node_destruct_recursively(&func_name_node);
+        return NULL;
+    }
+
+    func_start_node->left_child = func_name_node;
+    func_start_node->right_child = func_head_node;
+
+    return func_start_node;
+}
+
 static ast_node *node_func_head(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_func_name(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_param_list(error *err, FILE *src_stream, attribute_table *attr_tab);
@@ -511,7 +547,43 @@ static ast_node *node_stat_list_(error *err, FILE *src_stream, attribute_table *
 static ast_node *node_statement(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_definition(error *err, FILE *src_stream, attribute_table *attr_tab);
 
-static ast_node *node_expression(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_expression(error *err, FILE *src_stream, attribute_table *attr_tab)
+{
+    *err = NONE;
+    stack *expression_parse_stack = new_stack(err);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    // preparing stack
+    expression_parser_stack_item *terminator = new_expression_parser_stack_item(err);
+    if (*err != NONE)
+    {
+        stack_destruct(&expression_parse_stack);
+        return NULL;
+    }
+    terminator->content_type = ITEM_TERMINATOR;
+    stack_push(expression_parse_stack, err, (void **)&terminator);
+
+    token current_token = EMPTY_TOKEN;
+    token next_token = peek_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        stack_destruct(&expression_parse_stack);
+        return NULL;
+    }
+
+    while (is_expression_member(next_token))
+    {
+        current_token = get_token(err, src_stream, attr_tab);
+
+        // TODO: implement actual algorithm
+    }
+
+    return NULL; // tmp
+}
+
 static ast_node *node_while_loop(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_return_statement(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_assign_val(error *err, FILE *src_stream, attribute_table *attr_tab);
@@ -567,39 +639,6 @@ static ast_node *node_func_call(error *err, FILE *src_stream, attribute_table *a
     return func_call_node;
 }
 
-static ast_node *node_expression(error *err, FILE *src_stream, attribute_table *attr_tab)
-{
-    *err = NONE;
-    stack *expression_parse_stack = new_stack(err);
-    if (*err != NONE)
-    {
-        return NULL;
-    }
-
-    // preparing stack
-    expression_parser_stack_item *terminator = new_expression_parser_stack_item(err);
-    if (*err != NONE)
-    {
-        stack_destruct(&expression_parse_stack);
-        return NULL;
-    }
-    terminator->content_type = ITEM_TERMINATOR;
-    stack_push(expression_parse_stack, err, (void **)&terminator);
-
-    token current_token = EMPTY_TOKEN;
-    token next_token = peek_token(err, src_stream, attr_tab);
-    if (*err != NONE)
-    {
-        stack_destruct(&expression_parse_stack);
-        return NULL;
-    }
-
-    while (is_expression_member(next_token))
-    {
-        current_token = get_token(err, src_stream, attr_tab);
-
-        // TODO: implement actual algorithm
-    }
-
-    return NULL; // tmp
-}
+static ast_node *node_call_params(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_call_params_(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_call_param(error *err, FILE *src_stream, attribute_table *attr_tab);

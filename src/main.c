@@ -12,9 +12,9 @@
 // temporary placeholders for project structure representation TODO: implement and delete from here
 typedef struct tac_s tac; // tmp placeholder, delete it
 
-extern ast_node *semantic_analyser_run(
-    error *err, ast_node **parser_tree, attribute_table *attr_tab,
-    symtable *symb_tab); // NOTE: takes ownership of parser_tree (should free it itself if no longer needs it)
+extern ast_node *semantic_analyser_run(error *err, ast_node **parser_tree, attribute_table *attr_tab);
+
+// NOTE: takes ownership of parser_tree (should free it itself if no longer needs it)
 
 extern tac *tac_generate(error *err, ast_node **ast_root, attribute_table *attr_tab);
 
@@ -42,11 +42,6 @@ int main()
 {
     error err = NONE; // main error handling var
     FILE *src_stream = stdin;
-    symtable *symb_tab = new_symtable(&err);
-    if (err != NONE)
-    {
-        return GENERAL_INTERNAL;
-    }
     attribute_table *attr_tab = new_attribute_table(&err);
     if (err != NONE)
     {
@@ -54,34 +49,31 @@ int main()
     }
 
     // actual program
-    ast_node *parser_tree = parser_run(&err, src_stream, attr_tab, symb_tab);
+    ast_node *parser_tree = parser_run(&err, src_stream, attr_tab);
     if (err != NONE)
     {
         err = convert_err_for_program_return(err);
 
-        free(symb_tab);
-        free(attr_tab);
+        destruct_attribute_table(&attr_tab);
 
         return err;
     }
 
-    ast_node *ast = semantic_analyser_run(&err, &parser_tree, attr_tab, symb_tab);
+    ast_node *ast = semantic_analyser_run(&err, &parser_tree, attr_tab);
     if (err != NONE)
     {
         err = convert_err_for_program_return(err);
 
-        free(symb_tab);
-        free(attr_tab);
+        destruct_attribute_table(&attr_tab);
 
         return err;
     }
-    symtable_destruct(&symb_tab); // no longer needed TODO: delete this and rework if you understand it is needed
 
     tac *tac_list = tac_generate(&err, &ast, attr_tab);
     if (err != NONE)
     {
         err = convert_err_for_program_return(err);
-        free(attr_tab);
+        destruct_attribute_table(&attr_tab);
 
         return err;
     }
@@ -90,7 +82,7 @@ int main()
     if (err != NONE)
     {
         err = convert_err_for_program_return(err);
-        free(attr_tab);
+        destruct_attribute_table(&attr_tab);
 
         return err;
     }
@@ -99,7 +91,7 @@ int main()
     if (err != NONE)
     {
         err = convert_err_for_program_return(err);
-        free(attr_tab);
+        destruct_attribute_table(&attr_tab);
 
         return err;
     }

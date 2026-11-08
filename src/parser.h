@@ -21,6 +21,6 @@
 // @param symb_tab - symbolic table which will be used internally and by other functions afterwards (no ownership
 // transition)
 // @return syntax tree represented as a pointer to root of tree build with ast_node structs
-ast_node *parser_run(error *err, FILE *src_stream, attribute_table *attr_tab, symtable *symb_tab);
+ast_node *parser_run(error *err, FILE *src_stream, attribute_table *attr_tab);
 
 #endif

@@ -900,7 +900,57 @@ static ast_node *node_func_head(error *err, FILE *src_stream, attribute_table *a
     return func_head_node;
 }
 
-static ast_node *node_func_name(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_func_name(error *err, FILE *src_stream, attribute_table *attr_tab)
+{
+    *err = NONE;
+    ast_node *func_name = new_ast_node(err);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    token current_token = get_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&func_name);
+
+        return NULL;
+    }
+    if (!(current_token.type == TOKEN_KEYWORD && current_token.attribute_index == KW_DEF))
+    {
+        *err = GENERAL_SYNTAX;
+        ast_node_destruct_recursively(&func_name);
+
+        log_printf("[%lu] expected: def got :", current_token.line);
+        log_token_type(current_token.type);
+        log_printf("\n");
+
+        return NULL;
+    }
+
+    current_token = get_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&func_name);
+        return NULL;
+    }
+
+    if (current_token.type != TOKEN_IDENTIFIER)
+    {
+        *err = GENERAL_SYNTAX;
+        ast_node_destruct_recursively(&func_name);
+
+        log_error_expected(TOKEN_IDENTIFIER, current_token.type, current_token.line);
+        return NULL;
+    }
+
+    CREATE_ID_NODE(id_node, ast_node_destruct_recursively(&func_name));
+
+    func_name->left_child = id_node;
+
+    return func_name;
+}
+
 static ast_node *node_param_list(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_param_list_(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_param(error *err, FILE *src_stream, attribute_table *attr_tab);

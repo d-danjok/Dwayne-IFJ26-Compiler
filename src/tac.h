@@ -10,30 +10,34 @@
 // @brief Enum of possible operation in TAC
 typedef enum
 {
-    TAC_PLUS, // (PLUS, OPERAND_1, OPERAND_2, RESULT), ALSO CONCAT FOR STR,  RESULT = INT || FLOAT || STR
-    TAC_MINUS, // (MINUS, OPERAND_1, OPERAND_2, RESULT), RESULT = INT || FLOAT
+    TAC_PLUS,        // (PLUS, OPERAND_1, OPERAND_2, RESULT), ALSO CONCAT FOR STR,  RESULT = INT || FLOAT || STR
+    TAC_MINUS,       // (MINUS, OPERAND_1, OPERAND_2, RESULT), RESULT = INT || FLOAT
     TAC_UNARY_MINUS, // (UNARY_MINUS, OPERAND_1, ---, RESULT), RESULT = INT || FLOAT
-    TAC_MUL, // (MUL, OPERAND_1, OPERAND_2, RESULT),  RESULT = INT || FLOAT
-    TAC_DIV,  // (DIV, OPERAND_1, OPERAND_2, RESULT), RESULT = INT || FLOAT
-    TAC_CALL,  // (CALL, FUNC_NAME, NUM_OF_PARAMS, RESULT), NUM_OF_PARAMS = how many params func have, RESULT = return of function call
-    TAC_GOTO,  // (GOTO, ---, ---, NAME_OF_LABEL)
-    TAC_PARAM, // (PARAM, PARAM_1, ---, ---) || (PARAM, ID_PARAM, ---, ID)
+    TAC_MUL,         // (MUL, OPERAND_1, OPERAND_2, RESULT),  RESULT = INT || FLOAT
+    TAC_DIV,         // (DIV, OPERAND_1, OPERAND_2, RESULT), RESULT = INT || FLOAT
+    TAC_CALL, // (CALL, FUNC_NAME, NUM_OF_PARAMS, RESULT), NUM_OF_PARAMS = how many params func have, RESULT = return of
+              // function call
+    TAC_GOTO, // (GOTO, ---, ---, NAME_OF_LABEL)
+    TAC_PARAM,      // (PARAM, PARAM_1, ---, ---) || (PARAM, ID_PARAM, ---, ID)
     TAC_ASSIGNMENT, // (ASSIGNMENT, OPERAND_1, ---, RESULT), FOR EX. X = 10 => (ASSIGMENT, 10, ---, X)
-    TAC_RETURN,  // (RETURN, ---, ---, ID || EXP)
-    TAC_IF_JUMP, // (IF_JUMP, TRUE_LABEL, FALSE_LABEL, EXP), EXP = boolean expression
-    TAC_LABEL,   // (LABEL, ---, ---, NAME_OF_LABEL),
-    TAC_EQUALS,  // (EQUALS, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 == op_2), RESULT = BOOLEAN
-    TAC_GREATER, // (GREATER, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 > op_2),RESULT = BOOLEAN
+    TAC_RETURN,     // (RETURN, ---, ---, ID || EXP)
+    TAC_IF_JUMP,    // (IF_JUMP, TRUE_LABEL, FALSE_LABEL, EXP), EXP = boolean expression
+    TAC_LABEL,      // (LABEL, ---, ---, NAME_OF_LABEL),
+    TAC_EQUALS,     // (EQUALS, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 == op_2), RESULT =
+                    // BOOLEAN
+    TAC_GREATER,    // (GREATER, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 > op_2),RESULT =
+                    // BOOLEAN
     TAC_LESSER, // (LESSER, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 < op_2), RESULT = BOOLEAN
-    TAC_GREATER_EQ, // (GREATER_EQ, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 >= op_2),RESULT = BOOLEAN
-    TAC_LESSER_EQ, // (LESSER_EQ, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 <= op_2), RESULT = BOOLEAN
-    TAC_NOT_EQ, // (NOT_EQ, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 != op_2), RESULT = BOOLEAN
-    TAC_NOT, // (NOT_EQ, OPERAND_1, ---, RESULT), RESULT = result of expression (!op_1), RESULT = BOOLEAN
-    TAC_FUNC_START,  // (TAC_FUNC_START, ---, ---, FUNC_NAME)
-    TAC_FUNC_END,    // (TAC_FUNC_END, ---, ---, FUNC_NAME)
+    TAC_GREATER_EQ, // (GREATER_EQ, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 >= op_2),RESULT =
+                    // BOOLEAN
+    TAC_LESSER_EQ,  // (LESSER_EQ, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 <= op_2), RESULT =
+                    // BOOLEAN
+    TAC_NOT,        // (NOT_EQ, OPERAND_1, ---, RESULT), RESULT = result of expression (!op_1), RESULT = BOOLEAN
+    TAC_FUNC_START, // (TAC_FUNC_START, ---, ---, FUNC_NAME)
+    TAC_FUNC_END,   // (TAC_FUNC_END, ---, ---, FUNC_NAME)
     TAC_INT_TO_FLOAT, // (INT_TO_FLOAT, OPERAND_1, ---, RESULT), RESULT = result of int_to_float(op_1)
-    TAC_OR, // (OR, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 || op_2)
-    TAC_AND, // (OR, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 && op_2)
+    TAC_OR,           // (OR, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 || op_2)
+    TAC_AND,          // (OR, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 && op_2)
 } tac_operator;
 
 typedef enum
@@ -69,12 +73,11 @@ typedef struct tac_arg_s
         unsigned int temporary_var_id; // for t1,t2, ..., tn, kde n je N U {0}
         unsigned int label_id;         // for L1, L2, ..., Ln, kde n je N U {0}
 
-
         // Constants used for convenient constant folding
         long long int const_int; // for integer operand
-        double const_double; // for double operand
-        bool const_bool; // for boolean operand
-        char *const_str; // for string operand / UNIT
+        double const_double;     // for double operand
+        bool const_bool;         // for boolean operand
+        char *const_str;         // for string operand / UNIT
     };
 } tac_argument;
 

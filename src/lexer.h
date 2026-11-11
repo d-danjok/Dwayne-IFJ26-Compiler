@@ -14,24 +14,6 @@
 
 #define BUFFER_SIZE 128
 
-typedef struct
-{
-    FILE *input;
-    attribute_table *attr_table;
-    char *buffer;
-    size_t buffer_index;
-    size_t buffer_capacity;
-    int coment_depth;
-    bool comment_sline;
-    stack *indent_size_s;
-    int indent_cnt;
-    bool last_was_eol;
-    bool last_was_eof;
-    bool empty_line;
-    int parentaces;
-    bool m_comment;
-    size_t current_line;
-} lexer;
 
 typedef enum
 {
@@ -88,8 +70,27 @@ typedef enum
 
     STATE_EOL, // to detect indentation and dedentation, but not to return it as a
     STATE_INDENT_DIV,
-    // token
 } state;
+
+typedef struct
+{
+    state current_state;
+    FILE *input;
+    attribute_table *attr_table;
+    char *buffer;
+    size_t buffer_index;
+    size_t buffer_capacity;
+    int coment_depth;
+    bool comment_sline;
+    stack *indent_size_s;
+    int indent_cnt;
+    bool last_was_eol;
+    bool last_was_eof;
+    bool empty_line;
+    int parentaces;
+    bool m_comment;
+    size_t current_line;
+} lexer;
 
 // @brief creates new attribute_table
 //
@@ -112,6 +113,6 @@ void lexer_destruct(lexer **self);
 // @param err - pointer to error variable
 //     (if error occurs, token.type will be TOKEN_UNDEFINED)
 // @return next token from input stream
-token lexer_get_next_token(lexer *self, error *err, state current_state);
+token lexer_get_next_token(lexer *self, error *err);
 
 #endif

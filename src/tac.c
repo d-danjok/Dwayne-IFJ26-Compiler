@@ -2,6 +2,24 @@
 // @author Oleksandr Fedorenko (xfedoro00)
 #include "tac.h"
 #include "attribute_table.h"
+
+#include <stdarg.h>
+
+typedef struct tac_prog
+{
+    tac_list *list;
+    unsigned int temporary_var_id;
+} tac_prog;
+
+static void tac_log_print(const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    fprintf(stderr, "Error has occurred in tac module: \n");
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+}
+
 tac_list *new_tac_list(error *err)
 {
     *err = NONE;
@@ -95,6 +113,7 @@ tac_instruction *tac_peek_next_instruction(error *err, tac_list *self)
 
 static tac_argument tac_expr_emit(error *err, ast_node *expr)
 {
+    *err = NONE;
     if (expr->type == AST_NODE_LITERAL)
     {
         tac_argument literal = {0};
@@ -128,7 +147,7 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr)
             literal.value_type = ARG_STRING;
             break;
         case AST_TYPE_UNIT:
-            literal.unit = NULL;
+            literal.const_str = NULL;
             literal.type = ARG_UNIT;
             literal.value_type = ARG_UNIT;
             break;
@@ -149,14 +168,14 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr)
         id.type = ARG_ID;
         id.value_type = expr->literal_type;
         // We are getting id_name and preserving scope (id_scopeid)
-        char* id_name =attribute_table_get_identifier(&attr_table, err, expr->attribute_index);
+        char *id_name = attribute_table_get_identifier(&attr_table, err, expr->attribute_index);
         if (*err != NONE)
         {
             // TODO: ERROR
             return (tac_argument){.type = ARG_NONE};
         }
-        int new_size = snprintf(NULL, 0, "%s_%ld",id_name,expr->block_index);
-        if (new_size <0)
+        int new_size = snprintf(NULL, 0, "%s_%ld", id_name, expr->block_index);
+        if (new_size < 0)
         {
             *err = GENERAL_INTERNAL;
             // TODO: ERROR
@@ -168,7 +187,6 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr)
         {
             // TODO: ERROR
             return (tac_argument){.type = ARG_NONE};
-
         }
         snprintf(id.identifier_name, (size_t)(new_size + 1), "%s_%ld", id_name, expr->block_index);
         return id;
@@ -181,19 +199,15 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr)
             // TODO: ERROR
             return (tac_argument){.type = ARG_NONE};
         }
-
     }
 }
 
-static tac_argument create_temporary_variable(tac_argument_value_type expr_type)
+static tac_argument create_temporary_variable(tac_argument_value_type expr_type, tac_prog *list)
 {
-    static unsigned int id = 0;
     tac_argument new_temporary = {0};
     new_temporary.type = ARG_TEMPORARY_VAR;
     new_temporary.value_type = expr_type;
-    new_temporary.temporary_var_id =id;
-    id++;
+    new_temporary.temporary_var_id = list->temporary_var_id;
+    list->temporary_var_id++;
     return new_temporary;
 }
-
-

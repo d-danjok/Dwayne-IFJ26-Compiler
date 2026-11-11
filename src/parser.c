@@ -273,7 +273,7 @@ static void log_token_type(const token_type type)
     }
 }
 
-static void log_error_expected(const token_type expected, token_type got, const size_t line)
+static void log_error_expected(const token_type expected, const token_type got, const size_t line)
 {
     log_printf("[%lu] expected: ", line);
     log_token_type(expected);
@@ -929,10 +929,250 @@ static ast_node *node_func_name(error *err, FILE *src_stream, attribute_table *a
     return func_name;
 }
 
-static ast_node *node_param_list(error *err, FILE *src_stream, attribute_table *attr_tab);
-static ast_node *node_param_list_(error *err, FILE *src_stream, attribute_table *attr_tab);
-static ast_node *node_param(error *err, FILE *src_stream, attribute_table *attr_tab);
-static ast_node *node_func_body(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_param_list(error *err, FILE *src_stream, attribute_table *attr_tab)
+{
+    *err = NONE;
+
+    ast_node *param_list = new_ast_node(err);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    param_list->left_child = node_param(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&param_list);
+        return NULL;
+    }
+    param_list->right_child = node_param_list_(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&param_list);
+        return NULL;
+    }
+    param_list->type = AST_NODE_PARAM_LIST;
+    param_list->src_line_number = param_list->left_child->src_line_number;
+
+    return param_list;
+}
+static ast_node *node_param_list_(error *err, FILE *src_stream, attribute_table *attr_tab)
+{
+    *err = NONE;
+
+    const token current_token = get_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+    const token next_token = peek_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    if (current_token.type == TOKEN_CLOSE_PAREN) // not and error, just list end
+    {
+        return NULL;
+    }
+    if (current_token.type != TOKEN_COMMA)
+    {
+        *err = GENERAL_SYNTAX;
+
+        log_printf("[%lu] expected: '(' or ',' got: ", current_token.line);
+        log_token_type(current_token.type);
+        return NULL;
+    }
+
+    if (next_token.type == TOKEN_EOL) // just skipping
+    {
+        get_token(err, src_stream, attr_tab);
+        if (*err != NONE)
+        {
+            return NULL;
+        }
+    }
+
+    ast_node *param_list_ = new_ast_node(err);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    param_list_->left_child = node_param(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&param_list_);
+        return NULL;
+    }
+    param_list_->right_child = node_param_list_(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&param_list_);
+        return NULL;
+    }
+    param_list_->type = AST_NODE_PARAM_LIST_;
+    param_list_->src_line_number = param_list_->left_child->src_line_number;
+
+    return param_list_;
+}
+
+static ast_node *node_param(error *err, FILE *src_stream, attribute_table *attr_tab)
+{
+    *err = NONE;
+
+    token current_token = get_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    if (current_token.type != TOKEN_IDENTIFIER)
+    {
+        *err = GENERAL_SYNTAX;
+        log_error_expected(TOKEN_IDENTIFIER, current_token.type, current_token.line);
+
+        return NULL;
+    }
+
+    CREATE_ID_NODE_FROM_TOKEN(err, id_node, current_token, )
+
+    get_token(err, src_stream, attr_tab); // we dont need info, only capture err
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+    if (current_token.type != TOKEN_COLON)
+    {
+        *err = GENERAL_SYNTAX;
+        log_error_expected(TOKEN_COLON, current_token.type, current_token.line);
+
+        ast_node_destruct_recursively(&id_node);
+        return NULL;
+    }
+
+    current_token = get_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    ast_node *param_type = new_ast_node(err);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&id_node);
+        return NULL;
+    }
+    param_type->type = AST_NODE_TYPE;
+    param_type->src_line_number = current_token.line;
+    switch (current_token.attribute_index)
+    {
+    case KW_BOOLEAN:
+        param_type->literal_type = AST_TYPE_BOOLEAN;
+        break;
+    case KW_INT:
+        param_type->literal_type = AST_TYPE_INT;
+        break;
+    case KW_DOUBLE:
+        param_type->literal_type = AST_TYPE_DOUBLE;
+        break;
+    case KW_STRING:
+        param_type->literal_type = AST_TYPE_STRING;
+        break;
+    case KW_UNIT:
+        param_type->literal_type = AST_TYPE_UNIT;
+        break;
+    default:
+        *err = GENERAL_SYNTAX;
+
+        log_printf("[%lu] ");
+        log_token_type(current_token.type);
+        log_printf(" can not be used as type\n");
+
+        ast_node_destruct_recursively(&param_type);
+        ast_node_destruct_recursively(&id_node);
+        return NULL;
+    }
+
+    ast_node *param = new_ast_node(err);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&param_type);
+        ast_node_destruct_recursively(&id_node);
+        return NULL;
+    }
+
+    param->type = AST_NODE_PARAM;
+    param->src_line_number = id_node->src_line_number;
+    param->left_child = id_node;
+    param->right_child = param_type;
+
+    return param;
+}
+
+static ast_node *node_func_body(error *err, FILE *src_stream, attribute_table *attr_tab)
+{
+    *err = NONE;
+
+    const token current_token = get_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    const token next_token = peek_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    if (!(current_token.type == TOKEN_OPERATOR && current_token.attribute_index == OP_ASSIGN))
+    {
+        *err = GENERAL_SYNTAX;
+        log_printf("[%lu] expected: '=' god: ", current_token.line);
+        log_token_type(current_token.type);
+
+        return NULL;
+    }
+
+    ast_node *func_body = new_ast_node(err);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    func_body->type = AST_NODE_PARAM;
+    func_body->src_line_number = current_token.line;
+
+    if (next_token.type == TOKEN_EOL)
+    {
+        func_body->left_child = node_block(err, src_stream, attr_tab);
+        if (*err != NONE)
+        {
+            ast_node_destruct_recursively(&func_body);
+            return NULL;
+        }
+    }
+    else if (is_expression_member(next_token))
+    {
+        func_body->left_child = node_expression_or_assignment_to_id(err, src_stream, attr_tab, false);
+        if (*err != NONE)
+        {
+            ast_node_destruct_recursively(&func_body);
+            return NULL;
+        }
+    }
+    else
+    {
+        *err = GENERAL_SYNTAX;
+        log_printf("[%lu] expected block start or an expression, got none of those", next_token.line);
+
+        ast_node_destruct_recursively(&func_body);
+        return NULL;
+    }
+
+    return func_body;
+}
 
 static ast_node *node_block(error *err, FILE *src_stream, attribute_table *attr_tab)
 {

@@ -10,13 +10,14 @@
 // @brief Enum of possible operation in TAC
 typedef enum
 {
-    TAC_MAIN,  // (MAIN, ---, ---, FUNC_NAME)
+    TAC_MAIN,        // (MAIN, ---, ---, FUNC_NAME)
     TAC_PLUS,        // (PLUS, OPERAND_1, OPERAND_2, RESULT), ALSO CONCAT FOR STR,  RESULT = INT || FLOAT || STR
     TAC_MINUS,       // (MINUS, OPERAND_1, OPERAND_2, RESULT), RESULT = INT || FLOAT
     TAC_UNARY_MINUS, // (UNARY_MINUS, OPERAND_1, ---, RESULT), RESULT = INT || FLOAT
     TAC_MUL,         // (MUL, OPERAND_1, OPERAND_2, RESULT),  RESULT = INT || FLOAT
-    TAC_DIV,         // (DIV, OPERAND_1, OPERAND_2, RESULT), RESULT = int/int => int division, float/float = float division
-    TAC_CALL, // (CALL, FUNC_NAME, NUM_OF_PARAMS, RESULT), NUM_OF_PARAMS = how many params func have, RESULT = return of function call
+    TAC_DIV,  // (DIV, OPERAND_1, OPERAND_2, RESULT), RESULT = int/int => int division, float/float = float division
+    TAC_CALL, // (CALL, FUNC_NAME, NUM_OF_PARAMS, RESULT), NUM_OF_PARAMS = how many params func have, RESULT = return of
+              // function call
     TAC_GOTO, // (GOTO, ---, ---, NAME_OF_LABEL)
     TAC_PARAM,      // (PARAM, PARAM_1, ---, ---) || (PARAM, ID_PARAM, ---, ID)
     TAC_ASSIGNMENT, // (ASSIGNMENT, OPERAND_1, ---, RESULT), FOR EX. X = 10 => (ASSIGMENT, 10, ---, X)
@@ -27,7 +28,7 @@ typedef enum
                     // BOOLEAN
     TAC_GREATER,    // (GREATER, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 > op_2),RESULT =
                     // BOOLEAN
-    TAC_LESSER,     // (LESSER, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 < op_2), RESULT = BOOLEAN
+    TAC_LESSER, // (LESSER, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 < op_2), RESULT = BOOLEAN
     TAC_GREATER_EQ, // (GREATER_EQ, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 >= op_2),RESULT =
                     // BOOLEAN
     TAC_LESSER_EQ,  // (LESSER_EQ, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 <= op_2), RESULT =
@@ -42,6 +43,7 @@ typedef enum
 
 typedef enum
 {
+    ARG_ERROR,
     ARG_EMPTY,
     ARG_TEMPORARY_VAR,
     ARG_LABEL,
@@ -105,10 +107,6 @@ typedef struct tac_list_s
 
 static tac_instruction *create_instruction(error *err, const tac_operator op, const tac_argument arg1,
                                            const tac_argument arg2, const tac_argument result);
-// @brief Initialize new tac_list
-// @return Pointer to the new initialized list
-tac_list *new_tac_list(error *err);
-
 // @brief Destroy tac_list
 void tac_list_destruct(tac_list *self);
 
@@ -120,10 +118,5 @@ tac_instruction *tac_get_curr_instruction(tac_list *self);
 // Must be used ONLY after get_curr_instruction!!!
 // @return Pointer to the instruction after current
 tac_instruction *tac_peek_next_instruction(error *err, tac_list *self);
-
-static tac_argument tac_expr_emit(error *err, tac_list *self, ast_node *expr);
-// @brief Create temporary variable for simple tac instructions
-// @return Temporary variable (tn) of type tac_argument
-static tac_argument create_temporary_variable(tac_argument_value_type expr_type);
 
 #endif /*TAC_H*/

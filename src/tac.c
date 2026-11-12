@@ -6,6 +6,47 @@
 #include <math.h>
 #include <stdarg.h>
 
+// @brief Function to initialize a backpatch list
+static void init_backpatch_list(error *err, patch_list *self)
+{
+    *err = NONE;
+    self->capacity = 128;
+    tac_backpatch_entry *backpatch_list = utils_safe_malloc(err, sizeof(tac_backpatch_entry) * self->capacity);
+    if (*err != NONE)
+        return;
+    self->count = 0;
+    self->instruction_list = backpatch_list;
+}
+
+// @brief Function to append an instruction to existing backpatch list, reallocates array in the list if array is full
+static void append_to_backpatch_list(error *err, tac_instruction *instruction, patch_list *p_list, patch_target target)
+{
+    *err = NONE;
+    tac_backpatch_entry new_entry = {.instruction = instruction, .target = target};
+    if (p_list->capacity <= p_list->count)
+    {
+        tac_backpatch_entry *backpatch_list =
+            realloc(p_list->instruction_list, sizeof(tac_backpatch_entry) * p_list->capacity * 2);
+        if (backpatch_list == NULL)
+        {
+            *err = INTERNAL_MEMORY_ALLOCATION;
+            return;
+        };
+        p_list->instruction_list = backpatch_list;
+        p_list->capacity = p_list->capacity * 2;
+    }
+
+    p_list->instruction_list[p_list->count] = new_entry;
+    p_list->count++;
+}
+
+// @brief Function to destroy backpatch list
+static void backpatch_list_destruct(patch_list *self)
+{
+    free(self->instruction_list);
+}
+
+// @brief Macro to create and add instruction to tac_list
 #define ADD_INSTR_RETURN_TEMP(op)                                                                                      \
     tac_instruction *new_instruction = create_instruction(err, op, arg, arg2, temp);                                   \
     if (new_instruction == NULL)                                                                                       \
@@ -15,13 +56,7 @@
     append_instruction(prog, new_instruction);                                                                         \
     return temp;
 
-typedef struct tac_prog
-{
-    tac_list *list;
-    unsigned int temporary_var_id;
-    unsigned int instruction_id;
-} tac_prog;
-
+// @brief Log function to print errors during TAC process
 static void tac_log_print(const char *fmt, ...)
 {
     va_list args;
@@ -31,16 +66,15 @@ static void tac_log_print(const char *fmt, ...)
     va_end(args);
 }
 
-// @brief Initialize new tac_list
-// @return Pointer to the new initialized list
-tac_list *new_tac_list(error *err, tac_prog *prog)
+// @brief Function that initialize new tac_list
+void new_tac_list(error *err, tac_prog *prog)
 {
     *err = NONE;
     tac_list *list = (tac_list *)utils_safe_malloc(err, sizeof(tac_list));
 
     if (*err != NONE)
     {
-        return NULL;
+        return;
     }
 
     list->size = 0;
@@ -51,15 +85,15 @@ tac_list *new_tac_list(error *err, tac_prog *prog)
     prog->list = list;
     prog->instruction_id = 0;
     prog->temporary_var_id = 0;
-
-    return list;
 }
-
+// @brief Predicate for checking if list is empty
+// @return true if empty
 static bool is_empty(tac_list *self)
 {
     return self->first_instruction == NULL;
 }
-
+// @brief Function to create a new instruction (OP, ARG1, ARG2, RESULT)
+// @return New instruction tac_instruction
 static tac_instruction *create_instruction(error *err, const tac_operator op, const tac_argument arg1,
                                            const tac_argument arg2, const tac_argument result)
 {
@@ -77,7 +111,7 @@ static tac_instruction *create_instruction(error *err, const tac_operator op, co
 
     return new_ir_node;
 }
-
+// @brief Function to append instruction into existing tac_list
 static void append_instruction(tac_prog *prog, tac_instruction *ir_node)
 {
     ir_node->id = prog->instruction_id;
@@ -97,7 +131,7 @@ static void append_instruction(tac_prog *prog, tac_instruction *ir_node)
     prog->list->size += 1;
 }
 
-// @brief Create temporary variable for simple tac instructions
+// @brief Function to create temporary variable for a simple tac instructions
 // @return Temporary variable (tn) of type tac_argument
 static tac_argument create_temporary_variable(tac_argument_value_type expr_type, tac_prog *prog)
 {
@@ -125,7 +159,6 @@ tac_instruction *tac_get_curr_instruction(tac_list *self)
     self->curr_instruction = tmp->next_instruction;
     return tmp;
 }
-
 tac_instruction *tac_peek_next_instruction(error *err, tac_list *self)
 {
     if (is_empty(self))
@@ -139,6 +172,8 @@ tac_instruction *tac_peek_next_instruction(error *err, tac_list *self)
     return self->curr_instruction;
 }
 
+// @brief Recursive function to  create instructions of expressions  and append them to tac_list
+// @return Argument of instruction
 static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
 {
     *err = NONE;
@@ -223,6 +258,10 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
     if (expr->type == AST_NODE_UNARY_OPERATION)
     {
         tac_argument arg = tac_expr_emit(err, expr->left_child, prog);
+        if (*err != NONE || arg.type == ARG_ERROR)
+        {
+            return (tac_argument){.type = ARG_ERROR};
+        }
         tac_argument temp = create_temporary_variable(arg.value_type, prog);
         tac_argument arg2 = {.type = ARG_EMPTY};
         if (expr->operator == AST_OP_NOT)
@@ -251,7 +290,15 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
     if (expr->type == AST_NODE_BINARY_OPERATION)
     {
         tac_argument arg = tac_expr_emit(err, expr->left_child, prog);
+        if (*err != NONE || arg.type == ARG_ERROR)
+        {
+            return (tac_argument){.type = ARG_ERROR};
+        }
         tac_argument arg2 = tac_expr_emit(err, expr->right_child, prog);
+        if (*err != NONE || arg2.type == ARG_ERROR)
+        {
+            return (tac_argument){.type = ARG_ERROR};
+        }
 
         if (expr->operator == AST_OP_PLUS)
         {
@@ -335,4 +382,22 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
             return temp_for_not_eq;
         }
     }
+    if (expr->type == AST_NODE_INT_TO_DOUBLE_CONVERSION)
+    {
+        tac_argument arg = tac_expr_emit(err, expr->left_child, prog);
+        if (*err != NONE || arg.type == ARG_ERROR)
+        {
+            return (tac_argument){.type = ARG_ERROR};
+        }
+        tac_argument arg2 = {.type = ARG_EMPTY};
+        tac_argument temp = create_temporary_variable(ARG_FLOAT, prog);
+        tac_instruction *new_instruction = create_instruction(err, TAC_INT_TO_FLOAT, arg, arg2, temp);
+        if (new_instruction == NULL)
+        {
+            return (tac_argument){.type = ARG_ERROR};
+        }
+        append_instruction(prog, new_instruction);
+        return temp;
+    }
+    return (tac_argument){.type = ARG_ERROR};
 }

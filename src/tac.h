@@ -41,6 +41,7 @@ typedef enum
     TAC_AND,          // (AND, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 && op_2)
 } tac_operator;
 
+// @brief Enum of argument/operand type
 typedef enum
 {
     ARG_ERROR,
@@ -52,6 +53,7 @@ typedef enum
     ARG_LITERAL, // used if arg is a literal
 } tac_argument_type;
 
+// @brief Enum of argument value type
 typedef enum
 {
     ARG_NONE = AST_TYPE_NONE,
@@ -63,7 +65,8 @@ typedef enum
 
 } tac_argument_value_type;
 
-typedef struct tac_arg_s
+//@ brief Single TAC argument/operand
+typedef struct
 {
     tac_argument_type type;
     tac_argument_value_type value_type;
@@ -96,7 +99,7 @@ typedef struct tac_instruction_s
 } tac_instruction;
 
 // @brief Structure of TAC (All instruction in linked list)
-typedef struct tac_list_s
+typedef struct
 {
     long size;
     tac_instruction *first_instruction;
@@ -105,8 +108,37 @@ typedef struct tac_list_s
 
 } tac_list;
 
-static tac_instruction *create_instruction(error *err, const tac_operator op, const tac_argument arg1,
-                                           const tac_argument arg2, const tac_argument result);
+// @brief Main structure of TAC
+typedef struct
+{
+    tac_list *list;
+    unsigned int temporary_var_id;
+    unsigned int instruction_id;
+} tac_prog;
+
+// @brief Enum of patch_target (where to insert label)
+typedef enum
+{
+    PATCH_ARG1,
+    PATCH_ARG2,
+    PATCH_RESULT,
+} patch_target;
+
+// @brief Structure of single backpatch entry
+typedef struct
+{
+    tac_instruction *instruction;
+    patch_target target;
+} tac_backpatch_entry;
+
+// @brief Structure of backpatch list
+typedef struct
+{
+    tac_backpatch_entry *instruction_list;
+    unsigned int count;
+    unsigned int capacity;
+} patch_list;
+
 // @brief Destroy tac_list
 void tac_list_destruct(tac_list *self);
 

@@ -383,8 +383,36 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
         }
         if (expr->operator == AST_OP_GREATER_EQUAL)
         {
-            tac_argument temp = create_temporary_variable(ARG_BOOL, prog);
-            ADD_INSTR_RETURN_TEMP(TAC_GREATER_EQ);
+            tac_argument temp_gt = create_temporary_variable(ARG_BOOL, prog);
+            tac_argument temp_eq = create_temporary_variable(ARG_BOOL, prog);
+            tac_argument temp_or = create_temporary_variable(ARG_BOOL, prog);
+
+            tac_instruction *greater = create_instruction(err, TAC_GREATER, arg, arg2, temp_gt);
+
+            if (greater == NULL)
+            {
+                return (tac_argument){.type = ARG_ERROR};
+            }
+
+            tac_instruction *equals = create_instruction(err, TAC_EQUALS, arg, arg2, temp_eq);
+            if (equals == NULL)
+            {
+                free(greater);
+                return (tac_argument){.type = ARG_ERROR};
+            }
+            tac_instruction* or_instr = create_instruction(err, TAC_OR, temp_gt, temp_eq, temp_or);
+
+            if (or_instr == NULL)
+            {
+                free(equals);
+                free(greater);
+                return (tac_argument){.type = ARG_ERROR};
+            }
+
+            append_instruction(prog,greater );
+            append_instruction(prog, equals);
+            append_instruction(prog, or_instr);
+            return temp_or;
         }
         if (expr->operator == AST_OP_LESS)
         {
@@ -394,8 +422,36 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
 
         if (expr->operator == AST_OP_LESS_EQUAL)
         {
-            tac_argument temp = create_temporary_variable(ARG_BOOL, prog);
-            ADD_INSTR_RETURN_TEMP(TAC_LESSER_EQ);
+            tac_argument temp_lt = create_temporary_variable(ARG_BOOL, prog);
+            tac_argument temp_eq = create_temporary_variable(ARG_BOOL, prog);
+            tac_argument temp_or = create_temporary_variable(ARG_BOOL, prog);
+
+            tac_instruction *lesser = create_instruction(err, TAC_LESSER, arg, arg2, temp_lt);
+
+            if (lesser == NULL)
+            {
+                return (tac_argument){.type = ARG_ERROR};
+            }
+
+            tac_instruction *equals = create_instruction(err, TAC_EQUALS, arg, arg2, temp_eq);
+            if (equals == NULL)
+            {
+                free(lesser);
+                return (tac_argument){.type = ARG_ERROR};
+            }
+            tac_instruction* or_instr = create_instruction(err, TAC_OR, temp_lt, temp_eq, temp_or);
+
+            if (or_instr == NULL)
+            {
+                free(equals);
+                free(lesser);
+                return (tac_argument){.type = ARG_ERROR};
+            }
+
+            append_instruction(prog,lesser );
+            append_instruction(prog, equals);
+            append_instruction(prog, or_instr);
+            return temp_or;
         }
 
         if (expr->operator == AST_OP_AND)

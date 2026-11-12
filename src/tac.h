@@ -30,10 +30,6 @@ typedef enum
     TAC_GREATER,    // (GREATER, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 > op_2),RESULT =
                     // BOOLEAN
     TAC_LESSER, // (LESSER, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 < op_2), RESULT = BOOLEAN
-    TAC_GREATER_EQ, // (GREATER_EQ, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 >= op_2),RESULT =
-                    // BOOLEAN
-    TAC_LESSER_EQ,  // (LESSER_EQ, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 <= op_2), RESULT =
-                    // BOOLEAN
     TAC_NOT,        // (NOT, OPERAND_1, ---, RESULT), RESULT = result of expression (!op_1), RESULT = BOOLEAN
     TAC_FUNC_START, // (TAC_FUNC_START, ---, ---, FUNC_NAME)
     TAC_FUNC_END,   // (TAC_FUNC_END, ---, ---, FUNC_NAME)

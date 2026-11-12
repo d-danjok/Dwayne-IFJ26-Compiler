@@ -13,18 +13,6 @@
     (token){.type = TOKEN_UNDEFINED, .attribute_index = -1, .line = 0}                                                 \
     // TODO: is adapt for actual implementation on lexer branch
 
-#define CREATE_ID_NODE_FROM_TOKEN(err, id_node, tok, do_before_error_return)                                           \
-    ast_node *id_node = new_ast_node(err);                                                                             \
-    if (*err != NONE)                                                                                                  \
-    {                                                                                                                  \
-        do_before_error_return;                                                                                        \
-        return NULL;                                                                                                   \
-    }                                                                                                                  \
-    id_node->type = AST_NODE_IDENTIFIER;                                                                               \
-    id_node->src_line_number = tok.line;                                                                               \
-    id_node->attribute_index = tok.attribute_index;                                                                    \
-    id_node->literal_type = (ast_literal_type)tok.type;
-
 typedef struct
 {
     bool was_stored;
@@ -166,6 +154,23 @@ static token get_token(error *err, FILE *src_stream, attribute_table *attr_tab)
     return token_to_return;
 }
 
+static ast_node *id_node_from_token(error *err, const token tok)
+{
+    *err = NONE;
+
+    ast_node *id_node = new_ast_node(err);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+    id_node->type = AST_NODE_IDENTIFIER;
+    id_node->src_line_number = tok.line;
+    id_node->attribute_index = tok.attribute_index;
+    id_node->literal_type = (ast_literal_type)tok.type;
+
+    return id_node;
+}
+
 static bool is_expression_member(const token tok)
 {
     // TODO: adapt for actual token implementation
@@ -298,7 +303,6 @@ static bool is_type(const token tok)
     case KW_STRING:
     case KW_UNIT:
         return true;
-        break;
 
     default:
         return false;
@@ -354,12 +358,14 @@ static ast_node *node_call_param(error *err, FILE *src_stream, attribute_table *
 ast_node *parser_run(error *err, FILE *src_stream, attribute_table *attr_tab)
 {
     *err = NONE;
-    token next_token = peek_token(err, src_stream, attr_tab);
-    if (*err != NONE)
-    {
-        return NULL;
-    }
-    return node_program(err, src_stream, attr_tab);
+
+    // TODO : init_lexer
+
+    ast_node *program = node_program(err, src_stream, attr_tab);
+    // error check makes no sense here, if it happened it will simply propagate and return will be NULL anyway
+
+    // TODO : destroy_lexer
+    return program;
 }
 
 // implementations --------------------------------------------------------------------------------------------------
@@ -393,7 +399,7 @@ static ast_node *node_def_list(error *err, FILE *src_stream, attribute_table *at
         return NULL;
     }
 
-    ast_node *node_to_append = NULL;
+    ast_node *node_to_append = NULL; // added NULL initialisation here in order to be consistent
     if (next_token.type == TOKEN_KEYWORD && next_token.attribute_index == KW_DEF)
     {
         node_to_append = node_func_def(err, src_stream, attr_tab);
@@ -448,11 +454,6 @@ static ast_node *node_val_def(error *err, FILE *src_stream, attribute_table *att
     {
         return NULL;
     }
-    const token next_token = peek_token(err, src_stream, attr_tab);
-    if (*err != NONE)
-    {
-        return NULL;
-    }
 
     if (!(current_token.type == TOKEN_KEYWORD && current_token.attribute_index == KW_VAL))
     {
@@ -484,11 +485,6 @@ static ast_node *node_var_def(error *err, FILE *src_stream, attribute_table *att
 {
     *err = NONE;
     const token current_token = get_token(err, src_stream, attr_tab);
-    if (*err != NONE)
-    {
-        return NULL;
-    }
-    const token next_token = peek_token(err, src_stream, attr_tab);
     if (*err != NONE)
     {
         return NULL;
@@ -550,8 +546,12 @@ static ast_node *node_def_body(error *err, FILE *src_stream, attribute_table *at
     def_body->type = AST_NODE_DEF_BODY;
     def_body->src_line_number = current_token.line;
 
-    CREATE_ID_NODE_FROM_TOKEN(err, id_node, current_token, ast_node_destruct_recursively(&def_body))
-    def_body->left_child = id_node;
+    def_body->left_child = id_node_from_token(err, current_token);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&def_body);
+        return NULL;
+    }
 
     if (next_token.type != TOKEN_COLON)
     {
@@ -922,9 +922,13 @@ static ast_node *node_func_name(error *err, FILE *src_stream, attribute_table *a
     {
         return NULL;
     }
-    CREATE_ID_NODE_FROM_TOKEN(err, id_node, current_token, ast_node_destruct_recursively(&func_name));
 
-    func_name->left_child = id_node;
+    func_name->left_child = id_node_from_token(err, current_token);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&func_name);
+        return NULL;
+    }
 
     return func_name;
 }
@@ -1035,7 +1039,11 @@ static ast_node *node_param(error *err, FILE *src_stream, attribute_table *attr_
         return NULL;
     }
 
-    CREATE_ID_NODE_FROM_TOKEN(err, id_node, current_token, )
+    ast_node *id_node = id_node_from_token(err, current_token);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
 
     get_token(err, src_stream, attr_tab); // we dont need info, only capture err
     if (*err != NONE)
@@ -1943,7 +1951,11 @@ static ast_node *node_func_call(error *err, FILE *src_stream, attribute_table *a
         return NULL;
     }
 
-    CREATE_ID_NODE_FROM_TOKEN(err, id_node, current_token, )
+    ast_node *id_node = id_node_from_token(err, current_token);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
 
     if (next_token.type != TOKEN_OPEN_PAREN)
     {

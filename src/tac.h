@@ -7,6 +7,7 @@
 #include "ast.h"
 #include "utils.h"
 
+
 // @brief Enum of possible operation in TAC
 typedef enum
 {
@@ -39,7 +40,10 @@ typedef enum
     TAC_INT_TO_FLOAT, // (INT_TO_FLOAT, OPERAND_1, ---, RESULT), RESULT = result of int_to_float(op_1)
     TAC_OR,           // (OR, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 || op_2)
     TAC_AND,          // (AND, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 && op_2)
+    TAC_VAR_DEF, // (VAR_DEF, OPERAND_1, ---, RESULT) RESULT = defined variable for ex. var x = 10 => (VAR_DEF, 10, ---, x)
+    TAC_VAL_DEF // (VAL_DEF, OPERAND_1, ---, RESULT) RESULT = defined variable for ex. val x = 10 => (VAL_DEF, 10, ---, x)
 } tac_operator;
+
 
 // @brief Enum of argument/operand type
 typedef enum
@@ -95,7 +99,6 @@ typedef struct tac_instruction_s
     tac_argument arg2;
     tac_argument result;
     struct tac_instruction_s *next_instruction;
-
 } tac_instruction;
 
 // @brief Structure of TAC (All instruction in linked list)
@@ -105,39 +108,10 @@ typedef struct
     tac_instruction *first_instruction;
     tac_instruction *last_instruction; // To append to the end in constant time
     tac_instruction *curr_instruction; // Pointer to the current instruction
-
 } tac_list;
 
-// @brief Main structure of TAC
-typedef struct
-{
-    tac_list *list;
-    unsigned int temporary_var_id;
-    unsigned int instruction_id;
-} tac_prog;
 
-// @brief Enum of patch_target (where to insert label)
-typedef enum
-{
-    PATCH_ARG1,
-    PATCH_ARG2,
-    PATCH_RESULT,
-} patch_target;
 
-// @brief Structure of single backpatch entry
-typedef struct
-{
-    tac_instruction *instruction;
-    patch_target target;
-} tac_backpatch_entry;
-
-// @brief Structure of backpatch list
-typedef struct
-{
-    tac_backpatch_entry *instruction_list;
-    unsigned int count;
-    unsigned int capacity;
-} patch_list;
 
 // @brief Destroy tac_list
 void tac_list_destruct(tac_list *self);

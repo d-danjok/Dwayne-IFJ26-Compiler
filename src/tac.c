@@ -6,6 +6,42 @@
 #include <math.h>
 #include <stdarg.h>
 
+
+
+// @brief Main structure of TAC used only in .c module
+typedef struct
+{
+    tac_list *list;
+    unsigned int temporary_var_id;
+    unsigned int instruction_id;
+    unsigned int label_id;
+} tac_prog;
+
+
+// @brief Enum of patch_target (where to insert label)
+typedef enum
+{
+    PATCH_ARG1,
+    PATCH_ARG2,
+    PATCH_RESULT,
+} patch_target;
+
+// @brief Structure of single backpatch entry
+typedef struct
+{
+    tac_instruction *instruction;
+    patch_target target;
+} tac_backpatch_entry;
+
+// @brief Structure of backpatch list
+typedef struct
+{
+    tac_backpatch_entry *instruction_list;
+    unsigned int count;
+    unsigned int capacity;
+} patch_list;
+
+
 // @brief Function to initialize a backpatch list
 static void init_backpatch_list(error *err, patch_list *self)
 {
@@ -40,6 +76,24 @@ static void append_to_backpatch_list(error *err, tac_instruction *instruction, p
     p_list->count++;
 }
 
+
+static void backpatch_fix(tac_backpatch_entry*entry, tac_argument label)
+{
+    if (entry->target == PATCH_ARG1)
+    {
+        entry->instruction->arg1 = label;
+        return;
+    }
+    if (entry->target == PATCH_ARG2)
+    {
+        entry->instruction->arg2 = label;
+        return;
+    }
+    if (entry->target == PATCH_RESULT)
+    {
+        entry->instruction->result = label;
+    }
+}
 // @brief Function to destroy backpatch list
 static void backpatch_list_destruct(patch_list *self)
 {
@@ -66,16 +120,13 @@ static void tac_log_print(const char *fmt, ...)
     va_end(args);
 }
 
-// @brief Function that initialize new tac_list
-void new_tac_list(error *err, tac_prog *prog)
+// @brief Function that initialize new tac_list and a program
+void new_tac_prog(error *err, tac_prog *prog)
 {
     *err = NONE;
     tac_list *list = (tac_list *)utils_safe_malloc(err, sizeof(tac_list));
 
-    if (*err != NONE)
-    {
-        return;
-    }
+    if (*err != NONE) return;
 
     list->size = 0;
     list->curr_instruction = NULL;
@@ -85,6 +136,7 @@ void new_tac_list(error *err, tac_prog *prog)
     prog->list = list;
     prog->instruction_id = 0;
     prog->temporary_var_id = 0;
+    prog->label_id = 0;
 }
 // @brief Predicate for checking if list is empty
 // @return true if empty
@@ -135,10 +187,7 @@ static void append_instruction(tac_prog *prog, tac_instruction *ir_node)
 // @return Temporary variable (tn) of type tac_argument
 static tac_argument create_temporary_variable(tac_argument_value_type expr_type, tac_prog *prog)
 {
-    tac_argument new_temporary = {0};
-    new_temporary.type = ARG_TEMPORARY_VAR;
-    new_temporary.value_type = expr_type;
-    new_temporary.temporary_var_id = prog->temporary_var_id;
+    tac_argument new_temporary = {.type =ARG_TEMPORARY_VAR, .value_type=expr_type, .temporary_var_id = prog->temporary_var_id };
     prog->temporary_var_id++;
     return new_temporary;
 }
@@ -401,3 +450,108 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
     }
     return (tac_argument){.type = ARG_ERROR};
 }
+
+static tac_argument create_label(tac_prog* prog)
+{
+    tac_argument new_label = {.type = ARG_LABEL, .value_type = ARG_NONE, .label_id = prog->label_id};
+    prog->label_id++;
+    return new_label;
+}
+
+void tac_emit_block(error* err, ast_node* block, tac_prog* prog)
+{
+
+};
+
+
+tac_argument tac_emit_statement(error* err, ast_node*stat, tac_prog* prog)
+{
+    if (stat->left_child->type == AST_NODE_IDENTIFIER &&
+        stat->right_child != NULL &&
+        stat->right_child->type == AST_NODE_ASSIGN_VAL)
+    {
+        tac_argument id = {0};
+        char *id_name = attribute_table_get_identifier(&attr_table, err,stat->left_child->attribute_index);
+        if (*err != NONE)
+        {
+            // TODO: ERROR
+            return (tac_argument){.type = ARG_ERROR}; //
+        }
+        int new_size = snprintf(NULL, 0, "%s_%ld", id_name, stat->left_child->block_index);
+        if (new_size < 0)
+        {
+            *err = GENERAL_INTERNAL;
+            // TODO: ERROR
+            return (tac_argument){.type = ARG_ERROR};
+        }
+
+        id.identifier_name = utils_safe_malloc(err, (size_t)(new_size + 1));
+        if (*err != NONE)
+        {
+            // TODO: ERROR
+            return (tac_argument){.type = ARG_ERROR};
+        }
+        snprintf(id.identifier_name, (size_t)(new_size + 1), "%s_%ld", id_name, stat->left_child->block_index);
+
+
+    }
+    else if (stat->left_child->type == AST_NODE_DEFINITION)
+    {
+        // TODO: IMPLEMENT
+    } else if (stat->left_child->type == AST_NODE_WHILE)
+    {
+        // TODO: IMPLEMENT
+    }
+    else if (stat->left_child->type == AST_NODE_IF_LIST)
+    {
+        // TODO: IMPLEMENT
+    }
+    else if (stat->left_child->type == AST_NODE_RETURN)
+    {
+        // TODO: IMPLEMENT
+    }
+    else
+    {
+        tac_argument result = tac_expr_emit(err, stat->left_child, prog);
+    }
+}
+void tac_if_emit(error* err, ast_node* node, tac_prog* prog)
+{
+
+    *err = NONE;
+    patch_list* true_labels = NULL;
+    patch_list* false_labels = NULL;
+    patch_list* res_labels = NULL;
+    init_backpatch_list(err, true_labels);
+    if (*err != NONE)
+    {
+        // TODO: IMPLEMENT
+    }
+    init_backpatch_list(err, false_labels);
+    if (*err != NONE)
+    {
+        // TODO: IMPLEMENT
+    }
+    init_backpatch_list(err, res_labels);
+    if (*err != NONE)
+    {
+        // TODO: IMPLEMENT
+    }
+    tac_argument expr = tac_expr_emit(err, node->left_child, prog);
+    if (*err != NONE)
+    {
+        // TODO: IMPLEMENT
+    }
+
+    tac_instruction* if_stm = create_instruction(err, TAC_IF_JUMP, (tac_argument){.type = ARG_EMPTY},(tac_argument){.type = ARG_EMPTY}, expr);
+    append_to_backpatch_list(err,if_stm,true_labels, PATCH_ARG1);
+    append_to_backpatch_list(err,if_stm,false_labels, PATCH_ARG2);
+
+
+}
+
+tac_list* tac_generate(err* error, ast_node* node)
+{
+
+}
+

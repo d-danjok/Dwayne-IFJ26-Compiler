@@ -23,7 +23,7 @@ struct bst_table_s
 };
 
 // utilities
-void free_node(bst_node *node)
+static void free_node(bst_node *node)
 {
     if (node->data != NULL)
     {
@@ -32,7 +32,7 @@ void free_node(bst_node *node)
     UTILS_SAFE_FREE(&node);
 }
 
-void free_node_with_children(bst_node *node)
+static void free_node_with_children(bst_node *node)
 {
     if (node->left_child != NULL)
     {
@@ -45,7 +45,7 @@ void free_node_with_children(bst_node *node)
     free_node(node);
 }
 
-bst_node *create_node(error *err, int key, void *data)
+static bst_node *create_node(error *err, int key, void *data)
 {
     *err = NONE;
     bst_node *node = (bst_node *)utils_safe_malloc(err, sizeof(bst_node));
@@ -65,14 +65,14 @@ bst_node *create_node(error *err, int key, void *data)
     return node;
 }
 
-void update_height_and_balance(bst_node *node)
+static void update_height_and_balance(bst_node *node)
 {
     int height = 1;
 
-    int left_height = (node->left_child == NULL) ? 0 : node->left_child->height;
-    int right_height = (node->right_child == NULL) ? 0 : node->right_child->height;
+    const int left_height = (node->left_child == NULL) ? 0 : node->left_child->height;
+    const int right_height = (node->right_child == NULL) ? 0 : node->right_child->height;
 
-    int balance = left_height - right_height;
+    const int balance = left_height - right_height;
 
     if (left_height > right_height)
     {
@@ -101,7 +101,7 @@ void update_height_and_balance(bst_node *node)
 //	destination->left_child = source->left_child;
 // }
 
-bst_node *rotate_right(bst_node *root)
+static bst_node *rotate_right(bst_node *root)
 {
     bst_node *tmp_node = root->left_child;
     root->left_child = tmp_node->right_child;
@@ -112,7 +112,7 @@ bst_node *rotate_right(bst_node *root)
     return tmp_node;
 }
 
-bst_node *rotate_left(bst_node *root)
+static bst_node *rotate_left(bst_node *root)
 {
     bst_node *tmp_node = root->right_child;
     root->right_child = tmp_node->left_child;
@@ -123,7 +123,7 @@ bst_node *rotate_left(bst_node *root)
     return tmp_node;
 }
 
-void check_and_restore_balance(bst_node **node)
+static void check_and_restore_balance(bst_node **node)
 {
     if (*node == NULL)
     {
@@ -131,7 +131,7 @@ void check_and_restore_balance(bst_node **node)
     }
     update_height_and_balance(*node);
 
-    int balance = (*node)->balance;
+    const int balance = (*node)->balance;
     if (balance > 1)
     {
         if ((*node)->left_child->balance < 0)
@@ -150,7 +150,7 @@ void check_and_restore_balance(bst_node **node)
     }
 }
 
-void insert_node(error *err, bst_node **root, bst_node *node_to_insert)
+static void insert_node(error *err, bst_node **root, bst_node *node_to_insert)
 {
     *err = NONE;
     if ((*root)->key == node_to_insert->key)
@@ -184,7 +184,7 @@ void insert_node(error *err, bst_node **root, bst_node *node_to_insert)
     check_and_restore_balance(root);
 }
 
-bst_node *get_successor(bst_node *curr)
+static bst_node *get_successor(bst_node *curr)
 {
     curr = curr->right_child;
     while (curr != NULL && curr->left_child != NULL)
@@ -192,7 +192,7 @@ bst_node *get_successor(bst_node *curr)
     return curr;
 }
 
-bst_node *remove_node(bst_node **root, int key_to_remove)
+static bst_node *remove_node(bst_node **root, const int key_to_remove)
 {
     if ((*root) == NULL)
     {
@@ -236,7 +236,7 @@ bst_node *remove_node(bst_node **root, int key_to_remove)
     return (*root);
 }
 
-bst_node *find_node(bst_node *root, int key_to_find)
+static bst_node *find_node(bst_node *root, const int key_to_find)
 {
     if (root == NULL)
     {
@@ -250,10 +250,8 @@ bst_node *find_node(bst_node *root, int key_to_find)
     {
         return find_node(root->left_child, key_to_find);
     }
-    else
-    {
-        return find_node(root->right_child, key_to_find);
-    }
+
+    return find_node(root->right_child, key_to_find);
 }
 
 // globals -------------------------------------------------------------------------------------------------------------
@@ -280,7 +278,7 @@ void bst_destruct(bst_table **self)
     UTILS_SAFE_FREE(self);
 }
 
-void bst_insert(bst_table *self, error *err, int key, void **data)
+void bst_insert(bst_table *self, error *err, const int key, void **data)
 {
     *err = NONE;
     bst_node *node_to_insert = create_node(err, key, *data);
@@ -299,12 +297,12 @@ void bst_insert(bst_table *self, error *err, int key, void **data)
     *data = NULL; // ensure value can not be used or free anywhere else
 }
 
-void bst_remove(bst_table *self, int key)
+void bst_remove(bst_table *self, const int key)
 {
     self->root = remove_node(&self->root, key);
 }
 
-bool bst_search(bst_table *self, int key)
+bool bst_search(const bst_table *self, const int key)
 {
     if (find_node(self->root, key) != NULL)
     {
@@ -313,9 +311,9 @@ bool bst_search(bst_table *self, int key)
     return false;
 }
 
-void *bst_getdata(bst_table *self, int key)
+void *bst_getdata(const bst_table *self, const int key)
 {
-    bst_node *found_node = find_node(self->root, key);
+    const bst_node *found_node = find_node(self->root, key);
     if (found_node != NULL)
     {
         return found_node->data;

@@ -8,6 +8,7 @@
 
 #include "error.h"
 
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,5 +42,10 @@ char utils_get_char(error *err, FILE *stream);
 // @param stream is a steam from which we get characters
 // @return character if not EOF, if is returns `\0`
 char utils_peek_char(error *err, FILE *stream);
+
+// @brief function for printing logs to Stderr
+//
+// @param fmt is format string
+void log_printf(const char *fmt, ...);
 
 #endif

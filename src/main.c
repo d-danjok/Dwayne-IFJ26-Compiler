@@ -28,7 +28,7 @@ extern void codegen_run(error *err, tac **tac, attribute_table *attr_tab); // em
 
 // codegen_run  NOTE: takes ownership of tac (should free it itself if no longer needs it)
 
-error convert_err_for_program_return(error err)
+static error convert_err_for_program_return(const error err)
 // may be this wont work as intended, if some action will be required, should be replaced with propper logic
 {
     if (error_is_internal(err))

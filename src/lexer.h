@@ -14,7 +14,6 @@
 
 #define BUFFER_SIZE 128
 
-
 typedef enum
 {
     STATE_START,
@@ -35,12 +34,13 @@ typedef enum
     STATE_ANNOTATION,
     // Literals
     STATE_STR_START,
-    STATE_END_OR_MULTIPLE,
-    STATE_MULTIPLE_STR,
-    STATE_QUOTE_1,
-    STATE_QUOTE_2,
-    STATE_ESCAPE,
+    STATE_STR_END_OR_MULTILN,
+    STATE_STR_MULTILN,
+    STATE_STR_MQ1,
+    STATE_STR_MQ2,
+    STATE_STR_ESCAPE,
     STATE_STR,
+    STATE_STR_END,
 
     STATE_DOT,
     // Integer and double

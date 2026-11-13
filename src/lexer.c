@@ -514,7 +514,7 @@ token lexer_get_next_token(lexer *self, error *err)
             }
         }
         break;
-        case STATE_MORE:{
+        case STATE_MORE: {
             res.type = TOKEN_OPERATOR;
             res.attribute_index = OP_GREATER;
             if (lexer_peek_char(err, &internal_err, in, 0) == '=')
@@ -540,8 +540,7 @@ token lexer_get_next_token(lexer *self, error *err)
             }
         }
         break;
-        case STATE_DIVIDE:{
-
+        case STATE_DIVIDE: {
         
             char c = lexer_peek_char(err, &internal_err, in, 0);
             if (c == '/')
@@ -717,24 +716,24 @@ token lexer_get_next_token(lexer *self, error *err)
             if (c == '"')
             {
                 lexer_get_char(err, &internal_err, in, line);
-                self->current_state = STATE_END_OR_MULTIPLE;
+                self->current_state = STATE_STR_END_OR_MULTILN;
             }
             else if (c == '\\')
             {
                 lexer_get_char(err, &internal_err, in, line);
-                self->current_state = STATE_ESCAPE;
+                self->current_state = STATE_STR_ESCAPE;
             }
-            else if (c == '\n' || internal_err == INTERNAL_END_OF_FILE)
-                *err = UNFINISHED_STRING;
-            else
+            else if (c != '\n' && internal_err == NONE)
                 self->current_state = STATE_STR;
+            else
+                *err = UNFINISHED_STRING;
             break;
-        case STATE_END_OR_MULTIPLE:
+        case STATE_STR_END_OR_MULTILN:
             c = lexer_peek_char(err, &internal_err, in, 0);
             if (c == '"')
             {
                 lexer_get_char(err, &internal_err, in, line);
-                self->current_state = STATE_MULTIPLE_STR;
+                self->current_state = STATE_STR_MULTILN;
             }
             else
             {
@@ -743,53 +742,58 @@ token lexer_get_next_token(lexer *self, error *err)
                 res.attribute_index = lexer_insert_string(self, err);
             }
             break;
-        case STATE_MULTIPLE_STR:
-            c = lexer_peek_char(err, &internal_err, in, 0);
+        case STATE_STR_MULTILN:
+            c = lexer_get_char(err, &internal_err, in, 0);
             if (c == '"')
             {
-                self->current_state = STATE_QUOTE_1;
+                self->buffer[self->buffer_index++] = c;
+                self->current_state = STATE_STR_MQ1;
             }
-            else if (c == '\0')
+            else if (c != '\0')
+            {
+                self->buffer[self->buffer_index++] = c;
+                self->current_state = STATE_STR_MULTILN;
+            }
+            else
             {
                 *err = UNFINISHED_STRING;
             }
-            else
-            {
-                self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
-                self->current_state = STATE_MULTIPLE_STR;
-            }
             break;
-        case STATE_QUOTE_1:
-            c = lexer_peek_char(err, &internal_err, in, 1);
+        case STATE_STR_MQ1:
+            c = lexer_get_char(err, &internal_err, in, line);
             if (c == '"')
             {
-                self->current_state = STATE_QUOTE_2;
+                self->buffer[self->buffer_index++] = c;
+                self->current_state = STATE_STR_MQ2;
+            }
+            else if (c != '\0')
+            {
+                self->buffer[self->buffer_index++] = c;
+                self->current_state = STATE_STR_MULTILN;
             }
             else
             {
-                self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
-                self->current_state = STATE_MULTIPLE_STR;
+                *err = UNFINISHED_STRING;
             }
             break;
-        case STATE_QUOTE_2:
-            c = lexer_peek_char(err, &internal_err, in, 2);
+        case STATE_STR_MQ2:
+            c = lexer_get_char(err, &internal_err, in, line);
             if (c == '"')
             {
-                lexer_get_char(err, &internal_err, in, line);
-                lexer_get_char(err, &internal_err, in, line);
-                lexer_get_char(err, &internal_err, in, line);
-                res.type = TOKEN_STRING;
-                self->buffer[self->buffer_index++] = '\0';
-                res.attribute_index = lexer_insert_string(self, err);
+                self->buffer[self->buffer_index-2] = '\0';
+                self->current_state = STATE_STR_END;
+            }
+            else if (c != '\0')
+            {
+                self->buffer[self->buffer_index++] = c;
+                self->current_state = STATE_STR_MULTILN;
             }
             else
             {
-                self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
-                self->buffer[self->buffer_index++] = lexer_get_char(err, &internal_err, in, line);
-                self->current_state = STATE_MULTIPLE_STR;
+                *err = UNFINISHED_STRING;
             }
             break;
-        case STATE_ESCAPE:
+        case STATE_STR_ESCAPE:
             c = lexer_get_char(err, &internal_err, in, line);
             switch (c)
             {
@@ -822,13 +826,12 @@ token lexer_get_next_token(lexer *self, error *err)
             c = lexer_get_char(err, &internal_err, in, line);
             if (c == '"')
             {
-                res.type = TOKEN_STRING;
                 self->buffer[self->buffer_index++] = '\0';
-                res.attribute_index = lexer_insert_string(self, err);
+                self->current_state = STATE_STR_END;
             }
             else if (c == '\\')
             {
-                self->current_state = STATE_ESCAPE;
+                self->current_state = STATE_STR_ESCAPE;
             }
             else if (c == '\n' || c == '\0')
             {
@@ -839,6 +842,10 @@ token lexer_get_next_token(lexer *self, error *err)
                 self->buffer[self->buffer_index++] = c;
                 self->current_state = STATE_STR;
             }
+            break;
+        case STATE_STR_END:
+                res.type = TOKEN_STRING;
+                res.attribute_index = lexer_insert_string(self, err);
             break;
         // NUMERIC
         case STATE_INT:
@@ -868,9 +875,9 @@ token lexer_get_next_token(lexer *self, error *err)
                 self->current_state = STATE_D_SUFF;
             }
             else if (isalpha(c))
-                *err = INVALID_SYMBOL;              // 12abc, 0x1F, 1L
+                *err = INVALID_SYMBOL; // 12abc, 0x1F, 1L
             else
-                self->current_state = STATE_PROCESS_INT;  // c stays unread, it starts the next token
+                self->current_state = STATE_PROCESS_INT; // c stays unread, it starts the next token
             break;
         case STATE_UINT:
             c = lexer_peek_char(err, &internal_err, in, 0);
@@ -919,9 +926,9 @@ token lexer_get_next_token(lexer *self, error *err)
                 self->current_state = STATE_D_SUFF;
             }
             else if (isalpha(c))
-                *err = INVALID_SYMBOL;              // 12abc, 0x1F, 1L
+                *err = INVALID_SYMBOL; // 12abc, 0x1F, 1L
             else
-                self->current_state = STATE_PROCESS_INT;  // c stays unread, it starts the next token
+                self->current_state = STATE_PROCESS_INT; // c stays unread, it starts the next token
             break;
         case STATE_UZERO:
             c = lexer_peek_char(err, &internal_err, in, 0);

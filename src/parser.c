@@ -130,6 +130,11 @@ static parser_stack_item *new_parser_stack_item(error *err, const precedence_tab
 
 static void parser_stack_item_destruct(parser_stack_item **self)
 {
+    if (self == NULL || *self == NULL)
+    {
+        return;
+    }
+
     switch ((*self)->item_type)
     {
     case ITEM_AST_NODE:
@@ -235,12 +240,14 @@ static parser_stack_item *literal_stack_item_from_token(error *err, const token 
 
     default:
         *err = GENERAL_INTERNAL;
+        ast_node_destruct_recursively(&node);
         return NULL;
     }
 
     parser_stack_item *new_item = new_parser_stack_item(err, PRECEDENTIAL_OPERAND);
     if (*err != NONE)
     {
+        ast_node_destruct_recursively(&node);
         return NULL;
     }
     new_item->item_ast_node = node;
@@ -405,6 +412,9 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
     *err = NONE;
 
     int current_peek_depth = 0;
+    parser_stack_item virtual_terminator = {.item_type = ITEM_TERMINATOR,
+                                            .precedential_type = PRECEDENTIAL_EXPR_TERMINATOR};
+    bool uses_virtual_terminator = false;
 
     parser_stack_item *current_item = stack_peek(parse_stack, err, current_peek_depth);
     if (*err != NONE)
@@ -413,10 +423,12 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
         {
             return;
         }
-        current_item = new_parser_stack_item(err, PRECEDENTIAL_EXPR_TERMINATOR);
+        current_item = &virtual_terminator;
+        uses_virtual_terminator = true;
+        *err = NONE;
     }
 
-    while (current_item->precedential_type != PRECEDENTIAL_NON_EVALUATABLE)
+    while (!uses_virtual_terminator && current_item->precedential_type != PRECEDENTIAL_NON_EVALUATABLE)
     {
         current_peek_depth++;
 
@@ -427,7 +439,9 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
             {
                 return;
             }
-            current_item = new_parser_stack_item(err, PRECEDENTIAL_EXPR_TERMINATOR);
+            current_item = &virtual_terminator;
+            uses_virtual_terminator = true;
+            *err = NONE;
         }
     }
 
@@ -475,6 +489,7 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
             stack_push(parse_stack, err, (void **)&operator_item);
             if (*err != NONE)
             {
+                parser_stack_item_destruct(&operator_item);
                 return;
             }
         }
@@ -511,6 +526,7 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
             stack_push(parse_stack, err, (void **)&operator_item);
             if (*err != NONE)
             {
+                parser_stack_item_destruct(&operator_item);
                 return;
             }
         }
@@ -533,6 +549,7 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
             stack_push(parse_stack, err, (void **)&expression_item);
             if (*err != NONE)
             {
+                parser_stack_item_destruct(&expression_item);
                 return;
             }
         }
@@ -1820,8 +1837,8 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
     bool is_first_cycle = can_be_assignment;
     bool prev_symbol_was_operand = false;
 
-    parser_stack_item *item; //item to append to stack;
-    
+    parser_stack_item *item; // item to append to stack;
+
     while (is_expression_member(next_token))
     {
         // TODO: implement actual algorithm
@@ -1891,6 +1908,7 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
             item = new_parser_stack_item(err, PRECEDENTIAL_OPERAND);
             if (*err != NONE)
             {
+                ast_node_destruct_recursively(&tmp_node);
                 parser_stack_destruct(&expression_parse_stack, err);
                 return NULL;
             }
@@ -1908,13 +1926,13 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
             item = literal_stack_item_from_token(err, next_token);
             if (*err != NONE)
             {
+                parser_stack_destruct(&expression_parse_stack, err);
                 return NULL;
             }
 
             break;
 
-        case TOKEN_OPERATOR:
-        {
+        case TOKEN_OPERATOR: {
             precedence_table_member operator_precedential_type = PRECEDENTIAL_NON_EVALUATABLE;
             ast_operator operator_ast_type = AST_OP_NONE;
 
@@ -2091,21 +2109,20 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
             return NULL;
         }
 
-
         parse_stack_append(expression_parse_stack, err, &item, next_token.line);
         if (*err != NONE)
         {
+            parser_stack_item_destruct(&item);
             parser_stack_destruct(&expression_parse_stack, err);
             return NULL;
         }
-
 
         if (is_first_cycle)
         {
             is_first_cycle = false;
         }
 
-        current_token = get_token(err, src_stream, attr_tab); //just dropping items
+        current_token = get_token(err, src_stream, attr_tab); // just dropping items
         if (*err != NONE)
         {
             parser_stack_destruct(&expression_parse_stack, err);
@@ -2139,7 +2156,7 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
     // E
     // $ <- this is basically virtual, since it is not by fact on stack
 
-    stack_pop(expression_parse_stack, err); //just popping $
+    stack_pop(expression_parse_stack, err); // just popping $
     if (*err != NONE)
     {
         parser_stack_destruct(&expression_parse_stack, err);
@@ -2153,7 +2170,7 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
         return NULL;
     }
 
-    stack_destruct(&expression_parse_stack); //it shouzld be empty now, so just using std function
+    stack_destruct(&expression_parse_stack); // it shouzld be empty now, so just using std function
 
     return expression;
 }

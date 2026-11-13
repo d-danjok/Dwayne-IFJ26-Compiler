@@ -26,37 +26,6 @@ static token_input_buffer token_buffer = {.was_stored = false, .content = EMPTY_
 
 typedef enum
 {
-    ITEM_TOKEN,
-    ITEM_AST_NODE,
-    ITEM_MARKER,
-    ITEM_TERMINATOR
-} expression_parser_stack_item_type;
-
-typedef struct
-{
-    expression_parser_stack_item_type content_type;
-
-    union {
-        token item_token;
-        ast_node *item_ast_node;
-        void *item_marker;
-    };
-} expression_parser_stack_item;
-
-static expression_parser_stack_item *new_expression_parser_stack_item(error *err)
-{
-    *err = NONE;
-    expression_parser_stack_item *new_item =
-        (expression_parser_stack_item *)utils_safe_malloc(err, sizeof(expression_parser_stack_item));
-    if (*err != NONE)
-    {
-        return NULL;
-    }
-    return new_item;
-}
-
-typedef enum
-{
     PRECEDENTIAL_OP_PLUS,
     PRECEDENTIAL_OP_MINUS,
 
@@ -116,6 +85,39 @@ static const operator_priority precedence_table[PRECEDENTIAL_EXPR_TERMINATOR + 1
     {GR, GR, GR, GR, GR, GR, GR, GR, GR, GR, GR, GR, GR, GR, IV, GR, IV, GR}, // Operand
     {LS, LS, LS, LS, LS, LS, LS, LS, LS, LS, LS, LS, LS, LS, LS, IV, LS, EQ}, // $
 };
+
+typedef enum
+{
+    ITEM_TOKEN,
+    ITEM_AST_NODE,
+    ITEM_MARKER,
+    ITEM_TERMINATOR
+} expression_parser_stack_item_type;
+
+typedef struct
+{
+    expression_parser_stack_item_type content_type;
+
+    precedence_table_member precedential_type;
+
+    union {
+        token item_token;
+        ast_node *item_ast_node;
+        void *item_marker;
+    };
+} expression_parser_stack_item;
+
+static expression_parser_stack_item *new_expression_parser_stack_item(error *err)
+{
+    *err = NONE;
+    expression_parser_stack_item *new_item =
+        (expression_parser_stack_item *)utils_safe_malloc(err, sizeof(expression_parser_stack_item));
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+    return new_item;
+}
 
 // helpers
 static token peek_token(error *err, FILE *src_stream, attribute_table *attr_tab)

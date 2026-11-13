@@ -1918,7 +1918,7 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
             precedence_table_member operator_precedential_type = PRECEDENTIAL_NON_EVALUATABLE;
             ast_operator operator_ast_type = AST_OP_NONE;
 
-            switch (current_token.attribute_index)
+            switch (next_token.attribute_index)
             {
             case OP_PLUS:
                 operator_precedential_type = PRECEDENTIAL_OP_PLUS;
@@ -2009,7 +2009,7 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
             case OP_ASSIGN:
                 *err = GENERAL_SYNTAX;
 
-                log_printf("[%lu] assignment sign \"=\" can not be used inside of an expression\n", current_token.line);
+                log_printf("[%lu] assignment sign \"=\" can not be used inside of an expression\n", next_token.line);
                 parser_stack_destruct(&expression_parse_stack, err);
 
                 return NULL;
@@ -2017,7 +2017,7 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
             default:
                 *err = GENERAL_SYNTAX;
 
-                log_printf("[%lu] unsupported operator inside of an expression\n", current_token.line);
+                log_printf("[%lu] unsupported operator inside of an expression\n", next_token.line);
                 parser_stack_destruct(&expression_parse_stack, err);
 
                 return NULL;
@@ -2037,7 +2037,7 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
                 operator_node->type = AST_NODE_UNARY_OPERATION;
             }
 
-            operator_node->src_line_number = current_token.line;
+            operator_node->src_line_number = next_token.line;
             operator_node->operator = operator_ast_type;
 
             item = new_parser_stack_item(err, operator_precedential_type);
@@ -2120,9 +2120,16 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
     } // processing loop end
 
     parser_stack_item *terminator_item = new_parser_stack_item(err, PRECEDENTIAL_EXPR_TERMINATOR);
-    parse_stack_append(expression_parse_stack, err, &item, next_token.line);
     if (*err != NONE)
     {
+        parser_stack_destruct(&expression_parse_stack, err);
+        return NULL;
+    }
+
+    parse_stack_append(expression_parse_stack, err, &terminator_item, next_token.line);
+    if (*err != NONE)
+    {
+        parser_stack_item_destruct(&terminator_item);
         parser_stack_destruct(&expression_parse_stack, err);
         return NULL;
     }

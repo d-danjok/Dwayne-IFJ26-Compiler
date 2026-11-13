@@ -163,16 +163,16 @@ static bool check_independent_instances(lexer *first)
     if (fputs("first\nlast", first->input) >= 0 && fputs("other", input) >= 0 &&
         fseek(first->input, 0, SEEK_SET) == 0 && fseek(input, 0, SEEK_SET) == 0)
     {
-        token a = lexer_get_next_token(first, &err, STATE_START);
+        token a = lexer_get_next_token(first, &err);
         if (err == NONE && a.type == TOKEN_IDENTIFIER)
         {
-            token b = lexer_get_next_token(second, &err, STATE_START);
+            token b = lexer_get_next_token(second, &err);
             if (err == NONE && b.type == TOKEN_IDENTIFIER)
             {
-                token eol = lexer_get_next_token(first, &err, STATE_START);
+                token eol = lexer_get_next_token(first, &err);
                 if (err == NONE && eol.type == TOKEN_EOL)
                 {
-                    token last = lexer_get_next_token(first, &err, STATE_START);
+                    token last = lexer_get_next_token(first, &err);
                     if (err == NONE && last.type == TOKEN_IDENTIFIER)
                     {
                         char *first_value = attribute_table_get_identifier(first->attr_table, &err, a.attribute_index);
@@ -205,10 +205,10 @@ static bool check_attribute_lifetime(lexer **scanner, attribute_table *table)
     if (fputc('"', input) == EOF || fseek(input, 0, SEEK_SET) != 0)
         return false;
     error err = NONE;
-    token first = lexer_get_next_token(*scanner, &err, STATE_START);
+    token first = lexer_get_next_token(*scanner, &err);
     if (err != NONE || first.type != TOKEN_STRING)
         return false;
-    token second = lexer_get_next_token(*scanner, &err, STATE_START);
+    token second = lexer_get_next_token(*scanner, &err);
     if (err != NONE || second.type != TOKEN_STRING)
         return false;
     lexer_destruct(scanner);
@@ -265,12 +265,12 @@ static int api_test(const char *name)
                 if (fputs("123", input) < 0 || fseek(input, 0, SEEK_SET) != 0)
                     return 2;
                 err = GENERAL_LEXICAL;
-                token value = lexer_get_next_token(scanner, &err, STATE_START);
+                token value = lexer_get_next_token(scanner, &err);
                 passed = value.type == TOKEN_UNDEFINED && err == GENERAL_LEXICAL && ftell(input) == 0;
             }
             else if (strcmp(name, "initial_line") == 0)
             {
-                token value = lexer_get_next_token(scanner, &err, STATE_START);
+                token value = lexer_get_next_token(scanner, &err);
                 passed = err == NONE && value.type == TOKEN_EOF && value.line == 1;
             }
             else if (strcmp(name, "independent_instances") == 0)
@@ -309,7 +309,7 @@ int main(int argc, char **argv)
     int status = 2;
     for (size_t count = 0; count < 10000; ++count)
     {
-        token value = lexer_get_next_token(scanner, &err, STATE_START);
+        token value = lexer_get_next_token(scanner, &err);
         if (err != NONE)
         {
             printf("ERROR\t%d\t%s\t%zu\n", err, token_name(value.type), value.line);

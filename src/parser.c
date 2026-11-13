@@ -1762,6 +1762,7 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
 
     ast_node *tmp_node = NULL;
     bool is_first_cycle = can_be_assignment;
+    bool prev_symbol_was_operand = false;
 
     while (is_expression_member(next_token))
     {
@@ -1838,33 +1839,255 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
             id_item->item_type = ITEM_AST_NODE;
             id_item->item_ast_node = tmp_node;
 
+            prev_symbol_was_operand = true;
             break;
+
         case TOKEN_INT:
+            parser_stack_item *int_item = new_parser_stack_item(err, PRECEDENTIAL_OPERAND);
+            if (*err != NONE)
+            {
+                stack_destruct(&expression_parse_stack);
+                return NULL;
+            }
 
+            prev_symbol_was_operand = true;
             break;
+
         case TOKEN_DOUBLE:
+            parser_stack_item *double_item = new_parser_stack_item(err, PRECEDENTIAL_OPERAND);
+            if (*err != NONE)
+            {
+                stack_destruct(&expression_parse_stack);
+                return NULL;
+            }
 
+            prev_symbol_was_operand = true;
             break;
+
         case TOKEN_STRING:
+            parser_stack_item *string_item = new_parser_stack_item(err, PRECEDENTIAL_OPERAND);
+            if (*err != NONE)
+            {
+                stack_destruct(&expression_parse_stack);
+                return NULL;
+            }
 
+            prev_symbol_was_operand = true;
             break;
+
         case TOKEN_UNIT:
+            parser_stack_item *unit_item = new_parser_stack_item(err, PRECEDENTIAL_OPERAND);
+            if (*err != NONE)
+            {
+                stack_destruct(&expression_parse_stack);
+                return NULL;
+            }
 
+            prev_symbol_was_operand = true;
             break;
+
         case TOKEN_BOOLEAN:
+            parser_stack_item *boolean_item = new_parser_stack_item(err, PRECEDENTIAL_OPERAND);
+            if (*err != NONE)
+            {
+                stack_destruct(&expression_parse_stack);
+                return NULL;
+            }
 
+            prev_symbol_was_operand = true;
             break;
+
         case TOKEN_OPERATOR:
+        {
+            precedence_table_member operator_precedential_type = PRECEDENTIAL_NON_EVALUATABLE;
+            ast_operator operator_ast_type = AST_OP_NONE;
 
+            switch (current_token.attribute_index)
+            {
+            case OP_PLUS:
+                operator_precedential_type = PRECEDENTIAL_OP_PLUS;
+                operator_ast_type = AST_OP_PLUS;
+                
+                break;
+
+            case OP_MINUS:
+
+                if (!prev_symbol_was_operand)
+                {
+                    operator_precedential_type = PRECEDENTIAL_OP_UNARY_MINUS;
+                    operator_ast_type = AST_OP_MINUS_UNARY;
+                }
+                else
+                {
+                    operator_precedential_type = PRECEDENTIAL_OP_MINUS;
+                    operator_ast_type = AST_OP_MINUS;
+                }
+                break;
+
+            case OP_MULTIPLY:
+                operator_precedential_type = PRECEDENTIAL_OP_MULTIPLY;
+                operator_ast_type = AST_OP_MULTIPLY;
+
+                break;
+
+            case OP_DIVISION:
+                operator_precedential_type = PRECEDENTIAL_OP_DIVIDE;
+                operator_ast_type = AST_OP_DIV;
+
+                break;
+
+            case OP_GREATER:
+                operator_precedential_type = PRECEDENTIAL_OP_GREATER;
+                operator_ast_type = AST_OP_GREATER;
+
+                break;
+
+            case OP_EQUAL_GREATER:
+                operator_precedential_type = PRECEDENTIAL_OP_GREATER_EQUAL;
+                operator_ast_type = AST_OP_GREATER_EQUAL;
+
+                break;
+
+            case OP_LESS:
+                operator_precedential_type = PRECEDENTIAL_OP_LESS;
+                operator_ast_type = AST_OP_LESS;
+
+                break;
+
+            case OP_EQUAL_LESS:
+                operator_precedential_type = PRECEDENTIAL_OP_LESS_EQUAL;
+                operator_ast_type = AST_OP_LESS_EQUAL;
+
+                break;
+
+            case OP_EQUAL:
+                operator_precedential_type = PRECEDENTIAL_OP_EQUALS;
+                operator_ast_type = AST_OP_EQUAL;
+
+                break;
+
+            case OP_NOT_EQUAL:
+                operator_precedential_type = PRECEDENTIAL_OP_NOT_EQUALS;
+                operator_ast_type = AST_OP_NOT_EQUAL;
+
+                break;
+
+            case OP_NOT:
+                operator_precedential_type = PRECEDENTIAL_OP_NOT;
+                operator_ast_type = AST_OP_NOT;
+
+                break;
+
+            case OP_AND:
+                operator_precedential_type = PRECEDENTIAL_OP_AND;
+                operator_ast_type = AST_OP_AND;
+
+                break;
+
+            case OP_OR:
+                operator_precedential_type = PRECEDENTIAL_OP_OR;
+                operator_ast_type = AST_OP_OR;
+
+                break;
+
+            case OP_ASSIGN:
+                *err = GENERAL_SYNTAX;
+
+                log_printf("[%lu] assignment sign \"=\" can not be used inside of an expression\n", current_token.line);
+                stack_destruct(&expression_parse_stack);
+
+                return NULL;
+
+            default:
+                *err = GENERAL_SYNTAX;
+
+                log_printf("[%lu] unsupported operator inside of an expression\n", current_token.line);
+                stack_destruct(&expression_parse_stack);
+
+                return NULL;
+            }
+
+            ast_node *operator_node = new_ast_node(err);
+            if (*err != NONE)
+            {
+                stack_destruct(&expression_parse_stack);
+                return NULL;
+            }
+
+            operator_node->type = AST_NODE_BINARY_OPERATION;
+
+            if (operator_ast_type == AST_OP_NOT || operator_ast_type == AST_OP_MINUS_UNARY)
+            {
+                operator_node->type = AST_NODE_UNARY_OPERATION;
+            }
+
+            operator_node->src_line_number = current_token.line;
+            operator_node->operator = operator_ast_type;
+
+            parser_stack_item *operator_item = new_parser_stack_item(err, operator_precedential_type);
+            if (*err != NONE)
+            {
+                ast_node_destruct_recursively(&operator_node);
+                stack_destruct(&expression_parse_stack);
+                return NULL;
+            }
+            operator_item->item_type = ITEM_AST_NODE;
+            operator_item->item_ast_node = operator_node;
+
+            parse_stack_append(expression_parse_stack, err, &operator_item, current_token.line);
+            if (*err != NONE)
+            {
+                ast_node_destruct_recursively(&operator_node);
+                stack_destruct(&expression_parse_stack);
+                return NULL;
+            }
+
+            prev_symbol_was_operand = false;
             break;
+        }
+
         case TOKEN_OPEN_PAREN:
             current_paren_depth++;
 
+            parser_stack_item *lparen_item = new_parser_stack_item(err, PRECEDENTIAL_LPAREN);
+            if (*err != NONE)
+            {
+                stack_destruct(&expression_parse_stack);
+                return NULL;
+            }
+            id_item->item_type = ITEM_PAREN;
+
+            parse_stack_append(expression_parse_stack, err, &lparen_item, next_token.line);
+            if (*err != NONE)
+            {
+                stack_destruct(&expression_parse_stack);
+                return NULL;
+            }
+
+            prev_symbol_was_operand = false;
             break;
+
         case TOKEN_CLOSE_PAREN:
             current_paren_depth--;
 
+            parser_stack_item *rparen_item = new_parser_stack_item(err, PRECEDENTIAL_RPAREN);
+            if (*err != NONE)
+            {
+                stack_destruct(&expression_parse_stack);
+                return NULL;
+            }
+            id_item->item_type = ITEM_PAREN;
+
+            parse_stack_append(expression_parse_stack, err, &rparen_item, next_token.line);
+            if (*err != NONE)
+            {
+                stack_destruct(&expression_parse_stack);
+                return NULL;
+            }
+
+            prev_symbol_was_operand = true;
             break;
+
         default:
             log_printf("[%lu] ", current_token.line);
             log_token_type(current_token.type);
@@ -1878,9 +2101,18 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
         {
             is_first_cycle = false;
         }
+
+        current_token = get_token(err, src_stream, attr_tab); //just dropping items
+        if (*err != NONE)
+        {
+            parser_stack_destruct(&expression_parse_stack, err);
+            return NULL;
+        }
         next_token = peek_token(err, src_stream, attr_tab);
         if (*err != NONE)
         {
+            parser_stack_destruct(&expression_parse_stack, err);
+            return NULL;
         }
     }
 

@@ -98,6 +98,7 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
     unsigned fn_var_cnt = 0;
     bool last_was_FUNC_START = false;
     bool frame_open = false;
+    tac_argument_value_type f0_type;
 
     for (int tac_instr_cnt = 0; tac_instr_cnt < tac_l->size; tac_instr_cnt++)
     {
@@ -238,6 +239,8 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
                     frame_open = true;
                     fn_var_cnt = 0;
                 }
+                if (fn_var_cnt == 0)
+                    f0_type = t->arg1.value_type;
                 printf("DEFVAR TF@$f%u\n", fn_var_cnt);
                 printf("MOVE TF@$f%u", fn_var_cnt++);
                 print_symbol(&t->arg1);
@@ -246,16 +249,84 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
             break;
 
         case TAC_CALL:
-            if (!frame_open)
-                printf("CREATEFRAME\n");
-            frame_open = false;
-            PRINT_1AC("CALL", &t->arg1)
-            if (t->result.type != ARG_EMPTY)
+            // check for inline functions first
+            if (strcmp(t->arg1.identifier_name, "print") == 0)
             {
-                printf("MOVE");
-                print_symbol(&t->result);
-                printf(" TF@$res\n");
+                printf(f0_type == ARG_UNIT ? "WRITE string@()\n" : "WRITE TF@$f0\n");
             }
+            else if (strcmp(t->arg1.identifier_name, "readLine") == 0)
+            { // read should always have result variable
+                printf("READ");
+                print_symbol(&t->result);
+                printf(" string\n");
+            }
+            else if (strcmp(t->arg1.identifier_name, "readInt") == 0)
+            {
+                printf("READ");
+                print_symbol(&t->result);
+                printf(" int\n");
+            }
+            else if (strcmp(t->arg1.identifier_name, "readDouble") == 0)
+            {
+                printf("READ");
+                print_symbol(&t->result);
+                printf(" float\n");
+            }
+            else if (strcmp(t->arg1.identifier_name, "readBoolean") == 0)
+            {
+                printf("READ");
+                print_symbol(&t->result);
+                printf(" bool\n");
+            }
+            else if (strcmp(t->arg1.identifier_name, "strLength") == 0)
+            {
+                printf("STRLEN");
+                print_symbol(&t->result);
+                printf(" TF@$f0\n");
+            }
+            else if (strcmp(t->arg1.identifier_name, "chr") == 0)
+            {
+                printf("INT2CHAR");
+                print_symbol(&t->result);
+                printf(" TF@$f0\n");
+            }
+            else if (strcmp(t->arg1.identifier_name, "ord") == 0)
+            {
+                printf("STRI2INT");
+                print_symbol(&t->result);
+                printf(" TF@$f0 TF@$f1\n");
+            }
+            else if (strcmp(t->arg1.identifier_name, "toInt") == 0)
+            {
+                printf("FLOAT2INT");
+                print_symbol(&t->result);
+                printf(" TF@$f0\n");
+            }
+            else if (strcmp(t->arg1.identifier_name, "toStr") == 0)
+            {
+                printf(f0_type == ARG_INT ? "INT2STR" : f0_type == ARG_FLOAT ? "FLOAT2STR" : "MOVE");
+                print_symbol(&t->result);
+                printf(f0_type == ARG_UNIT ? " string@()\n" : " TF@$f0\n");
+            }
+            else if (strcmp(t->arg1.identifier_name, "subStr") == 0)
+            {
+                // subStr args validation:
+
+                // subStr loop
+            }
+            else // handle program functions
+            {
+                if (!frame_open) // still create frame for fn with no args
+                    printf("CREATEFRAME\n");
+                PRINT_1AC("CALL", &t->arg1)
+                if (t->result.type != ARG_EMPTY)
+                {
+                    printf("MOVE");
+                    print_symbol(&t->result);
+                    printf(" TF@$res\n");
+                }
+            }
+            frame_open = false;
             break;
         case TAC_RETURN:
             if (t->result.type != ARG_EMPTY)

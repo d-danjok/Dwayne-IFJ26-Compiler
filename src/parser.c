@@ -2117,9 +2117,38 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
             parser_stack_destruct(&expression_parse_stack, err);
             return NULL;
         }
+    } // processing loop end
+
+    parser_stack_item *terminator_item = new_parser_stack_item(err, PRECEDENTIAL_EXPR_TERMINATOR);
+    parse_stack_append(expression_parse_stack, err, &item, next_token.line);
+    if (*err != NONE)
+    {
+        parser_stack_destruct(&expression_parse_stack, err);
+        return NULL;
     }
 
-    return NULL; // tmp
+    // on this point the only operator node should be second from an end :
+    // $ <- stack top
+    // E
+    // $ <- this is basically virtual, since it is not by fact on stack
+
+    stack_pop(expression_parse_stack, err); //just popping $
+    if (*err != NONE)
+    {
+        parser_stack_destruct(&expression_parse_stack, err);
+        return NULL;
+    }
+
+    ast_node *expression = stack_pop(expression_parse_stack, err);
+    if (*err != NONE)
+    {
+        parser_stack_destruct(&expression_parse_stack, err);
+        return NULL;
+    }
+
+    stack_destruct(&expression_parse_stack); //it shouzld be empty now, so just using std function
+
+    return expression;
 }
 
 static ast_node *node_while_loop(error *err, FILE *src_stream, attribute_table *attr_tab)

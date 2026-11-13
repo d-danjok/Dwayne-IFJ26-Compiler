@@ -372,18 +372,69 @@ ast_node *parser_run(error *err, FILE *src_stream, attribute_table *attr_tab)
 static ast_node *node_program(error *err, FILE *src_stream, attribute_table *attr_tab)
 {
     *err = NONE;
-    const token current_token = get_token(err, src_stream, attr_tab);
+    token current_token = get_token(err, src_stream, attr_tab);
     if (*err != NONE)
     {
         return NULL;
     }
 
-    // TODO: create prologue check
-    if (prologue_missing)
+    if (current_token.type != TOKEN_KEYWORD || current_token.attribute_index != KW_IMPORT)
+    {
+        *err = PROLOGUE_MISSING;
+        log_printf("FATAL: [%lu] program should start with prologue\r\n");
+
+        return NULL;
+    }
+
+    current_token = get_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    const int prologue_string_attribute_index = current_token.attribute_index;
+    const char *const prologue_string = attribute_table_get_string(attr_tab, err, prologue_string_attribute_index);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    if (strcmp(prologue_string, "ifj26") != 0)
+    {
+        *err = PROLOGUE_MISSING;
+        log_printf("[%lu] %s can not be used as prologue\n", prologue_string);
+
+        return NULL;
+    }
+
+    current_token = get_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    if (current_token.type != TOKEN_DOT)
+    {
+        *err = PROLOGUE_MISSING;
+        log_error_expected(TOKEN_DOT, current_token.type, current_token.line);
+
+        return NULL;
+    }
+
+    current_token = get_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+
+    if (current_token.type != TOKEN_OPERATOR || current_token.attribute_index != OP_MULTIPLY)
     {
         *err = PROLOGUE_MISSING;
 
-        log_printf("ERROR: prologue is missing\n");
+        log_printf("[%lu] expected: '*', got: ", current_token.line);
+        log_token_type(current_token.type);
+        log_printf("\n");
+
         return NULL;
     }
 
@@ -688,7 +739,7 @@ static ast_node *node_main_func(error *err, FILE *src_stream, attribute_table *a
 {
     *err = NONE;
 
-    token next_token = get_token(err, src_stream, attr_tab);
+    token current_token = get_token(err, src_stream, attr_tab);
     if (*err != NONE)
     {
         return NULL;
@@ -701,18 +752,41 @@ static ast_node *node_main_func(error *err, FILE *src_stream, attribute_table *a
     }
     main_func_def_node->type = AST_NODE_MAIN_FUNC_DEF;
 
-    main_func_def_node->src_line_number = next_token.line;
-    if (next_token.type != TOKEN_ANNOTATION)
+    main_func_def_node->src_line_number = current_token.line;
+    if (current_token.type != TOKEN_ANNOTATION)
     {
         *err = GENERAL_SYNTAX;
         ast_node_destruct_recursively(&main_func_def_node);
 
-        log_error_expected(TOKEN_ANNOTATION, next_token.type, next_token.line);
+        log_error_expected(TOKEN_ANNOTATION, current_token.type, current_token.line);
         return NULL;
     }
-    // TODO: implement main string consumption
 
-    next_token = peek_token(err, src_stream, attr_tab);
+    current_token = get_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&main_func_def_node);
+        return NULL;
+    }
+
+    const int annotated_string_attribute_index = current_token.attribute_index;
+    const char *const annotated_string = attribute_table_get_string(attr_tab, err, annotated_string_attribute_index);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&main_func_def_node);
+        return NULL;
+    }
+
+    if (strcmp(annotated_string, "main") != 0)
+    {
+        *err = GENERAL_SYNTAX;
+        log_printf("[%lu] @ can not be used else that in @main annotation, got @%s\n", annotated_string);
+
+        ast_node_destruct_recursively(&main_func_def_node);
+        return NULL;
+    }
+
+    const token next_token = peek_token(err, src_stream, attr_tab);
     if (*err != NONE)
     {
         ast_node_destruct_recursively(&main_func_def_node);

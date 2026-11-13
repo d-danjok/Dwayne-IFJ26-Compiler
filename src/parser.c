@@ -52,18 +52,21 @@ typedef enum
 
     PRECEDENTIAL_OPERAND,
 
-    PRECEDENTIAL_EXPR_TERMINATOR
+    PRECEDENTIAL_EXPR_TERMINATOR,
+
+    PRECEDENTIAL_NON_EVALUATABLE, // not actually an item, it just needs to be here for tech reason
 } precedence_table_member;
 
 typedef enum
 {
-    LS, // less
-    EQ, // equal
-    GR, // greater
+    LS, // less    <
+    EQ, // equal  ==
+    GR, // greater >
 
     IV, // invalid
 } operator_priority;
 
+//                                              top of stack                      current
 static const operator_priority precedence_table[PRECEDENTIAL_EXPR_TERMINATOR + 1][PRECEDENTIAL_EXPR_TERMINATOR + 1] = {
     //  +   -   *   /   u-  <   <=  >   >=  ==  !=  !   &&  ||  (   )   Op  $
     {GR, GR, LS, LS, LS, GR, GR, GR, GR, GR, GR, LS, GR, GR, LS, GR, LS, GR}, // +
@@ -88,35 +91,52 @@ static const operator_priority precedence_table[PRECEDENTIAL_EXPR_TERMINATOR + 1
 
 typedef enum
 {
-    ITEM_TOKEN,
+    ITEM_NONE,
+
     ITEM_AST_NODE,
-    ITEM_MARKER,
-    ITEM_TERMINATOR
-} expression_parser_stack_item_type;
+    ITEM_TERMINATOR,
+    ITEM_PAREN,
+} parser_stack_item_type;
 
 typedef struct
 {
-    expression_parser_stack_item_type content_type;
+    parser_stack_item_type item_type;
 
     precedence_table_member precedential_type;
 
-    union {
-        token item_token;
-        ast_node *item_ast_node;
-        void *item_marker;
-    };
-} expression_parser_stack_item;
+    bool is_marked; // represents '<' mark before symbol (fromm presentation ifj08-cz.pdf)
 
-static expression_parser_stack_item *new_expression_parser_stack_item(error *err)
+    ast_node *item_ast_node;
+
+} parser_stack_item;
+
+static parser_stack_item *new_parser_stack_item(error *err, const precedence_table_member precedential_type)
 {
     *err = NONE;
-    expression_parser_stack_item *new_item =
-        (expression_parser_stack_item *)utils_safe_malloc(err, sizeof(expression_parser_stack_item));
+    parser_stack_item *new_item = (parser_stack_item *)utils_safe_malloc(err, sizeof(parser_stack_item));
     if (*err != NONE)
     {
         return NULL;
     }
+
+    new_item->precedential_type = precedential_type;
+
+    new_item->item_type = ITEM_NONE;
+    new_item->item_ast_node = NULL;
+    new_item->is_marked = false;
+
     return new_item;
+}
+
+static void parser_stack_item_destruct(parser_stack_item **self)
+{
+    switch ((*self)->item_type)
+    {
+    case ITEM_AST_NODE:
+        ast_node_destruct_recursively(&(*self)->item_ast_node);
+    default:
+        UTILS_SAFE_FREE(self);
+    }
 }
 
 // helpers
@@ -311,6 +331,194 @@ static bool is_type(const token tok)
     }
 
     return false;
+}
+
+static bool is_unary_op_node(const ast_node *node)
+{
+    return node->type == AST_NODE_UNARY_OPERATION;
+}
+
+static bool is_binary_op_node(const ast_node *node)
+{
+    return node->type == AST_NODE_BINARY_OPERATION;
+}
+
+static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item **item_to_append,
+                               const size_t current_line)
+{
+    *err = NONE;
+
+    int current_peek_depth = 0;
+
+    parser_stack_item *current_item = stack_peek(parse_stack, err, current_peek_depth);
+    if (*err != NONE)
+    {
+        if (*err != INTERNAL_STACK_IS_EMPTY && *err != INTERNAL_INDEX_OUT_OF_BOUNDS)
+        {
+            return;
+        }
+        current_item = new_parser_stack_item(err, PRECEDENTIAL_EXPR_TERMINATOR);
+    }
+
+    while (current_item->precedential_type != PRECEDENTIAL_NON_EVALUATABLE)
+    {
+        current_peek_depth++;
+
+        current_item = stack_peek(parse_stack, err, current_peek_depth);
+        if (*err != NONE)
+        {
+            if (*err != INTERNAL_STACK_IS_EMPTY && *err != INTERNAL_INDEX_OUT_OF_BOUNDS)
+            {
+                return;
+            }
+            current_item = new_parser_stack_item(err, PRECEDENTIAL_EXPR_TERMINATOR);
+        }
+    }
+
+    switch (precedence_table[current_item->precedential_type][(*item_to_append)->precedential_type])
+    {
+    case LS:
+        (*item_to_append)->is_marked = true;
+
+    case EQ:
+        stack_push(parse_stack, err, (void **)item_to_append);
+        if (*err != NONE)
+        {
+            return;
+        }
+        break;
+
+    case GR:
+        if (!(current_item->is_marked))
+        {
+            *err = GENERAL_SYNTAX;
+            log_printf("[%lu] invalid character combination inside of an expression", current_line);
+            return;
+        }
+
+        if (current_item->item_type == ITEM_AST_NODE && is_unary_op_node(current_item->item_ast_node))
+        {
+            parser_stack_item *operand_item = stack_pop(parse_stack, err);
+            if (*err != NONE)
+            {
+                return;
+            }
+            ast_node *operand = operand_item->item_ast_node;
+            UTILS_SAFE_FREE(&operand_item);
+
+            parser_stack_item *operator_item = stack_pop(parse_stack, err);
+            if (*err != NONE)
+            {
+                return;
+            }
+
+            operator_item->item_ast_node->left_child = operand;
+            operator_item->is_marked = false;
+            operator_item->precedential_type = PRECEDENTIAL_NON_EVALUATABLE;
+
+            stack_push(parse_stack, err, (void **)&operator_item);
+            if (*err != NONE)
+            {
+                return;
+            }
+        }
+        else if (current_item->item_type == ITEM_AST_NODE && is_binary_op_node(current_item->item_ast_node))
+        {
+            parser_stack_item *right_operand_item = stack_pop(parse_stack, err);
+            if (*err != NONE)
+            {
+                return;
+            }
+            ast_node *right_operand = right_operand_item->item_ast_node;
+            UTILS_SAFE_FREE(&right_operand_item);
+
+            parser_stack_item *operator_item = stack_pop(parse_stack, err);
+            if (*err != NONE)
+            {
+                return;
+            }
+
+            parser_stack_item *left_operand_item = stack_pop(parse_stack, err);
+            if (*err != NONE)
+            {
+                return;
+            }
+            ast_node *left_operand = left_operand_item->item_ast_node;
+            UTILS_SAFE_FREE(&left_operand_item);
+
+            operator_item->item_ast_node->left_child = left_operand;
+            operator_item->item_ast_node->right_child = right_operand;
+
+            operator_item->is_marked = false;
+            operator_item->precedential_type = PRECEDENTIAL_NON_EVALUATABLE;
+
+            stack_push(parse_stack, err, (void **)&operator_item);
+            if (*err != NONE)
+            {
+                return;
+            }
+        }
+        else if (current_item->item_type == ITEM_PAREN)
+        {
+            // we can not legally get here is there is more than 1 non-marked element not top of the stack
+            parser_stack_item *expression_item = stack_pop(parse_stack, err);
+            if (*err != NONE)
+            {
+                return;
+            }
+
+            parser_stack_item *right_paren_item = stack_pop(parse_stack, err);
+            if (*err != NONE)
+            {
+                return;
+            }
+            UTILS_SAFE_FREE(&right_paren_item);
+
+            stack_push(parse_stack, err, (void **)&expression_item);
+            if (*err != NONE)
+            {
+                return;
+            }
+        }
+        else
+        {
+            current_item->is_marked = false;
+        }
+
+        parse_stack_append(parse_stack, err, item_to_append, current_line); // trying till we can append an item
+
+        break;
+
+    case IV:
+        *err = GENERAL_SYNTAX;
+
+        log_printf("[%lu] invalid character combination inside of an expression", current_line);
+
+        break;
+
+    default:
+        *err = INTERNAL_FATAL;
+
+        log_printf("[%lu] FATAL: invalid data value in variable of type: operator_priority\n", current_line);
+    }
+}
+
+static void parser_stack_destruct(stack **self, error *err)
+{
+    while (true)
+    {
+        parser_stack_item *item_to_free = stack_pop(*self, err);
+        if (*err != NONE)
+        {
+            if (*err != INTERNAL_STACK_IS_EMPTY && *err != INTERNAL_INDEX_OUT_OF_BOUNDS)
+            {
+                return;
+            }
+            break;
+        }
+        parser_stack_item_destruct(&item_to_free);
+    }
+    stack_destruct(self);
 }
 
 // LL-rule function representations declaration
@@ -1544,20 +1752,6 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
         return NULL;
     }
 
-    // preparing stack
-    expression_parser_stack_item *terminator = new_expression_parser_stack_item(err);
-    if (*err != NONE)
-    {
-        stack_destruct(&expression_parse_stack);
-        return NULL;
-    }
-    terminator->content_type = ITEM_TERMINATOR;
-    stack_push(expression_parse_stack, err, (void **)&terminator);
-    if (*err != NONE)
-    {
-        return NULL;
-    }
-
     token current_token = EMPTY_TOKEN;
     token next_token = peek_token(err, src_stream, attr_tab);
     if (*err != NONE)
@@ -1571,13 +1765,6 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
 
     while (is_expression_member(next_token))
     {
-        // expression_parser_stack_item *new_item = new_expression_parser_stack_item(err);
-        // if (*err != NONE)
-        // {
-        //     stack_destruct(&expression_parse_stack);
-        //     return NULL;
-        // }
-
         // TODO: implement actual algorithm
         switch (next_token.type)
         {
@@ -1641,9 +1828,15 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
 
                     return statement_node;
                 }
-                // TODO: logic for ID
             }
-            // TODO: logic for func_call
+            parser_stack_item *id_item = new_parser_stack_item(err, PRECEDENTIAL_OPERAND);
+            if (*err != NONE)
+            {
+                stack_destruct(&expression_parse_stack);
+                return NULL;
+            }
+            id_item->item_type = ITEM_AST_NODE;
+            id_item->item_ast_node = tmp_node;
 
             break;
         case TOKEN_INT:

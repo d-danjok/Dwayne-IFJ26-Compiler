@@ -35,4 +35,7 @@ void *stack_pop(stack *self, error *err);
 void *stack_peek(const stack *self, error *err,
                  int depth); // added this because some time it is useful to check other items
 
+// @brief get count of items in stack
+int stack_get_item_count(const stack *self);
+
 #endif

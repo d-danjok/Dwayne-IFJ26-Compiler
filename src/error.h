@@ -70,6 +70,8 @@ typedef enum
     //							particular error and do not propagate it further only stop reading)
     INTERNAL_STACK_IS_EMPTY,
     INTERNAL_NULL_ITEM_INSERT,
+
+    INTERNAL_FATAL, // only used if something very strange happened
 } error;
 
 // @brief checks if error is internal

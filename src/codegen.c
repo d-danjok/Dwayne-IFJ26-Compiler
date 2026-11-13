@@ -3,6 +3,7 @@
 // @author Sereda Maksym (xseredm00)
 
 #include "codegen.h"
+// todo: define vars from TAC_VAR_DEF
 
 // === OUT HELPERS ===
 static void print_literal(const tac_argument *arg)
@@ -81,8 +82,6 @@ static void print_symbol(const tac_argument *arg)
     print_symbol(arg);                                                                                                 \
     putchar('\n');
 
-// === DEFVAR COLLECTOR ===
-
 // SLL for declared_vars_list vars
 typedef struct declared_var_node_s
 {
@@ -105,6 +104,8 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
         t = tac_get_curr_instruction(tac_l);
         switch (t->op)
         {
+        case TAC_VAL_DEF: // temp
+        case TAC_VAR_DEF:
         case TAC_ASSIGNMENT:
             PRINT_2AC("MOVE", &t->arg1, &t->result)
             break;
@@ -137,14 +138,6 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
             break;
         case TAC_LESSER:
             PRINT_3AC("LT", &t->arg1, &t->arg2, &t->result)
-            break;
-        case TAC_GREATER_EQ:
-            PRINT_3AC("LT", &t->arg1, &t->arg2, &t->result)
-            PRINT_2AC("NOT", &t->result, &t->result)
-            break;
-        case TAC_LESSER_EQ:
-            PRINT_3AC("GT", &t->arg1, &t->arg2, &t->result)
-            PRINT_2AC("NOT", &t->result, &t->result)
             break;
         case TAC_NOT:
             PRINT_2AC("NOT", &t->arg1, &t->result)
@@ -219,9 +212,12 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
                 }
                 tt = tt->next_instruction;
             }
-            for (declared_var_node *next = d_vars_list->next; d_vars_list != NULL;
-                 next = d_vars_list->next, d_vars_list = next) // free list
-                utils_safe_free((void **)&d_vars_list);
+            while (d_vars_list != NULL)
+            {
+                declared_var_node *next = d_vars_list->next;
+                UTILS_SAFE_FREE(&d_vars_list);
+                d_vars_list = next;
+            }
             break;
         case TAC_FUNC_END:
             printf("POPFRAME\n");

@@ -14,11 +14,11 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-typedef enum
+static enum // not used in code, just for definition
 {
-    CG_MOVE, // DEST_SYM SRC_VAR
+    MOVE, // DEST_SYM SRC_VAR
 
-    CG_CREATEFRAME,
+    CREATEFRAME,
     PUSHFRAME, // (TF -> LF)
     POPFRAME,  // (LF -> TF, no TF -> err55)
 

@@ -257,8 +257,8 @@ static int api_test(const char *name)
             if (strcmp(name, "constructor") == 0)
             {
                 passed = scanner->input == input && scanner->attr_table == table && scanner->buffer == NULL &&
-                         scanner->buffer_index == 0 && scanner->buffer_capacity == 0 && scanner->coment_depth == 0 &&
-                         !scanner->comment_sline && scanner->indent_size_s != NULL && scanner->current_line == 1;
+                         scanner->buffer_index == 0 && scanner->buffer_capacity == 0 && scanner->Cdepth == 0 &&
+                         scanner->Pdepth == 0 &&scanner->indent_size_s != NULL && scanner->current_line == 1;
             }
             else if (strcmp(name, "sticky_error") == 0)
             {

@@ -1,0 +1,3 @@
+def g(a: Int,
+      b: Int,
+  ): Unit = ()

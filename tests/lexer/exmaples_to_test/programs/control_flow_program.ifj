@@ -1,0 +1,9 @@
+import ifj26.*
+@main def main(): Unit =
+  var count: Int = 2
+  while count > 0 do
+    if count == 1 then
+      print("last")
+    else
+      print(count)
+    count = count - 1

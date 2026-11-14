@@ -1,4 +1,129 @@
+// @file lexer.h
+//
+// @author 	Maksym Sereda (xseredmd00)
 #ifndef LEXER_H
 #define LEXER_H
+
+#include "attribute_table.h"
+#include "error.h"
+#include "stack.h"
+#include "token.h"
+
+#include <stdbool.h>
+#include <stddef.h>
+
+#define BUFFER_SIZE 128
+
+typedef enum
+{
+    STATE_START,
+    // Operators
+    STATE_DIVIDE,
+    STATE_EQUAL,
+    STATE_NOT,
+    STATE_MORE,
+    STATE_LESS,
+    STATE_OR,
+    STATE_AND,
+    STATE_PLUS,
+
+    // Identifiers
+    STATE_IDENTIFIER,
+    STATE_UNDERSCORE,
+
+    STATE_ANNOTATION,
+    // Literals
+    STATE_STR_START,
+    STATE_STR_END_OR_MULTILN,
+    STATE_STR_MULTILN,
+    STATE_STR_MQ1,
+    STATE_STR_MQ2,
+    STATE_STR_ESCAPE,
+    STATE_STR,
+    STATE_STR_END,
+
+    STATE_DOT,
+    // Integer and double
+    STATE_INT,
+    STATE_UINT,
+    STATE_ZERO,
+    STATE_UZERO,
+    STATE_DOUBLE_START,
+    STATE_UDOUBLE_START,
+
+    STATE_DOT_DOUBLE,
+    STATE_DOUBLE,
+    STATE_UDOUBLE,
+
+    STATE_EXP,
+    STATE_EXP_SIGN,
+    STATE_EXP_PART,
+    STATE_UEXP_PART,
+
+    STATE_D_SUFF,
+    STATE_PROCESS_INT,
+    STATE_PROCESS_DOUBLE,
+
+    STATE_S_COMMENT,
+    STATE_M_COMMENT,
+    STATE_MLINE_DIV,
+    STATE_MLINE_MUL,
+    STATE_WAITING_EOL,
+
+    STATE_NL, // to detect indentation and dedentation, but not to return it as a
+    STATE_INDENT_DIV,
+
+    STATE_COMMA,
+    STATE_DEDENT
+} state;
+
+typedef struct
+{
+    state current_state;
+    FILE *input;
+    attribute_table *attr_table;
+    char *buffer;
+    size_t buffer_index;
+    size_t buffer_capacity;
+    int Cdepth;
+    int Pdepth;
+    bool CSline;
+    bool NL; // need to emit EOL
+
+    // int coment_depth;
+    // bool comment_sline;
+
+    stack *indent_size_s;
+    int indent_cnt;
+    // bool last_was_eol;
+    // bool last_was_eof;
+    // bool empty_line;
+    // int parentaces;
+    // bool m_comment;
+    size_t current_line;
+} lexer;
+
+// @brief creates new attribute_table
+//
+// @param err - pointer to error variable(INTERNAL_MEMORY_ALLOCATION if creation
+// fails)
+// @param input - stream from which lexer will read characters
+// @param attr_table - attribute table for storing token attributes
+//
+// @result - pointer to newly created lexer structure or NULL if creation fails
+lexer *new_lexer(error *err, FILE *input, attribute_table *attr_table);
+
+// @brief frees lexer and its internal buffers (does not close input or free attr_table)
+//
+// @param self - pointer to lexer pointer, set to NULL after freeing
+void lexer_destruct(lexer **self);
+
+// @brief gets next token from input stream and returns it
+//
+// @param self - pointer to lexer structure
+// @param err - pointer to error variable
+//     (if error occurs, token.type will be TOKEN_UNDEFINED)
+// @return next token from input stream
+token lexer_get_next_token(lexer *self, error *err);
 
 #endif

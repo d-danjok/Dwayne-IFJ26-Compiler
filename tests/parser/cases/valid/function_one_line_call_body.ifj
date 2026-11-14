@@ -1,0 +1,2 @@
+import ifj26.*
+def show(x: Int): Unit = print(x)

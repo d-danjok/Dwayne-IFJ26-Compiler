@@ -1,0 +1,8 @@
+import ifj26.*
+def f(): Unit =
+  val a = 1
+  var b = 2
+  val c: Int = 3
+  var d: Double = 4.5
+  val e: String = "text"
+  val g: Unit = ()

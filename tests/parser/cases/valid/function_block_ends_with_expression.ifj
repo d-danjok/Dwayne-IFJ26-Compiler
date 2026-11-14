@@ -1,0 +1,4 @@
+import ifj26.*
+def twice(a: Int): Int =
+  val b = a * 2
+  b

@@ -8,9 +8,7 @@
 #include "utils.h"
 
 #include <ctype.h>
-#include <error.h>
 #include <stdint.h>
-#include <token.h>
 
 // notes: integer followed by dot(1.) -> becomes int(1) and dot(.)(should throw error)
 // TODO: fix indentation handling in braces()
@@ -210,14 +208,8 @@ lexer *new_lexer(error *err, FILE *input, attribute_table *attr_table)
     self->Pdepth = 0;
     self->Cdepth = 0;
     self->CSline = true;
+    self->NL = false;
 
-    // self->coment_depth = 0;
-    // self->comment_sline = false;
-    // self->last_was_eol = false;
-    // self->last_was_eof = false;
-    // self->empty_line = true;
-    // self->parentaces = 0;
-    // self->m_comment = false;
     self->current_line = 1;
 
     return self;
@@ -261,7 +253,7 @@ token lexer_get_next_token(lexer *self, error *err)
             // EOL, EOF
             case '\0':
             case '\n':
-                self->indent_cnt=0;
+                self->indent_cnt = 0;
                 self->current_state = STATE_NL; // could throw errpr on negative par
 
                 break;
@@ -359,7 +351,10 @@ token lexer_get_next_token(lexer *self, error *err)
             if (c == ' ')
                 lexer_get_char(err, &internal_err, in, line);
             else if (c == '\n' && self->Pdepth > 0)
+            {
+                self->indent_cnt = 0;
                 self->current_state = STATE_NL;
+            }
             else
                 res.type = TOKEN_COMMA;
             break;
@@ -505,13 +500,10 @@ token lexer_get_next_token(lexer *self, error *err)
             break;
         case STATE_S_COMMENT:
             c = lexer_get_char(err, &internal_err, in, line);
-            if (c == '\n')
+            if (c == '\n' || internal_err == INTERNAL_END_OF_FILE)
             {
+                self->indent_cnt = 0;
                 self->current_state = STATE_NL;
-            }
-            else if (internal_err == INTERNAL_END_OF_FILE)
-            {
-                res.type = TOKEN_EOF;
             }
             else
                 self->current_state = STATE_S_COMMENT;
@@ -564,8 +556,9 @@ token lexer_get_next_token(lexer *self, error *err)
             break;
         case STATE_WAITING_EOL:
             c = lexer_get_char(err, &internal_err, in, line);
-            if (c == '\n')
+            if (c == '\n' || internal_err == INTERNAL_END_OF_FILE)
             {
+                self->indent_cnt = 0;
                 self->current_state = STATE_NL;
             }
             else if (c == ' ')
@@ -603,23 +596,30 @@ token lexer_get_next_token(lexer *self, error *err)
                     lexer_get_char(err, &internal_err, in, line);
                     self->Pdepth--;
                     res.type = TOKEN_CLOSE_PAREN;
+                    self->current_state = STATE_START;
                 }
             }
             else if (c == '\t')
                 *err = INVALID_INDENTATION;
-            else if (self->Pdepth == 0)
+            else if (self->Pdepth == 0 || internal_err == INTERNAL_END_OF_FILE)
             {
-                if (self->indent_cnt > lexer_indent_top(self, err))
+                res.line = self->current_line;
+                if (self->NL) // a non-empty logical line ends before any INDENT/DEDENT
+                    res.type = TOKEN_EOL;
+                else if (internal_err == INTERNAL_END_OF_FILE)
+                    self->current_state = STATE_DEDENT;
+                else if (self->indent_cnt > lexer_indent_top(self, err))
                 {
                     res.type = TOKEN_INDENT;
-                    res.line = self->current_line;
                     lexer_indent_push(self, err);
                 }
                 else if (self->indent_cnt < lexer_indent_top(self, err))
                     self->current_state = STATE_DEDENT;
                 else
-                    res.type = TOKEN_EOL;
+                    self->current_state = STATE_START;
             }
+            else
+                self->current_state = STATE_START;
             break;
         case STATE_DEDENT:
             if (self->indent_cnt < lexer_indent_top(self, err))
@@ -639,6 +639,10 @@ token lexer_get_next_token(lexer *self, error *err)
                 }
                 res.type = TOKEN_DEDENT;
                 res.line = self->current_line;
+            }
+            else if (internal_err == INTERNAL_END_OF_FILE)
+            {
+                res.type = TOKEN_EOF;
             }
             else
             {
@@ -1117,7 +1121,8 @@ token lexer_get_next_token(lexer *self, error *err)
             return res;
         }
     }
-    if (self->current_state != STATE_DEDENT)
+    if (self->current_state != STATE_DEDENT && self->current_state != STATE_NL)
         self->current_state = STATE_START; // next call starts fresh
+    self->NL = res.type != TOKEN_EOL && res.type != TOKEN_EOF && res.type != TOKEN_INDENT && res.type != TOKEN_DEDENT;
     return res;
 }

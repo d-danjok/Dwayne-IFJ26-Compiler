@@ -88,6 +88,7 @@ typedef struct
     int Cdepth;
     int Pdepth;
     bool CSline;
+    bool NL; // need to emit EOL
 
     // int coment_depth;
     // bool comment_sline;

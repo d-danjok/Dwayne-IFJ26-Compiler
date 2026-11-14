@@ -6,9 +6,16 @@
 #include <math.h>
 #include <stdarg.h>
 
-#define ARGUMENT_ERROR (tac_argument){.type=ARG_ERROR}
-#define ARGUMENT_EMPTY (tac_argument){.type=ARG_EMPTY} // sometimes used as success return type
-
+#define ARGUMENT_ERROR                                                                                                 \
+    (tac_argument)                                                                                                     \
+    {                                                                                                                  \
+        .type = ARG_ERROR                                                                                              \
+    }
+#define ARGUMENT_EMPTY                                                                                                 \
+    (tac_argument)                                                                                                     \
+    {                                                                                                                  \
+        .type = ARG_EMPTY                                                                                              \
+    } // sometimes used as success return type
 
 // @brief Main structure of TAC used only in .c module
 typedef struct
@@ -19,9 +26,9 @@ typedef struct
     unsigned int label_id;
 } tac_prog;
 
-tac_argument tac_emit_statement(error *err, ast_node *stat, tac_prog *prog);
-tac_argument tac_emit_block(error *err, ast_node *block, tac_prog *prog);
-
+static tac_argument tac_emit_statement(error *err, ast_node *stat, tac_prog *prog);
+static tac_argument tac_emit_block(error *err, ast_node *block, tac_prog *prog);
+static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog);
 // @brief Enum of patch_target (where to insert label)
 typedef enum
 {
@@ -118,7 +125,7 @@ static void free_unconsumed_argument(tac_argument arg)
     {                                                                                                                  \
         free_unconsumed_argument(arg);                                                                                 \
         free_unconsumed_argument(arg2);                                                                                \
-        return ARGUMENT_ERROR;                                                                      \
+        return ARGUMENT_ERROR;                                                                                         \
     }                                                                                                                  \
     append_instruction(prog, new_instruction);                                                                         \
     return temp;
@@ -198,6 +205,35 @@ static void append_instruction(tac_prog *prog, tac_instruction *ir_node)
     prog->list->size += 1;
 }
 
+tac_instruction *tac_get_curr_instruction(tac_list *self)
+{
+    if (is_empty(self) || self->curr_instruction == NULL)
+    {
+        return NULL;
+    }
+    if (self->size == 1)
+    {
+        self->curr_instruction = NULL;
+        return self->first_instruction;
+    }
+
+    tac_instruction *tmp = self->curr_instruction;
+    self->curr_instruction = tmp->next_instruction;
+    return tmp;
+}
+tac_instruction *tac_peek_next_instruction(error *err, tac_list *self)
+{
+    if (is_empty(self))
+    {
+        return NULL;
+    }
+    if (self->curr_instruction == NULL)
+    {
+        return NULL;
+    }
+    return self->curr_instruction;
+}
+
 // @brief Function to create temporary variable for a simple tac instructions
 // @return Temporary variable (tn) of type ARG_TEMPORARY_VARIABLE
 static tac_argument create_temporary_variable(tac_argument_value_type expr_type, tac_prog *prog)
@@ -246,33 +282,46 @@ static tac_argument create_new_id(error *err, attribute_table *attr_table, ast_n
     return id_argument;
 }
 
-tac_instruction *tac_get_curr_instruction(tac_list *self)
+// @brief Wrapper function to create proper assignment argument, can create and expression instruction
+// @return Argument of type EXPR if no errors occurred otherwise ERROR
+static tac_argument tac_arg_assignment(error *err, ast_node *node, tac_prog *prog)
 {
-    if (is_empty(self) || self->curr_instruction == NULL)
+    // Creation of assignment argument
+    *err = NONE;
+    tac_argument ass_value = tac_expr_emit(err, node->left_child, prog);
+    if (ass_value.type == ARG_ERROR || *err != NONE)
     {
-        return NULL;
+        free_unconsumed_argument(ass_value);
+        return ARGUMENT_ERROR;
     }
-    if (self->size == 1)
-    {
-        self->curr_instruction = NULL;
-        return self->first_instruction;
-    }
-
-    tac_instruction *tmp = self->curr_instruction;
-    self->curr_instruction = tmp->next_instruction;
-    return tmp;
+    return ass_value;
 }
-tac_instruction *tac_peek_next_instruction(error *err, tac_list *self)
+// @brief Wrapper function to create proper val_def argument(result)
+// @return Argument of type ID if no errors occurred otherwise ERROR
+static tac_argument tac_arg_val_def(error *err, ast_node *val, tac_prog *prog)
 {
-    if (is_empty(self))
+    *err = NONE;
+    ast_node *id = val->left_child->left_child;
+    tac_argument val_variable = create_new_id(err, attr_table, id);
+    if (val_variable.type == ARG_ERROR || *err != NONE)
     {
-        return NULL;
+        return ARGUMENT_ERROR;
     }
-    if (self->curr_instruction == NULL)
+    return val_variable;
+}
+
+// @brief Wrapper function to create proper var_def argument (result)
+// @return Argument of type ID if no errors occurred otherwise ERROR
+static tac_argument tac_arg_var_def(error *err, ast_node *var, tac_prog *prog)
+{
+    *err = NONE;
+    ast_node *id = var->left_child->left_child;
+    tac_argument val_variable = create_new_id(err, attr_table, id);
+    if (val_variable.type == ARG_ERROR || *err != NONE)
     {
-        return NULL;
+        return ARGUMENT_ERROR;
     }
-    return self->curr_instruction;
+    return val_variable;
 }
 
 // @brief Recursive function to  create instructions of expressions  and append them to tac_list
@@ -432,7 +481,7 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
         if (expr->operator == AST_OP_CONCAT)
         {
             tac_argument temp = create_temporary_variable(arg.value_type, prog);
-            ADD_INSTR_RETURN_TEMP(TAC_CONC);// todo:
+            ADD_INSTR_RETURN_TEMP(TAC_CONC); // todo:
         }
 
         if (expr->operator == AST_OP_EQUAL)
@@ -592,52 +641,9 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
     return ARGUMENT_ERROR; // return error if undefined
 }
 
-
-// @brief Wrapper function to create proper assignment argument, can create and expression instruction
-// @return Argument of type EXPR if no errors occurred otherwise ERROR
-tac_argument tac_arg_assignment(error *err, ast_node *node, tac_prog *prog)
-{
-    // Creation of assignment argument
-    *err = NONE;
-    tac_argument ass_value = tac_expr_emit(err, node->left_child, prog);
-    if (ass_value.type == ARG_ERROR || *err != NONE)
-    {
-        free_unconsumed_argument(ass_value);
-        return ARGUMENT_ERROR;
-    }
-    return ass_value;
-}
-// @brief Wrapper function to create proper val_def argument(result)
-// @return Argument of type ID if no errors occurred otherwise ERROR
-tac_argument tac_arg_val_def(error *err, ast_node *val, tac_prog *prog)
-{
-    *err = NONE;
-    ast_node *id = val->left_child->left_child;
-    tac_argument val_variable = create_new_id(err, attr_table, id);
-    if (val_variable.type == ARG_ERROR || *err != NONE)
-    {
-        return ARGUMENT_ERROR;
-    }
-    return val_variable;
-}
-
-// @brief Wrapper function to create proper var_def argument (result)
-// @return Argument of type ID if no errors occurred otherwise ERROR
-tac_argument tac_arg_var_def(error *err, ast_node *var, tac_prog *prog)
-{
-    *err = NONE;
-    ast_node *id = var->left_child->left_child;
-    tac_argument val_variable = create_new_id(err, attr_table, id);
-    if (val_variable.type == ARG_ERROR || *err != NONE)
-    {
-        return ARGUMENT_ERROR;
-    }
-    return val_variable;
-}
-
 // @brief Function to create and append a VAL_DEF/VAR_DEF instruction
 // @return Argument of type EMPTY if no errors occurred otherwise ERROR
-tac_argument tac_emit_definition(error *err, ast_node *def, tac_prog *prog)
+static tac_argument tac_emit_definition(error *err, ast_node *def, tac_prog *prog)
 {
     *err = NONE;
     tac_argument unknown_type_definition = {0};
@@ -698,7 +704,7 @@ tac_argument tac_emit_definition(error *err, ast_node *def, tac_prog *prog)
 
 // @brief Function to create and append a RETURN instruction
 // @return Argument of type EMPTY if no errors occurred otherwise ERROR
-tac_argument tac_emit_return(error* err, ast_node* ret, tac_prog* prog)
+static tac_argument tac_emit_return(error *err, ast_node *ret, tac_prog *prog)
 {
     *err = NONE;
     tac_argument arg1 = (tac_argument){.type = ARG_EMPTY};
@@ -707,12 +713,12 @@ tac_argument tac_emit_return(error* err, ast_node* ret, tac_prog* prog)
     if (ret->left_child != NULL)
     {
         result = tac_arg_assignment(err, ret->left_child, prog);
-        if (result.type == ARG_ERROR || *err != NONE )
+        if (result.type == ARG_ERROR || *err != NONE)
         {
             return ARGUMENT_ERROR;
         }
     }
-    tac_instruction* ret_instruction = create_instruction(err, TAC_RETURN, arg1,arg2, result );
+    tac_instruction *ret_instruction = create_instruction(err, TAC_RETURN, arg1, arg2, result);
     if (ret_instruction == NULL)
     {
         free_unconsumed_argument(result);
@@ -724,7 +730,7 @@ tac_argument tac_emit_return(error* err, ast_node* ret, tac_prog* prog)
 
 // @brief Function to create and append a WHILE instruction
 // @return Argument of type EMPTY if no errors occurred otherwise ERROR
-tac_argument tac_emit_while(error*err, ast_node* while_node, tac_prog* prog)
+static tac_argument tac_emit_while(error *err, ast_node *while_node, tac_prog *prog)
 {
     *err = NONE;
 
@@ -732,7 +738,8 @@ tac_argument tac_emit_while(error*err, ast_node* while_node, tac_prog* prog)
     tac_argument while_body_label = create_label(prog);
     tac_argument outside_while_label = create_label(prog);
 
-    tac_instruction* upper_label = create_instruction(err, TAC_LABEL,ARGUMENT_EMPTY,ARGUMENT_EMPTY, upper_while_label );
+    tac_instruction *upper_label =
+        create_instruction(err, TAC_LABEL, ARGUMENT_EMPTY, ARGUMENT_EMPTY, upper_while_label);
     if (upper_label == NULL || *err != NONE)
     {
         return ARGUMENT_ERROR;
@@ -745,14 +752,15 @@ tac_argument tac_emit_while(error*err, ast_node* while_node, tac_prog* prog)
         return ARGUMENT_ERROR;
     }
 
-    tac_instruction* while_instruction = create_instruction(err, TAC_IF_JUMP, while_body_label, outside_while_label, expr);
+    tac_instruction *while_instruction =
+        create_instruction(err, TAC_IF_JUMP, while_body_label, outside_while_label, expr);
     if (while_instruction == NULL || *err != NONE)
     {
         free_unconsumed_argument(expr);
         return ARGUMENT_ERROR;
     }
     append_instruction(prog, while_instruction);
-    tac_instruction* body_label = create_instruction(err, TAC_LABEL,ARGUMENT_EMPTY,ARGUMENT_EMPTY, while_body_label);
+    tac_instruction *body_label = create_instruction(err, TAC_LABEL, ARGUMENT_EMPTY, ARGUMENT_EMPTY, while_body_label);
     if (body_label == NULL || *err != NONE)
     {
         return ARGUMENT_ERROR;
@@ -764,28 +772,29 @@ tac_argument tac_emit_while(error*err, ast_node* while_node, tac_prog* prog)
     {
         return ARGUMENT_ERROR;
     }
-    tac_instruction* goto_upper_label = create_instruction(err, TAC_GOTO,ARGUMENT_EMPTY,ARGUMENT_EMPTY, upper_while_label);
+    tac_instruction *goto_upper_label =
+        create_instruction(err, TAC_GOTO, ARGUMENT_EMPTY, ARGUMENT_EMPTY, upper_while_label);
     if (goto_upper_label == NULL || *err != NONE)
     {
         free_unconsumed_argument(result);
         return ARGUMENT_ERROR;
     }
-    append_instruction(prog,goto_upper_label);
+    append_instruction(prog, goto_upper_label);
 
-    tac_instruction* outside_label = create_instruction(err, TAC_LABEL, ARGUMENT_EMPTY, ARGUMENT_EMPTY,outside_while_label );
+    tac_instruction *outside_label =
+        create_instruction(err, TAC_LABEL, ARGUMENT_EMPTY, ARGUMENT_EMPTY, outside_while_label);
     if (outside_label == NULL || *err != NONE)
     {
         free_unconsumed_argument(result);
         return ARGUMENT_ERROR;
     }
-    append_instruction(prog,outside_label);
+    append_instruction(prog, outside_label);
     return ARGUMENT_EMPTY;
-
 }
 
 // @brief Function to evaluate a statement
 // @return Argument of type EMPTY if no errors occurred otherwise ERROR
-tac_argument tac_emit_statement(error *err, ast_node *stat, tac_prog *prog)
+static tac_argument tac_emit_statement(error *err, ast_node *stat, tac_prog *prog)
 {
     *err = NONE;
     if (stat->left_child->type == AST_NODE_IDENTIFIER && stat->right_child != NULL &&
@@ -833,7 +842,7 @@ tac_argument tac_emit_statement(error *err, ast_node *stat, tac_prog *prog)
     {
         // TODO: IMPLEMENT
     }
-    else if (stat->left_child->type  == AST_NODE_RETURN)
+    else if (stat->left_child->type == AST_NODE_RETURN)
     {
         return tac_emit_return(err, stat->left_child, prog);
     }
@@ -852,7 +861,7 @@ tac_argument tac_emit_statement(error *err, ast_node *stat, tac_prog *prog)
 
 // @brief Function to evaluate a statement_list'
 // @return Argument of type EMPTY if no errors occurred otherwise ERROR
-tac_argument tac_emit_stat_list_(error *err, ast_node *stat_list_, tac_prog *prog)
+static tac_argument tac_emit_stat_list_(error *err, ast_node *stat_list_, tac_prog *prog)
 {
     *err = NONE;
     if (stat_list_ == NULL)
@@ -868,9 +877,10 @@ tac_argument tac_emit_stat_list_(error *err, ast_node *stat_list_, tac_prog *pro
 }
 // @brief Function to evaluate a block
 // @return Argument of type EMPTY if no errors occurred otherwise ERROR
-tac_argument tac_emit_block(error *err, ast_node *block, tac_prog *prog) {
+static tac_argument tac_emit_block(error *err, ast_node *block, tac_prog *prog)
+{
     *err = NONE;
-    ast_node* stat_list = block->left_child;
+    ast_node *stat_list = block->left_child;
     tac_argument statement = tac_emit_statement(err, stat_list->left_child, prog);
     if (statement.type == ARG_ERROR || *err != NONE)
     {
@@ -884,8 +894,7 @@ tac_argument tac_emit_block(error *err, ast_node *block, tac_prog *prog) {
     return ARGUMENT_EMPTY;
 };
 
-
-void tac_if_emit(error *err, ast_node *node, tac_prog *prog)
+static tac_argument tac_if_emit(error *err, ast_node *node, tac_prog *prog)
 {
 
     *err = NONE;

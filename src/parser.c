@@ -13,7 +13,6 @@
 
 #define EMPTY_TOKEN                                                                                                    \
     (token){.type = TOKEN_UNDEFINED, .attribute_index = -1, .line = 0}                                                 \
-    // TODO: is adapt for actual implementation on lexer branch
 
 typedef struct
 {
@@ -25,6 +24,7 @@ typedef struct
 static size_t current_paren_depth =
     0; // needed to track if we are inside of parentheses to ignore indents and new lines
 static token_input_buffer token_buffer = {.was_stored = false, .content = EMPTY_TOKEN};
+static lexer *lex;
 
 typedef enum
 {
@@ -157,7 +157,7 @@ static token peek_token(error *err, FILE *src_stream, attribute_table *attr_tab)
         return token_buffer.content;
     }
 
-    token_buffer.content = lexer_get_token(); // placeholder TODO: replace with actual lexer function
+    token_buffer.content = lexer_get_next_token(lex, err);
     if (*err != NONE)
     {
         return EMPTY_TOKEN;
@@ -173,7 +173,7 @@ static token get_token(error *err, FILE *src_stream, attribute_table *attr_tab)
 
     if (!(token_buffer.was_stored))
     {
-        return lexer_get_token(); // placeholder TODO: replace with actual lexer function
+        return lexer_get_next_token(lex, err);
     }
 
     const token token_to_return = token_buffer.content;
@@ -261,7 +261,6 @@ static parser_stack_item *literal_stack_item_from_token(error *err, const token 
 
 static bool is_expression_member(const token tok)
 {
-    // TODO: adapt for actual token implementation
     switch (tok.type)
     {
     case TOKEN_IDENTIFIER:
@@ -412,7 +411,7 @@ static bool is_binary_op_node(const ast_node *node)
 static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item **item_to_append,
                                const size_t current_line)
 {
-    // TODO: do a better review of this function, and fix it
+    // TODO: do a better review of this function, and fix it eventually
     *err = NONE;
 
     int current_peek_depth = 0;
@@ -650,12 +649,13 @@ ast_node *parser_run(error *err, FILE *src_stream, attribute_table *attr_tab)
     token_buffer.was_stored = false;
     token_buffer.content = EMPTY_TOKEN;
 
-    // TODO : init_lexer
+    lex = new_lexer(err, src_stream, attr_tab);
 
     ast_node *program = node_program(err, src_stream, attr_tab);
     // error check makes no sense here, if it happened it will simply propagate and return will be NULL anyway
 
-    // TODO : destroy_lexer
+    lexer_destruct(&lex);
+
     return program;
 }
 
@@ -1057,61 +1057,52 @@ static ast_node *node_main_func(error *err, FILE *src_stream, attribute_table *a
         return NULL;
     }
 
-    ast_node *main_func_def_node = new_ast_node(err);
-    if (*err != NONE)
-    {
-        return NULL;
-    }
-    main_func_def_node->type = AST_NODE_MAIN_FUNC_DEF;
-
-    main_func_def_node->src_line_number = current_token.line;
     if (current_token.type != TOKEN_ANNOTATION)
     {
         *err = GENERAL_SYNTAX;
-        ast_node_destruct_recursively(&main_func_def_node);
-
         log_error_expected(TOKEN_ANNOTATION, current_token.type, current_token.line);
+
         return NULL;
     }
+    // TODO: resolve how @main is processed in lexer
 
-    current_token = get_token(err, src_stream, attr_tab);
-    if (*err != NONE)
-    {
-        ast_node_destruct_recursively(&main_func_def_node);
-        return NULL;
-    }
-
-    if (current_token.type != TOKEN_IDENTIFIER)
-    {
-        *err = GENERAL_SYNTAX;
-        log_error_expected(TOKEN_IDENTIFIER, current_token.type, current_token.line);
-        ast_node_destruct_recursively(&main_func_def_node);
-        return NULL;
-    }
-
-    const int annotated_string_attribute_index = current_token.attribute_index;
-    const char *const annotated_string =
-        attribute_table_get_identifier(attr_tab, err, annotated_string_attribute_index);
-    if (*err != NONE)
-    {
-        ast_node_destruct_recursively(&main_func_def_node);
-        return NULL;
-    }
-
-    if (strcmp(annotated_string, "main") != 0)
-    {
-        *err = GENERAL_SYNTAX;
-        log_printf("[%lu] @ can not be used else that in @main annotation, got @%s\n", current_token.line,
-                   annotated_string);
-
-        ast_node_destruct_recursively(&main_func_def_node);
-        return NULL;
-    }
+    // current_token = get_token(err, src_stream, attr_tab);
+    // if (*err != NONE)
+    // {
+    //     ast_node_destruct_recursively(&main_func_def_node);
+    //     return NULL;
+    // }
+    //
+    // if (current_token.type != TOKEN_IDENTIFIER)
+    // {
+    //     *err = GENERAL_SYNTAX;
+    //     log_error_expected(TOKEN_IDENTIFIER, current_token.type, current_token.line);
+    //     ast_node_destruct_recursively(&main_func_def_node);
+    //     return NULL;
+    // }
+    //
+    // const int annotated_string_attribute_index = current_token.attribute_index;
+    // const char *const annotated_string =
+    //     attribute_table_get_identifier(attr_tab, err, annotated_string_attribute_index);
+    // if (*err != NONE)
+    // {
+    //     ast_node_destruct_recursively(&main_func_def_node);
+    //     return NULL;
+    // }
+    //
+    // if (strcmp(annotated_string, "main") != 0)
+    // {
+    //     *err = GENERAL_SYNTAX;
+    //     log_printf("[%lu] @ can not be used else that in @main annotation, got @%s\n", current_token.line,
+    //                annotated_string);
+    //
+    //     ast_node_destruct_recursively(&main_func_def_node);
+    //     return NULL;
+    // }
 
     token next_token = peek_token(err, src_stream, attr_tab); // drop const
     if (*err != NONE)
     {
-        ast_node_destruct_recursively(&main_func_def_node);
         return NULL;
     }
 
@@ -1120,14 +1111,12 @@ static ast_node *node_main_func(error *err, FILE *src_stream, attribute_table *a
         get_token(err, src_stream, attr_tab);
         if (*err != NONE)
         {
-            ast_node_destruct_recursively(&main_func_def_node);
             return NULL;
         }
 
         next_token = peek_token(err, src_stream, attr_tab);
         if (*err != NONE)
         {
-            ast_node_destruct_recursively(&main_func_def_node);
             return NULL;
         }
     }
@@ -1135,18 +1124,18 @@ static ast_node *node_main_func(error *err, FILE *src_stream, attribute_table *a
     if (!(next_token.type == TOKEN_KEYWORD && next_token.attribute_index == KW_DEF))
     {
         *err = GENERAL_SYNTAX;
-        ast_node_destruct_recursively(&main_func_def_node);
 
         log_error_expected(TOKEN_KEYWORD, next_token.type, next_token.line);
         return NULL;
     }
 
-    main_func_def_node->left_child = node_func_def(err, src_stream, attr_tab);
+
+    ast_node *main_func_def_node = node_func_def(err, src_stream, attr_tab);
     if (*err != NONE)
     {
-        ast_node_destruct_recursively(&main_func_def_node);
         return NULL;
     }
+    main_func_def_node->type = AST_NODE_MAIN_FUNC_DEF;
 
     return main_func_def_node;
 }

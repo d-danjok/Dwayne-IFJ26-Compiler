@@ -32,7 +32,8 @@ Most cases use a plain `def f(): Unit =` function and no `@main`. A missing `@ma
 error (3), so the parser must accept such a program. This keeps each case about one feature.
 Cases with the prefix `ext_` need the BOOLTHEN or FUNEXP extension.
 
-A failed case prints the expected and actual code and the log that the parser wrote to stderr.
+A failed case prints the expected and actual code, the log that the parser wrote to stderr, and the
+token trace (see below).
 Code `99` means an internal error. The log then contains the raw internal code, for example
 `internal error code: 207` (`INTERNAL_STACK_IS_EMPTY`).
 
@@ -74,13 +75,26 @@ BINARY_OPERATION + @3
 One line is one node: node type, operator, type and value, `block=N`, `@source line`. A field that
 still has its "unset" value is not printed. `L` is `left_child`, `R` is `right_child`.
 
-## Temporary shims
+## Token trace
 
-Two test-only shims let the tests build before the lexer and parser are fully connected. They do not
-change anything in `src/`:
+When the result is an error, the probe also prints the tokens that the parser read from the lexer, one
+row per logical line. The number at the start of a row is the source line of its first token:
 
-- `lexer_glue.h` maps the placeholder `lexer_get_token()` in `parser.c` to the real
-  `lexer_get_next_token()`. Remove it, and the `-include` flag in `run.py`, when `parser_run()` creates
-  its own lexer.
-- `probe.c` has a weak `log_printf`. `utils.h` declares this function, but the merge removed its
-  definition from `utils.c`. The linker ignores the weak copy when the real function is back.
+```
+tokens read before the error (7, the last one is where reading stopped):
+   1 | KEYWORD(import) IDENTIFIER(ifj26) DOT OPERATOR(*) EOL
+   3 | ANNOTATION KEYWORD(def)
+```
+
+The last token is the last one that the parser asked for. The parser reads one token ahead, so the
+token that it rejected is the last one or the one before it. The trace is part of the log, so
+`run.py` shows it for every failed case and `--ast` shows it for every error.
+
+To record the tokens, `run.py` compiles `parser.c` with
+`-Dlexer_get_next_token=parser_test_next_token`. The wrapper in `probe.c` calls the real lexer and
+stores each token. `parser.c` itself is not changed.
+
+## Temporary shim
+
+`probe.c` has a weak `log_printf`. `utils.h` declares this function, but the merge removed its
+definition from `utils.c`. The linker ignores the weak copy when the real function is back.

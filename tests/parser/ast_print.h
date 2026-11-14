@@ -20,4 +20,9 @@
 // @param attr_tab - table used to resolve identifier names and literal values
 void ast_print(FILE *out, const ast_node *root, const attribute_table *attr_tab);
 
+// @brief prints text in the given quotes with control characters, quotes and backslashes escaped
+//
+// @param text - NULL prints a "missing in attribute table" note
+void ast_print_quoted(FILE *out, const char *text, char quote);
+
 #endif

@@ -118,7 +118,7 @@ static const char *literal_type_name(const ast_literal_type type)
     return "INVALID_TYPE";
 }
 
-static void print_quoted(FILE *out, const char *text, const char quote)
+void ast_print_quoted(FILE *out, const char *text, const char quote)
 {
     if (text == NULL)
     {
@@ -157,7 +157,7 @@ static void print_literal_value(FILE *out, const ast_node *node, const attribute
         break;
     case AST_TYPE_STRING:
         fputc(' ', out);
-        print_quoted(out, attribute_table_get_string(attr_tab, &err, node->attribute_index), '"');
+        ast_print_quoted(out, attribute_table_get_string(attr_tab, &err, node->attribute_index), '"');
         break;
     case AST_TYPE_BOOLEAN:
         fprintf(out, " %s", node->attribute_index ? "true" : "false");
@@ -185,7 +185,7 @@ static void print_node_line(FILE *out, const ast_node *node, const attribute_tab
     {
         error err = NONE;
         fputc(' ', out);
-        print_quoted(out, attribute_table_get_identifier(attr_tab, &err, node->attribute_index), '\'');
+        ast_print_quoted(out, attribute_table_get_identifier(attr_tab, &err, node->attribute_index), '\'');
     }
     else if (node->attribute_index != -1)
         fprintf(out, " attr=%d", node->attribute_index);

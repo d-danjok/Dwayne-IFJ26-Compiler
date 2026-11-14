@@ -18,16 +18,22 @@ TIMEOUT_SECONDS = 5
 
 def build(out_dir, sanitize):
     probe = Path(out_dir) / "probe"
-    sources = [HERE / "probe.c", HERE / "ast_print.c"] + sorted(p for p in SRC.glob("*.c") if p.name != "main.c")
-    command = shlex.split(os.environ.get("CC", "cc")) + ["-std=gnu11", "-g", "-O0", f"-I{SRC}", f"-I{HERE}"]
-    command += ["-include", str(HERE / "lexer_glue.h")]
+    parser_object = Path(out_dir) / "parser.o"
+    sources = [HERE / "probe.c", HERE / "ast_print.c"]
+    sources += sorted(p for p in SRC.glob("*.c") if p.name not in ("main.c", "parser.c"))
+    compiler = shlex.split(os.environ.get("CC", "cc")) + ["-std=gnu11", "-g", "-O0", f"-I{SRC}", f"-I{HERE}"]
     if sanitize:
-        command += ["-fsanitize=address,undefined", "-fno-omit-frame-pointer"]
-    command += [str(s) for s in sources] + ["-lm", "-o", str(probe)]
-    result = subprocess.run(command, capture_output=True, text=True)
-    if result.returncode != 0:
-        print("BUILD FAILED\n" + result.stderr)
-        sys.exit(2)
+        compiler += ["-fsanitize=address,undefined", "-fno-omit-frame-pointer"]
+    # only parser.c gets its lexer calls redirected to the recording wrapper in probe.c
+    commands = [
+        compiler + ["-Dlexer_get_next_token=parser_test_next_token", "-c", str(SRC / "parser.c"), "-o", str(parser_object)],
+        compiler + [str(s) for s in sources] + [str(parser_object), "-lm", "-o", str(probe)],
+    ]
+    for command in commands:
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode != 0:
+            print("BUILD FAILED\n" + result.stderr)
+            sys.exit(2)
     return probe
 
 

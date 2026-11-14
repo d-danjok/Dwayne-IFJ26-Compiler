@@ -27,7 +27,7 @@ typedef struct
 } tac_prog;
 
 static tac_argument tac_emit_statement(error *err, ast_node *stat, tac_prog *prog);
-static tac_argument tac_emit_block(error *err, ast_node *block, tac_prog *prog);
+static tac_argument tac_evaluate_block(error *err, ast_node *block, tac_prog *prog);
 static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog);
 // @brief Enum of patch_target (where to insert label)
 typedef enum
@@ -767,7 +767,7 @@ static tac_argument tac_emit_while(error *err, ast_node *while_node, tac_prog *p
     }
     append_instruction(prog, body_label);
 
-    tac_argument result = tac_emit_block(err, while_node->right_child, prog);
+    tac_argument result = tac_evaluate_block(err, while_node->right_child, prog);
     if (result.type == ARG_ERROR || *err != NONE)
     {
         return ARGUMENT_ERROR;
@@ -792,7 +792,7 @@ static tac_argument tac_emit_while(error *err, ast_node *while_node, tac_prog *p
     return ARGUMENT_EMPTY;
 }
 
-// @brief Function to evaluate a statement
+// @brief Function to evaluate a statement node
 // @return Argument of type EMPTY if no errors occurred otherwise ERROR
 static tac_argument tac_emit_statement(error *err, ast_node *stat, tac_prog *prog)
 {
@@ -859,7 +859,7 @@ static tac_argument tac_emit_statement(error *err, ast_node *stat, tac_prog *pro
     }
 }
 
-// @brief Function to evaluate a statement_list'
+// @brief Function to evaluate a statement_list' node
 // @return Argument of type EMPTY if no errors occurred otherwise ERROR
 static tac_argument tac_emit_stat_list_(error *err, ast_node *stat_list_, tac_prog *prog)
 {
@@ -875,9 +875,9 @@ static tac_argument tac_emit_stat_list_(error *err, ast_node *stat_list_, tac_pr
     }
     return tac_emit_stat_list_(err, stat_list_->right_child, prog);
 }
-// @brief Function to evaluate a block
+// @brief Function to evaluate a block node
 // @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_emit_block(error *err, ast_node *block, tac_prog *prog)
+static tac_argument tac_evaluate_block(error *err, ast_node *block, tac_prog *prog)
 {
     *err = NONE;
     ast_node *stat_list = block->left_child;
@@ -893,6 +893,257 @@ static tac_argument tac_emit_block(error *err, ast_node *block, tac_prog *prog)
     }
     return ARGUMENT_EMPTY;
 };
+
+
+// @brief Function to create and append PARAM instruction
+// @return Argument of type EMPTY if no errors occurred otherwise ERROR
+static tac_argument tac_emit_param(error *err, ast_node *param, tac_prog *prog)
+{
+    *err = NONE;
+    tac_argument new_id_name = create_new_id(err, &attr, param->left_child);
+    if (new_id_name.type == ARG_ERROR)
+    {
+        return ARGUMENT_ERROR;
+    }
+    tac_instruction *param_instruction =
+        create_instruction(err, TAC_PARAM, new_id_name, ARGUMENT_EMPTY, ARGUMENT_EMPTY);
+    if (param_instruction == NULL)
+    {
+        free_unconsumed_argument(new_id_name);
+        return ARGUMENT_ERROR;
+    }
+    append_instruction(prog, param_instruction);
+    return ARGUMENT_EMPTY;
+}
+
+// @brief Function to evaluate a param_list' node
+// @return Argument of type EMPTY if no errors occurred otherwise ERROR
+static tac_argument tac_evaluate_param_list_(error *err, ast_node *param_list_, tac_prog *prog)
+{
+    *err = NONE;
+    if (param_list_ == NULL)
+    {
+        return ARGUMENT_EMPTY;
+    }
+    // <param> Node
+    tac_argument result = tac_emit_param(err, param_list_->left_child, prog);
+    if (result.type == ARG_ERROR || *err != NONE)
+    {
+        return ARGUMENT_ERROR;
+    }
+    // <param_list'> Node
+    return tac_evaluate_param_list_(err, param_list_->right_child, prog);
+}
+
+// @brief Function to evaluate a param_list node
+// @return Argument of type EMPTY if no errors occurred otherwise ERROR
+static tac_argument tac_evaluate_param_list(error *err, ast_node *param_list, tac_prog *prog)
+{
+    *err = NONE;
+    if (param_list->left_child == NULL)
+    {
+        return ARGUMENT_EMPTY;
+    }
+
+    // <param_list> Node
+    if (param_list->left_child->type == AST_NODE_PARAM_LIST)
+    {
+        return tac_evaluate_param_list(err, param_list->left_child, prog);
+    }
+
+    // <param> Node
+    tac_argument result = tac_emit_param(err, param_list->left_child, prog);
+    if (result.type == ARG_ERROR || *err != NONE)
+    {
+        return ARGUMENT_ERROR;
+    }
+    // <param_list'> Node
+    return tac_evaluate_param_list_(err, param_list->right_child, prog);
+}
+
+// @brief Function to create and append FUNC_BEGIN instruction
+// @return Argument of type EMPTY if no errors occurred otherwise ERROR
+static tac_argument tac_emit_func_start(error *err, ast_node *func_start, tac_prog *prog)
+{
+    *err = NONE;
+
+    // func identifier
+    char *func_id = attribute_table_get_identifier(&attr, err, func_start->left_child->left_child->attribute_index);
+    if (*err != NONE)
+    {
+        return ARGUMENT_ERROR;
+    }
+    tac_argument func_id_arg = {
+        .type = ARG_FUNC, .value_type = func_start->left_child->left_child->literal_type, .identifier_name = func_id};
+    tac_instruction *func_start_instruction =
+        create_instruction(err, TAC_FUNC_START, ARGUMENT_EMPTY, ARGUMENT_EMPTY, func_id_arg);
+    if (func_start_instruction == NULL)
+    {
+        return ARGUMENT_ERROR;
+    }
+    append_instruction(prog, func_start_instruction);
+
+    // param_list
+    return tac_evaluate_param_list(err, func_start->right_child->left_child, prog);
+}
+
+// @brief Function to evaluate func_body node
+// @return Argument of type EMPTY if no errors occurred otherwise ERROR
+static tac_argument tac_evaluate_func_body(error *err, ast_node *func_body, tac_prog *prog)
+{
+    *err = NONE;
+    if (func_body->left_child->type == AST_NODE_BLOCK)
+    {
+        return tac_evaluate_block(err, func_body->left_child, prog);
+    }
+    return tac_expr_emit(err, func_body->left_child, prog);
+}
+
+// @brief Function to create and append TAC_MAIN, RETURN, FUNC_END instructions
+// @return Argument of type EMPTY if no errors occurred otherwise ERROR
+static tac_argument tac_emit_main_func(error *err, ast_node *main_func, tac_prog *prog)
+{
+    *err = NONE;
+    ast_node *func_str_node = main_func->left_child;
+    ast_node *func_body_node = main_func->right_child;
+    ast_node *func_name_node = func_str_node->left_child->left_child;
+
+    char *func_id = attribute_table_get_identifier(&attr, err, func_name_node->attribute_index);
+    if (*err != NONE)
+    {
+        return ARGUMENT_ERROR;
+    }
+
+    tac_argument func_id_arg = {
+        .type = ARG_FUNC, .value_type = (tac_argument_value_type)func_name_node->literal_type, .identifier_name = func_id};
+
+    // TAC_MAIN instruction
+    tac_instruction *main_func_instruction =
+        create_instruction(err, TAC_MAIN, ARGUMENT_EMPTY, ARGUMENT_EMPTY, func_id_arg);
+    if (main_func_instruction == NULL)
+    {
+        return ARGUMENT_ERROR;
+    }
+    append_instruction(prog, main_func_instruction);
+
+    // <func_start> Node
+    tac_argument result = tac_emit_func_start(err, func_str_node, prog);
+    if (result.type == ARG_ERROR || *err != NONE)
+    {
+        return ARGUMENT_ERROR;
+    }
+
+    // <func_body> Node
+    tac_argument body_result = tac_evaluate_func_body(err, func_body_node, prog);
+    if (body_result.type == ARG_ERROR || *err != NONE)
+    {
+        return ARGUMENT_ERROR;
+    }
+
+    // RETURN and FUNC_END instructions
+    if (func_body_node->left_child->type != AST_NODE_BLOCK)
+    {
+        tac_instruction *ret = create_instruction(err, TAC_RETURN, ARGUMENT_EMPTY, ARGUMENT_EMPTY, body_result);
+        if (ret == NULL)
+        {
+            free_unconsumed_argument(body_result);
+            return ARGUMENT_ERROR;
+        }
+        append_instruction(prog, ret);
+    }
+
+    tac_instruction *func_end = create_instruction(err, TAC_FUNC_END, ARGUMENT_EMPTY, ARGUMENT_EMPTY, func_id_arg);
+    if (func_end == NULL)
+    {
+        return ARGUMENT_ERROR;
+    }
+    append_instruction(prog, func_end);
+    return ARGUMENT_EMPTY;
+}
+
+// @brief Function to create and append RETURN, FUNC_END instructions
+// @return Argument of type EMPTY if no errors occurred otherwise ERROR
+static tac_argument tac_emit_func(error *err, ast_node *func_def, tac_prog *prog)
+{
+    *err = NONE;
+
+    ast_node *start = func_def->left_child;
+    ast_node *body = func_def->right_child;
+    ast_node *id = start->left_child->left_child;
+
+    char *name = attribute_table_get_identifier(&attr, err, id->attribute_index);
+    if (*err != NONE)
+    {
+        return ARGUMENT_ERROR;
+    }
+    tac_argument func_id = {
+        .type = ARG_FUNC, .value_type = (tac_argument_value_type)id->literal_type, .identifier_name = name};
+
+    // <func_start> Node
+    tac_argument result = tac_emit_func_start(err, start, prog);
+    if (*err != NONE || result.type == ARG_ERROR)
+    {
+        return ARGUMENT_ERROR;
+    }
+
+    // <func_body> Node
+    tac_argument body_result = tac_evaluate_func_body(err, body, prog);
+    if (*err != NONE || body_result.type == ARG_ERROR)
+    {
+        return ARGUMENT_ERROR;
+    }
+
+    // RETURN and FUNC_END instructions
+    if (body->left_child->type != AST_NODE_BLOCK)
+    {
+        tac_instruction *ret = create_instruction(err, TAC_RETURN, ARGUMENT_EMPTY, ARGUMENT_EMPTY, body_result);
+        if (ret == NULL)
+        {
+            free_unconsumed_argument(body_result);
+            return ARGUMENT_ERROR;
+        }
+        append_instruction(prog, ret);
+    }
+
+    tac_instruction *end = create_instruction(err, TAC_FUNC_END, ARGUMENT_EMPTY, ARGUMENT_EMPTY, func_id);
+    if (end == NULL)
+    {
+        return ARGUMENT_ERROR;
+    }
+    append_instruction(prog, end);
+    return ARGUMENT_EMPTY;
+}
+
+// @brief Function to evaluate func_list node
+// @return Argument of type EMPTY if no errors occurred otherwise ERROR
+static tac_argument tac_evaluate_func_list(error *err, ast_node *def_list, tac_prog *prog)
+{
+    *err = NONE;
+    tac_argument result = {0};
+
+    if (def_list == NULL)
+    {
+        return ARGUMENT_EMPTY;
+    }
+
+    //  <main_func> || <func_def> path
+    if (def_list->left_child->type == AST_NODE_MAIN_FUNC_DEF)
+    {
+        result = tac_emit_main_func(err, def_list->left_child, prog);
+    }
+    else
+    {
+        result = tac_emit_func(err, def_list->left_child, prog);
+    }
+
+    if (result.type == ARG_ERROR || *err != NONE)
+    {
+        return ARGUMENT_ERROR;
+    }
+
+    // <def_list> path
+    return tac_evaluate_func_list(err, def_list->right_child, prog);
+}
 
 static tac_argument tac_if_emit(error *err, ast_node *node, tac_prog *prog)
 {

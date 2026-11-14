@@ -35,4 +35,7 @@ Dev branches are meant for merging more branches together for integration, so th
 
 * Pull request for every change, do not commit directly to branch
 
+* Naming format:
+  `<dev branch name>/<type (same as for commmit)>/<name>`
+
 # ! MORE THAN 1 PERSON SHOULD NEVER WORK ON SINGLE BRANCH 

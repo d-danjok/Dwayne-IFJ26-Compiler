@@ -193,7 +193,7 @@ static ast_node *id_node_from_token(error *err, const token tok)
     id_node->type = AST_NODE_IDENTIFIER;
     id_node->src_line_number = tok.line;
     id_node->attribute_index = tok.attribute_index;
-    id_node->literal_type = (ast_literal_type)tok.type;
+    id_node->literal_type = AST_TYPE_NONE;
 
     return id_node;
 }
@@ -214,27 +214,27 @@ static parser_stack_item *literal_stack_item_from_token(error *err, const token 
     switch (tok.type)
     {
     case TOKEN_INT:
-        node->attribute_index = AST_TYPE_INT;
+        node->literal_type = AST_TYPE_INT;
 
         break;
 
     case TOKEN_DOUBLE:
-        node->attribute_index = AST_TYPE_DOUBLE;
+        node->literal_type = AST_TYPE_DOUBLE;
 
         break;
 
     case TOKEN_STRING:
-        node->attribute_index = AST_TYPE_STRING;
+        node->literal_type = AST_TYPE_STRING;
 
         break;
 
     case TOKEN_UNIT:
-        node->attribute_index = AST_TYPE_UNIT;
+        node->literal_type = AST_TYPE_UNIT;
 
         break;
 
     case TOKEN_BOOLEAN:
-        node->attribute_index = AST_TYPE_BOOLEAN;
+        node->literal_type = AST_TYPE_BOOLEAN;
 
         break;
 
@@ -409,6 +409,7 @@ static bool is_binary_op_node(const ast_node *node)
 static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item **item_to_append,
                                const size_t current_line)
 {
+    // TODO: do a better review of this function, and fix it
     *err = NONE;
 
     int current_peek_depth = 0;
@@ -428,7 +429,7 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
         *err = NONE;
     }
 
-    while (!uses_virtual_terminator && current_item->precedential_type != PRECEDENTIAL_NON_EVALUATABLE)
+    while (!uses_virtual_terminator && current_item->precedential_type == PRECEDENTIAL_NON_EVALUATABLE)
     {
         current_peek_depth++;
 
@@ -641,6 +642,9 @@ static ast_node *node_call_param(error *err, FILE *src_stream, attribute_table *
 ast_node *parser_run(error *err, FILE *src_stream, attribute_table *attr_tab)
 {
     *err = NONE;
+    current_paren_depth = 0;
+    token_buffer.was_stored = false;
+    token_buffer.content = EMPTY_TOKEN;
 
     // TODO : init_lexer
 
@@ -664,7 +668,7 @@ static ast_node *node_program(error *err, FILE *src_stream, attribute_table *att
     if (current_token.type != TOKEN_KEYWORD || current_token.attribute_index != KW_IMPORT)
     {
         *err = PROLOGUE_MISSING;
-        log_printf("FATAL: [%lu] program should start with prologue\r\n");
+        log_printf("FATAL: [%lu] program should start with prologue\r\n", current_token.line);
 
         return NULL;
     }
@@ -675,8 +679,16 @@ static ast_node *node_program(error *err, FILE *src_stream, attribute_table *att
         return NULL;
     }
 
-    const int prologue_string_attribute_index = current_token.attribute_index;
-    const char *const prologue_string = attribute_table_get_string(attr_tab, err, prologue_string_attribute_index);
+    if (current_token.type != TOKEN_IDENTIFIER)
+    {
+        *err = PROLOGUE_MISSING;
+        log_error_expected(TOKEN_IDENTIFIER, current_token.type, current_token.line);
+        return NULL;
+    }
+
+    const int prologue_identifier_attribute_index = current_token.attribute_index;
+    const char *const prologue_string =
+        attribute_table_get_identifier(attr_tab, err, prologue_identifier_attribute_index);
     if (*err != NONE)
     {
         return NULL;
@@ -685,7 +697,7 @@ static ast_node *node_program(error *err, FILE *src_stream, attribute_table *att
     if (strcmp(prologue_string, "ifj26") != 0)
     {
         *err = PROLOGUE_MISSING;
-        log_printf("[%lu] %s can not be used as prologue\n", prologue_string);
+        log_printf("[%lu] %s can not be used as prologue\n", current_token.line, prologue_string);
 
         return NULL;
     }
@@ -718,6 +730,18 @@ static ast_node *node_program(error *err, FILE *src_stream, attribute_table *att
         log_token_type(current_token.type);
         log_printf("\n");
 
+        return NULL;
+    }
+
+    current_token = get_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
+    if (current_token.type != TOKEN_EOL)
+    {
+        *err = PROLOGUE_MISSING;
+        log_error_expected(TOKEN_EOL, current_token.type, current_token.line);
         return NULL;
     }
 
@@ -762,6 +786,7 @@ static ast_node *node_def_list(error *err, FILE *src_stream, attribute_table *at
     ast_node *func_def_list_node = new_ast_node(err);
     if (*err != NONE)
     {
+        ast_node_destruct_recursively(&node_to_append);
         return NULL;
     }
     func_def_list_node->type = AST_NODE_DEF_LIST;
@@ -936,7 +961,7 @@ static ast_node *node_type_notation(error *err, FILE *src_stream, attribute_tabl
     if (!is_type(next_token))
     {
         *err = GENERAL_SYNTAX;
-        log_printf("[%lu] expected: type got: ");
+        log_printf("[%lu] expected: type got: ", next_token.line);
         log_token_type(next_token.type);
         log_printf("\n");
 
@@ -964,7 +989,7 @@ static ast_node *node_type_notation(error *err, FILE *src_stream, attribute_tabl
         break;
     default:
         *err = GENERAL_SYNTAX;
-        log_printf("[%lu] expected: type got: ");
+        log_printf("[%lu] expected: type got: ", next_token.line);
         log_token_type(next_token.type);
         log_printf("\n");
 
@@ -1052,8 +1077,17 @@ static ast_node *node_main_func(error *err, FILE *src_stream, attribute_table *a
         return NULL;
     }
 
+    if (current_token.type != TOKEN_IDENTIFIER)
+    {
+        *err = GENERAL_SYNTAX;
+        log_error_expected(TOKEN_IDENTIFIER, current_token.type, current_token.line);
+        ast_node_destruct_recursively(&main_func_def_node);
+        return NULL;
+    }
+
     const int annotated_string_attribute_index = current_token.attribute_index;
-    const char *const annotated_string = attribute_table_get_string(attr_tab, err, annotated_string_attribute_index);
+    const char *const annotated_string =
+        attribute_table_get_identifier(attr_tab, err, annotated_string_attribute_index);
     if (*err != NONE)
     {
         ast_node_destruct_recursively(&main_func_def_node);
@@ -1063,7 +1097,8 @@ static ast_node *node_main_func(error *err, FILE *src_stream, attribute_table *a
     if (strcmp(annotated_string, "main") != 0)
     {
         *err = GENERAL_SYNTAX;
-        log_printf("[%lu] @ can not be used else that in @main annotation, got @%s\n", annotated_string);
+        log_printf("[%lu] @ can not be used else that in @main annotation, got @%s\n", current_token.line,
+                   annotated_string);
 
         ast_node_destruct_recursively(&main_func_def_node);
         return NULL;
@@ -1118,6 +1153,9 @@ static ast_node *node_func_start(error *err, FILE *src_stream, attribute_table *
     ast_node *func_start_node = new_ast_node(err);
     if (*err != NONE)
     {
+        ast_node_destruct_recursively(&func_name_node);
+        ast_node_destruct_recursively(&func_head_node);
+
         return NULL;
     }
     func_start_node->type = AST_NODE_FUNC_START;
@@ -1156,6 +1194,7 @@ static ast_node *node_func_head(error *err, FILE *src_stream, attribute_table *a
     ast_node *func_head_node = new_ast_node(err);
     if (*err != NONE)
     {
+        ast_node_destruct_recursively(&param_list_node);
         return NULL;
     }
     func_head_node->type = AST_NODE_FUNC_HEAD;
@@ -1227,7 +1266,7 @@ static ast_node *node_func_head(error *err, FILE *src_stream, attribute_table *a
     default:
         *err = GENERAL_SYNTAX;
 
-        log_printf("[%lu] ");
+        log_printf("[%lu] ", next_token.line);
         log_token_type(next_token.type);
         log_printf(" can not be used as type\n");
 
@@ -1280,6 +1319,7 @@ static ast_node *node_func_name(error *err, FILE *src_stream, attribute_table *a
         return NULL;
     }
 
+    func_name->type = AST_NODE_FUNC_NAME;
     func_name->left_child = id_node_from_token(err, current_token);
     if (*err != NONE)
     {
@@ -1298,6 +1338,27 @@ static ast_node *node_param_list(error *err, FILE *src_stream, attribute_table *
     if (*err != NONE)
     {
         return NULL;
+    }
+
+    token next_token = peek_token(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        ast_node_destruct_recursively(&param_list);
+        return NULL;
+    }
+
+    if (next_token.type == TOKEN_CLOSE_PAREN)
+    {
+        get_token(err, src_stream, attr_tab);
+        if (*err != NONE)
+        {
+            ast_node_destruct_recursively(&param_list);
+            return NULL;
+        }
+        current_paren_depth--;
+        param_list->type = AST_NODE_PARAM_LIST;
+        param_list->src_line_number = next_token.line;
+        return param_list;
     }
 
     param_list->left_child = node_param(err, src_stream, attr_tab);
@@ -1334,6 +1395,7 @@ static ast_node *node_param_list_(error *err, FILE *src_stream, attribute_table 
 
     if (current_token.type == TOKEN_CLOSE_PAREN) // not and error, just list end
     {
+        current_paren_depth--;
         return NULL;
     }
     if (current_token.type != TOKEN_COMMA)
@@ -1405,6 +1467,7 @@ static ast_node *node_param(error *err, FILE *src_stream, attribute_table *attr_
     get_token(err, src_stream, attr_tab); // we dont need info, only capture err
     if (*err != NONE)
     {
+        ast_node_destruct_recursively(&id_node);
         return NULL;
     }
     if (current_token.type != TOKEN_COLON)
@@ -1419,6 +1482,17 @@ static ast_node *node_param(error *err, FILE *src_stream, attribute_table *attr_
     current_token = get_token(err, src_stream, attr_tab);
     if (*err != NONE)
     {
+        ast_node_destruct_recursively(&id_node);
+        return NULL;
+    }
+
+    if (!is_type(current_token))
+    {
+        *err = GENERAL_SYNTAX;
+        log_printf("[%lu] expected a type, got: ", current_token.line);
+        log_token_type(current_token.type);
+        log_printf("\n");
+        ast_node_destruct_recursively(&id_node);
         return NULL;
     }
 
@@ -1450,7 +1524,7 @@ static ast_node *node_param(error *err, FILE *src_stream, attribute_table *attr_
     default:
         *err = GENERAL_SYNTAX;
 
-        log_printf("[%lu] ");
+        log_printf("[%lu] ", current_token.line);
         log_token_type(current_token.type);
         log_printf(" can not be used as type\n");
 
@@ -1506,7 +1580,7 @@ static ast_node *node_func_body(error *err, FILE *src_stream, attribute_table *a
         return NULL;
     }
 
-    func_body->type = AST_NODE_PARAM;
+    func_body->type = AST_NODE_FUNC_BODY;
     func_body->src_line_number = current_token.line;
 
     if (next_token.type == TOKEN_EOL)
@@ -1819,6 +1893,7 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
                                                      const bool can_be_assignment)
 {
     *err = NONE;
+    const size_t expression_paren_depth = current_paren_depth;
     stack *expression_parse_stack = new_stack(err);
     if (*err != NONE)
     {
@@ -1841,7 +1916,11 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
 
     while (is_expression_member(next_token))
     {
-        // TODO: implement actual algorithm
+        if (next_token.type == TOKEN_CLOSE_PAREN && current_paren_depth <= expression_paren_depth)
+        {
+            break;
+        }
+
         switch (next_token.type)
         {
         case TOKEN_IDENTIFIER:
@@ -1873,7 +1952,8 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
                         *err = GENERAL_SYNTAX;
                         ast_node_destruct_recursively(&tmp_node);
 
-                        log_printf("[%lu] assignment sign \"=\" can not be used inside of an expression\n");
+                        log_printf("[%lu] assignment sign \"=\" can not be used inside of an expression\n",
+                                   next_token.line);
                         return NULL;
                     }
 
@@ -1930,6 +2010,7 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
                 return NULL;
             }
 
+            prev_symbol_was_operand = true;
             break;
 
         case TOKEN_OPERATOR: {
@@ -2087,6 +2168,12 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
             break;
 
         case TOKEN_CLOSE_PAREN:
+            if (current_paren_depth <= expression_paren_depth)
+            {
+                *err = GENERAL_SYNTAX;
+                parser_stack_destruct(&expression_parse_stack, err);
+                return NULL;
+            }
             current_paren_depth--;
 
             item = new_parser_stack_item(err, PRECEDENTIAL_RPAREN);
@@ -2101,8 +2188,9 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
             break;
 
         default:
-            log_printf("[%lu] ", current_token.line);
-            log_token_type(current_token.type);
+            *err = GENERAL_SYNTAX;
+            log_printf("[%lu] ", next_token.line);
+            log_token_type(next_token.type);
             log_printf(" cannon be an expression member\n");
 
             parser_stack_destruct(&expression_parse_stack, err);
@@ -2136,6 +2224,14 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
         }
     } // processing loop end
 
+    if (current_paren_depth != expression_paren_depth)
+    {
+        *err = GENERAL_SYNTAX;
+        parser_stack_destruct(&expression_parse_stack, err);
+        log_printf("[%lu] unmatched opening parenthesis in expression\n", next_token.line);
+        return NULL;
+    }
+
     parser_stack_item *terminator_item = new_parser_stack_item(err, PRECEDENTIAL_EXPR_TERMINATOR);
     if (*err != NONE)
     {
@@ -2156,21 +2252,43 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
     // E
     // $ <- this is basically virtual, since it is not by fact on stack
 
-    stack_pop(expression_parse_stack, err); // just popping $
+    parser_stack_item *terminator = stack_pop(expression_parse_stack, err);
+    if (*err != NONE)
+    {
+        parser_stack_destruct(&expression_parse_stack, err);
+        return NULL;
+    }
+    if (terminator == NULL || terminator->item_type != ITEM_TERMINATOR ||
+        terminator->precedential_type != PRECEDENTIAL_EXPR_TERMINATOR)
+    {
+        parser_stack_item_destruct(&terminator);
+        *err = GENERAL_SYNTAX;
+        parser_stack_destruct(&expression_parse_stack, err);
+        return NULL;
+    }
+    parser_stack_item_destruct(&terminator);
+
+    parser_stack_item *expression_item = stack_pop(expression_parse_stack, err);
     if (*err != NONE)
     {
         parser_stack_destruct(&expression_parse_stack, err);
         return NULL;
     }
 
-    ast_node *expression = stack_pop(expression_parse_stack, err);
-    if (*err != NONE)
+    if (expression_item == NULL || expression_item->item_type != ITEM_AST_NODE ||
+        expression_item->item_ast_node == NULL || expression_item->precedential_type != PRECEDENTIAL_NON_EVALUATABLE ||
+        stack_get_item_count(expression_parse_stack) != 0)
     {
+        parser_stack_item_destruct(&expression_item);
+        *err = GENERAL_SYNTAX;
         parser_stack_destruct(&expression_parse_stack, err);
         return NULL;
     }
 
-    stack_destruct(&expression_parse_stack); // it shouzld be empty now, so just using std function
+    ast_node *expression = expression_item->item_ast_node;
+    expression_item->item_ast_node = NULL;
+    parser_stack_item_destruct(&expression_item);
+    stack_destruct(&expression_parse_stack);
 
     return expression;
 }
@@ -2353,9 +2471,6 @@ static ast_node *node_if_list_(error *err, FILE *src_stream, attribute_table *at
     }
     if (next_token.type != TOKEN_KEYWORD || next_token.attribute_index != KW_ELSE)
     {
-        *err = GENERAL_SYNTAX;
-        log_error_expected(TOKEN_KEYWORD, next_token.type, next_token.line);
-
         return NULL;
     }
 

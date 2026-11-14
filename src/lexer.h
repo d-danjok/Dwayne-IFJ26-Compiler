@@ -66,10 +66,15 @@ typedef enum
 
     STATE_S_COMMENT,
     STATE_M_COMMENT,
+    STATE_MLINE_DIV,
+    STATE_MLINE_MUL,
     STATE_WAITING_EOL,
 
-    STATE_EOL, // to detect indentation and dedentation, but not to return it as a
+    STATE_NL, // to detect indentation and dedentation, but not to return it as a
     STATE_INDENT_DIV,
+
+    STATE_COMMA,
+    STATE_DEDENT
 } state;
 
 typedef struct
@@ -80,15 +85,20 @@ typedef struct
     char *buffer;
     size_t buffer_index;
     size_t buffer_capacity;
-    int coment_depth;
-    bool comment_sline;
+    int Cdepth;
+    int Pdepth;
+    bool CSline;
+
+    // int coment_depth;
+    // bool comment_sline;
+
     stack *indent_size_s;
     int indent_cnt;
-    bool last_was_eol;
-    bool last_was_eof;
-    bool empty_line;
-    int parentaces;
-    bool m_comment;
+    // bool last_was_eol;
+    // bool last_was_eof;
+    // bool empty_line;
+    // int parentaces;
+    // bool m_comment;
     size_t current_line;
 } lexer;
 

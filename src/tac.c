@@ -21,6 +21,7 @@
 typedef struct
 {
     tac_list *list;
+    attribute_table* attr_table;
     unsigned int temporary_var_id;
     unsigned int instruction_id;
     unsigned int label_id;
@@ -1126,7 +1127,7 @@ static tac_argument tac_evaluate_func_list(error *err, ast_node *def_list, tac_p
         return ARGUMENT_EMPTY;
     }
 
-    //  <main_func> || <func_def> path
+    //  <main_func> || <func_def> Node
     if (def_list->left_child->type == AST_NODE_MAIN_FUNC_DEF)
     {
         result = tac_emit_main_func(err, def_list->left_child, prog);
@@ -1141,7 +1142,7 @@ static tac_argument tac_evaluate_func_list(error *err, ast_node *def_list, tac_p
         return ARGUMENT_ERROR;
     }
 
-    // <def_list> path
+    // <def_list> Node
     return tac_evaluate_func_list(err, def_list->right_child, prog);
 }
 
@@ -1179,6 +1180,29 @@ static tac_argument tac_if_emit(error *err, ast_node *node, tac_prog *prog)
     append_to_backpatch_list(err, if_stm, false_labels, PATCH_ARG2);
 }
 
-tac_list *tac_generate(error *err, ast_node *node)
+tac_list *tac_generate(error *err, ast_node **root, attribute_table* attr_table)
 {
+    *err = NONE;
+    tac_prog prog = {0};
+    prog.attr_table = attr_table;
+
+    new_tac_prog(err, &prog);
+    if (*err != NONE)
+    {
+        tac_log_print("Error occurred during creation of TAC Program!\n");
+        ast_node_destruct_recursively(root);
+        return NULL;
+    }
+    tac_argument result = tac_evaluate_func_list(err, *root, &prog);
+    ast_node_destruct_recursively(root);
+
+    if (result.type == ARG_ERROR || *err != NONE)
+    {
+        tac_log_print("Error occurred during creation of TAC instructions!\n");
+        tac_list_destruct(prog.list);
+        *err = GENERAL_INTERNAL;
+        return NULL;
+    }
+
+    return prog.list;
 }

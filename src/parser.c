@@ -734,7 +734,8 @@ static ast_node *node_func_body(error *err, FILE *src_stream, attribute_table *a
 
 static ast_node *node_block(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_stat_list(error *err, FILE *src_stream, attribute_table *attr_tab);
-static ast_node *node_stat_list_(error *err, FILE *src_stream, attribute_table *attr_tab);
+static ast_node *node_stat_list_(error *err, FILE *src_stream, attribute_table *attr_tab,
+                                 bool newline_consumed_by_caller);
 static ast_node *node_statement(error *err, FILE *src_stream, attribute_table *attr_tab);
 static ast_node *node_definition(error *err, FILE *src_stream, attribute_table *attr_tab);
 
@@ -1855,7 +1856,9 @@ static ast_node *node_stat_list(error *err, FILE *src_stream, attribute_table *a
     stat_list->src_line_number = statement_node->src_line_number;
     stat_list->left_child = statement_node;
 
-    stat_list->right_child = node_stat_list_(err, src_stream, attr_tab);
+    const bool newline_was_consumed = statement_node->left_child->type == AST_NODE_IF_LIST ||
+                                    statement_node->left_child->type == AST_NODE_WHILE;
+    stat_list->right_child = node_stat_list_(err, src_stream, attr_tab, newline_was_consumed);
     if (*err != NONE)
     {
         ast_node_destruct_recursively(&stat_list);
@@ -1864,23 +1867,12 @@ static ast_node *node_stat_list(error *err, FILE *src_stream, attribute_table *a
     return stat_list;
 }
 
-static ast_node *node_stat_list_(error *err, FILE *src_stream, attribute_table *attr_tab)
+static ast_node *node_stat_list_(error *err, FILE *src_stream, attribute_table *attr_tab,
+                                 bool newline_consumed_by_caller)
 {
     *err = NONE;
 
-    const token current_token = get_token(err, src_stream, attr_tab);
-    if (*err != NONE)
-    {
-        return NULL;
-    }
-    if (current_token.type != TOKEN_EOL && current_token.type != TOKEN_SEMICOLON)
-    {
-        *err = GENERAL_SYNTAX;
-        log_printf("[%lu] expected end of statement\n", current_token.line);
-        return NULL;
-    }
-
-    const token next_token = peek_token(err, src_stream, attr_tab);
+    token next_token = peek_token(err, src_stream, attr_tab);
     if (*err != NONE)
     {
         return NULL;
@@ -1888,6 +1880,31 @@ static ast_node *node_stat_list_(error *err, FILE *src_stream, attribute_table *
     if (next_token.type == TOKEN_DEDENT)
     {
         return NULL;
+    }
+    if (next_token.type != TOKEN_EOL && next_token.type != TOKEN_SEMICOLON && !newline_consumed_by_caller)
+    {
+        *err = GENERAL_SYNTAX;
+        log_printf("[%lu] expected end of statement\n", next_token.line);
+        return NULL;
+    }
+
+    if (next_token.type == TOKEN_EOL || next_token.type == TOKEN_SEMICOLON)
+    {
+        get_token(err, src_stream, attr_tab);
+        if (*err != NONE)
+        {
+            return NULL;
+        }
+
+        next_token = peek_token(err, src_stream, attr_tab);
+        if (*err != NONE)
+        {
+            return NULL;
+        }
+        if (next_token.type == TOKEN_DEDENT)
+        {
+            return NULL;
+        }
     }
 
     ast_node *statement_node = node_statement(err, src_stream, attr_tab);
@@ -1906,7 +1923,9 @@ static ast_node *node_stat_list_(error *err, FILE *src_stream, attribute_table *
     stat_list_->src_line_number = statement_node->src_line_number;
     stat_list_->left_child = statement_node;
 
-    stat_list_->right_child = node_stat_list_(err, src_stream, attr_tab);
+    const bool newline_was_consumed = statement_node->left_child->type == AST_NODE_IF_LIST ||
+                                    statement_node->left_child->type == AST_NODE_WHILE;
+    stat_list_->right_child = node_stat_list_(err, src_stream, attr_tab, newline_was_consumed);
     if (*err != NONE)
     {
         ast_node_destruct_recursively(&stat_list_);

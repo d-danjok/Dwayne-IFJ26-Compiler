@@ -2334,6 +2334,14 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
         }
     } // processing loop end
 
+    if (!prev_symbol_was_operand)
+    {
+        *err = GENERAL_SYNTAX;
+        parser_stack_destruct(&expression_parse_stack, err);
+        log_printf("[%lu] last expression item was not operand\n", next_token.line);
+        return NULL;
+    }
+
     if (current_paren_depth != expression_paren_depth)
     {
         *err = GENERAL_SYNTAX;

@@ -407,6 +407,11 @@ static bool is_binary_op_node(const ast_node *node)
     return node->type == AST_NODE_BINARY_OPERATION;
 }
 
+static bool is_valid_operand(const ast_node *node)
+{
+    return node->type == AST_NODE_LITERAL || node->type == AST_NODE_IDENTIFIER;
+}
+
 static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item **item_to_append,
                                const size_t current_line)
 {
@@ -513,6 +518,13 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
             ast_node *operand = operand_item->item_ast_node;
             UTILS_SAFE_FREE(&operand_item);
 
+            if (!is_valid_operand(operand))
+            {
+                *err = GENERAL_SYNTAX;
+                log_printf("[%lu] invalid character combination inside of an expression", current_line);
+                return;
+            }
+
             parser_stack_item *operator_item = stack_pop(parse_stack, err);
             if (*err != NONE)
             {
@@ -540,6 +552,13 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
             ast_node *right_operand = right_operand_item->item_ast_node;
             UTILS_SAFE_FREE(&right_operand_item);
 
+            if (!is_valid_operand(right_operand))
+            {
+                *err = GENERAL_SYNTAX;
+                log_printf("[%lu] invalid character combination inside of an expression", current_line);
+                return;
+            }
+
             parser_stack_item *operator_item = stack_pop(parse_stack, err);
             if (*err != NONE)
             {
@@ -549,10 +568,21 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
             parser_stack_item *left_operand_item = stack_pop(parse_stack, err);
             if (*err != NONE)
             {
+                // error can only happen here if there is no left operand on stack,
+                // that can only happen is expression was invalid
+                *err = GENERAL_SYNTAX;
+                log_printf("[%lu] invalid character combination inside of an expression", current_line);
                 return;
             }
             ast_node *left_operand = left_operand_item->item_ast_node;
             UTILS_SAFE_FREE(&left_operand_item);
+
+            if (!is_valid_operand(left_operand))
+            {
+                *err = GENERAL_SYNTAX;
+                log_printf("[%lu] invalid character combination inside of an expression", current_line);
+                return;
+            }
 
             operator_item->item_ast_node->left_child = left_operand;
             operator_item->item_ast_node->right_child = right_operand;

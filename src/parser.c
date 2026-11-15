@@ -76,12 +76,12 @@ static const operator_priority precedence_table[PRECEDENTIAL_EXPR_TERMINATOR + 1
     {GR, GR, GR, GR, LS, GR, GR, GR, GR, GR, GR, LS, GR, GR, LS, GR, LS, GR}, // *
     {GR, GR, GR, GR, LS, GR, GR, GR, GR, GR, GR, LS, GR, GR, LS, GR, LS, GR}, // /
     {GR, GR, GR, GR, LS, GR, GR, GR, GR, GR, GR, LS, GR, GR, LS, GR, LS, GR}, // u-
-    {LS, LS, LS, LS, LS, IV, IV, IV, IV, IV, IV, LS, GR, GR, LS, GR, LS, GR}, // <
-    {LS, LS, LS, LS, LS, IV, IV, IV, IV, IV, IV, LS, GR, GR, LS, GR, LS, GR}, // <=
-    {LS, LS, LS, LS, LS, IV, IV, IV, IV, IV, IV, LS, GR, GR, LS, GR, LS, GR}, // >
-    {LS, LS, LS, LS, LS, IV, IV, IV, IV, IV, IV, LS, GR, GR, LS, GR, LS, GR}, // >=
-    {LS, LS, LS, LS, LS, IV, IV, IV, IV, IV, IV, LS, GR, GR, LS, GR, LS, GR}, // ==
-    {LS, LS, LS, LS, LS, IV, IV, IV, IV, IV, IV, LS, GR, GR, LS, GR, LS, GR}, // !=
+    {LS, LS, LS, LS, LS, IV, IV, IV, IV, GR, GR, LS, GR, GR, LS, GR, LS, GR}, // <
+    {LS, LS, LS, LS, LS, IV, IV, IV, IV, GR, GR, LS, GR, GR, LS, GR, LS, GR}, // <=
+    {LS, LS, LS, LS, LS, IV, IV, IV, IV, GR, GR, LS, GR, GR, LS, GR, LS, GR}, // >
+    {LS, LS, LS, LS, LS, IV, IV, IV, IV, GR, GR, LS, GR, GR, LS, GR, LS, GR}, // >=
+    {LS, LS, LS, LS, LS, LS, LS, LS, LS, IV, IV, LS, GR, GR, LS, GR, LS, GR}, // ==
+    {LS, LS, LS, LS, LS, LS, LS, LS, LS, IV, IV, LS, GR, GR, LS, GR, LS, GR}, // !=
     {GR, GR, GR, GR, GR, GR, GR, GR, GR, GR, GR, LS, GR, GR, LS, GR, LS, GR}, // !
     {LS, LS, LS, LS, LS, LS, LS, LS, LS, LS, LS, LS, GR, GR, LS, GR, LS, GR}, // &&
     {LS, LS, LS, LS, LS, LS, LS, LS, LS, LS, LS, LS, LS, GR, LS, GR, LS, GR}, // ||

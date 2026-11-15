@@ -133,3 +133,14 @@ double utils_string_to_double(error *err, char *string)
     }
     return num;
 }
+
+void log_printf(const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+
+    va_end(args);
+}

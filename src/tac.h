@@ -5,6 +5,7 @@
 #define TAC_H
 
 #include "ast.h"
+#include "attribute_table.h"
 #include "utils.h"
 
 // @brief Enum of possible operation in TAC
@@ -19,7 +20,7 @@ typedef enum
     TAC_CALL, // (CALL, FUNC_NAME, NUM_OF_PARAMS, RESULT), NUM_OF_PARAMS = how many params func have, RESULT = return of
               // function call
     TAC_GOTO, // (GOTO, ---, ---, NAME_OF_LABEL)
-    TAC_PARAM,      // (PARAM, PARAM_1, ---, ---) || (PARAM, ID_PARAM, ---, ID)
+    TAC_PARAM,      // (PARAM, PARAM_1, ---, ---)
     TAC_ASSIGNMENT, // (ASSIGNMENT, OPERAND_1, ---, RESULT), FOR EX. X = 10 => (ASSIGMENT, 10, ---, X)
     TAC_RETURN,     // (RETURN, ---, ---, RESULT), RESULT = computed operand or identifier
     TAC_IF_JUMP,    // (IF_JUMP, TRUE_LABEL, FALSE_LABEL, RESULT), RESULT = computed operand
@@ -108,6 +109,10 @@ typedef struct
 
 // @brief Destroy tac_list
 void tac_list_destruct(tac_list *self);
+
+
+//
+tac_list* tac_generate(error* err, ast_node** root, attribute_table* attr_table);
 
 // @brief Gets current instruction and moves pointer to the next one
 // @return Pointer to current_instruction in the list

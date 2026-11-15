@@ -1,7 +1,6 @@
 // @brief Implementation of TAC (Three Address Code)
 // @author Oleksandr Fedorenko (xfedoro00)
 #include "tac.h"
-#include "attribute_table.h"
 
 #include <math.h>
 #include <stdarg.h>
@@ -30,6 +29,10 @@ typedef struct
 static tac_argument tac_emit_statement(error *err, ast_node *stat, tac_prog *prog);
 static tac_argument tac_evaluate_block(error *err, ast_node *block, tac_prog *prog);
 static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog);
+static tac_argument tac_evaluate_param_list(error *err, ast_node *param_list, tac_prog *prog);
+static tac_argument tac_evaluate_param_list_(error *err, ast_node *param_list_, tac_prog *prog);
+static tac_argument tac_emit_param(error *err, ast_node *param, tac_prog *prog);
+
 // @brief Enum of patch_target (where to insert label)
 typedef enum
 {
@@ -167,7 +170,27 @@ static bool is_empty(tac_list *self)
     return self->first_instruction == NULL;
 }
 
-// @brief Function to create a new instruction (OP, ARG1, ARG2, RESULT)
+void tac_list_destruct(tac_list* self)
+{
+    if (self == NULL)
+    {
+        return;
+    }
+
+    tac_instruction* curr = self->first_instruction;
+    while (curr != NULL)
+    {
+        tac_instruction* next = curr->next_instruction;
+        free_unconsumed_argument(curr->result);
+        free_unconsumed_argument(curr->arg1);
+        free_unconsumed_argument(curr->arg2);
+        free(curr);
+        curr = next;
+    }
+    free(self);
+}
+
+// @brief Function to create a new instzruction (OP, ARG1, ARG2, RESULT)
 // @return New instruction tac_instruction
 static tac_instruction *create_instruction(error *err, const tac_operator op, const tac_argument arg1,
                                            const tac_argument arg2, const tac_argument result)
@@ -303,7 +326,7 @@ static tac_argument tac_arg_val_def(error *err, ast_node *val, tac_prog *prog)
 {
     *err = NONE;
     ast_node *id = val->left_child->left_child;
-    tac_argument val_variable = create_new_id(err, attr_table, id);
+    tac_argument val_variable = create_new_id(err, prog->attr_table, id);
     if (val_variable.type == ARG_ERROR || *err != NONE)
     {
         return ARGUMENT_ERROR;
@@ -317,13 +340,76 @@ static tac_argument tac_arg_var_def(error *err, ast_node *var, tac_prog *prog)
 {
     *err = NONE;
     ast_node *id = var->left_child->left_child;
-    tac_argument val_variable = create_new_id(err, attr_table, id);
+    tac_argument val_variable = create_new_id(err, prog->attr_table, id);
     if (val_variable.type == ARG_ERROR || *err != NONE)
     {
         return ARGUMENT_ERROR;
     }
     return val_variable;
 }
+
+static tac_argument tac_emit_call_param(error *err, ast_node *call_param, tac_prog *prog, long long int* num_of_args)
+{
+    *err = NONE;
+    tac_argument expr = tac_expr_emit(err, call_param->left_child, prog);
+    if (expr.type == ARG_ERROR || *err != NONE)
+    {
+        return ARGUMENT_ERROR;
+    }
+    tac_instruction* call_param_instruction = create_instruction(err, TAC_PARAM, expr, ARGUMENT_EMPTY, ARGUMENT_EMPTY);
+    if (call_param_instruction == NULL)
+    {
+        free_unconsumed_argument(expr);
+        return ARGUMENT_ERROR;
+    }
+    *num_of_args += 1;
+    append_instruction(prog, call_param_instruction);
+    return ARGUMENT_EMPTY;
+}
+
+
+
+static tac_argument tac_evaluate_call_param_list_(error *err, ast_node *call_param_list_, tac_prog *prog, long long int* num_of_args)
+{
+    *err = NONE;
+    if (call_param_list_ == NULL)
+    {
+        return ARGUMENT_EMPTY;
+    }
+    // <call_param> Node
+    tac_argument result = tac_emit_call_param(err, call_param_list_->left_child, prog, num_of_args);
+    if (result.type == ARG_ERROR || *err != NONE)
+    {
+        return ARGUMENT_ERROR;
+    }
+    // <call_params'> Node
+    return tac_evaluate_call_param_list_(err, call_param_list_->right_child, prog,num_of_args);
+}
+
+static tac_argument tac_evaluate_call_param_list(error *err, ast_node *call_param_list, tac_prog *prog, long long int* num_of_args)
+{
+    *err = NONE;
+    if (call_param_list->left_child == NULL)
+    {
+        return ARGUMENT_EMPTY;
+    }
+
+    // <call_params> Node
+    if (call_param_list->left_child->type == AST_NODE_CALL_PARAMS)
+    {
+        return tac_evaluate_call_param_list(err, call_param_list->left_child, prog, num_of_args);
+    }
+
+    // <call_param> Node
+    tac_argument result = tac_emit_call_param(err, call_param_list->left_child, prog, num_of_args);
+    if (result.type == ARG_ERROR || *err != NONE)
+    {
+        return ARGUMENT_ERROR;
+    }
+    // <call_params'> Node
+    return tac_evaluate_call_param_list_(err, call_param_list->right_child, prog, num_of_args);
+}
+
 
 // @brief Recursive function to  create instructions of expressions  and append them to tac_list
 // @return Argument of instruction
@@ -336,7 +422,7 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
         switch (expr->literal_type)
         {
         case AST_TYPE_INT:
-            literal.const_int = (long long int)attribute_table_get_integer(&attr_tabl, err, expr->attribute_index);
+            literal.const_int = (long long int)attribute_table_get_integer(prog->attr_table, err, expr->attribute_index);
             if (*err != NONE)
             {
                 return ARGUMENT_ERROR;
@@ -345,7 +431,7 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
             literal.value_type = ARG_INT;
             break;
         case AST_TYPE_DOUBLE:
-            literal.const_double = attribute_table_get_double(&attr_tabl, err, expr->attribute_index);
+            literal.const_double = attribute_table_get_double(prog->attr_table, err, expr->attribute_index);
             if (*err != NONE)
             {
                 return ARGUMENT_ERROR;
@@ -354,7 +440,7 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
             literal.value_type = ARG_FLOAT;
             break;
         case AST_TYPE_STRING:
-            literal.const_str = attribute_table_get_string(&attr_tabl, err, expr->attribute_index);
+            literal.const_str = attribute_table_get_string(prog->attr_table, err, expr->attribute_index);
             if (*err != NONE)
             {
                 return ARGUMENT_ERROR;
@@ -378,31 +464,58 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
         }
         return literal;
     }
+    if (expr->type == AST_NODE_FUNC_CALL)
+    {
+        long long int num_of_args = 0;
+        tac_argument result_param = tac_evaluate_call_param_list(err, expr->right_child, prog, &num_of_args);
+
+        if (result_param.type == ARG_ERROR || *err != NONE)
+        {
+            return ARGUMENT_ERROR;
+        }
+
+        tac_argument param_number = {.type = ARG_LITERAL, .value_type = ARG_INT, .const_int = num_of_args};
+        tac_argument result = create_temporary_variable(expr->left_child->literal_type, prog);
+
+        char* func_name = attribute_table_get_identifier(prog->attr_table, err, expr->left_child->attribute_index);
+        if (*err != NONE )
+        {
+            return ARGUMENT_ERROR;
+        }
+
+        tac_argument func_name_argument = {.type = ARG_FUNC, .value_type = expr->left_child->literal_type, .identifier_name = func_name};
+        tac_instruction* func_call_instruction = create_instruction(err, TAC_CALL, func_name_argument, param_number, result);
+
+        if (func_call_instruction == NULL)
+        {
+            return ARGUMENT_ERROR;
+        }
+        append_instruction(prog,func_call_instruction);
+        return result;
+    }
     if (expr->type == AST_NODE_IDENTIFIER)
     {
         tac_argument id = {0};
 
         id.type = ARG_ID;
         id.value_type = expr->literal_type;
+
         // We are getting id_name and preserving scope (id_scopeid)
-        char *id_name = attribute_table_get_identifier(&attr_table, err, expr->attribute_index);
+        char *id_name = attribute_table_get_identifier(prog->attr_table, err, expr->attribute_index);
         if (*err != NONE)
         {
-            // TODO: ERROR
             return ARGUMENT_ERROR;
         }
         int new_size = snprintf(NULL, 0, "%s_%ld", id_name, expr->block_index);
         if (new_size < 0)
         {
             *err = GENERAL_INTERNAL;
-            // TODO: ERROR
             return ARGUMENT_ERROR;
         }
 
         id.identifier_name = utils_safe_malloc(err, (size_t)(new_size + 1));
         if (*err != NONE)
         {
-            // TODO: ERROR
             return ARGUMENT_ERROR;
         }
         snprintf(id.identifier_name, (size_t)(new_size + 1), "%s_%ld", id_name, expr->block_index);
@@ -458,6 +571,31 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
             return ARGUMENT_ERROR;
         }
 
+        // Create additional instruction to clear this instruction id properly
+        if (expr->operator == AST_OP_GREATER_EQUAL || expr->operator == AST_OP_LESS_EQUAL)
+        {
+            tac_argument *operands[] = {&arg, &arg2};
+            for (int i = 0; i < 2; ++i)
+            {
+                if (operands[i]->type != ARG_ID)
+                {
+                    continue;
+                }
+
+                tac_argument temp = create_temporary_variable(operands[i]->value_type, prog);
+                tac_instruction *copy = create_instruction(
+                    err, TAC_ASSIGNMENT, *operands[i], ARGUMENT_EMPTY, temp);
+                if (copy == NULL)
+                {
+                    free_unconsumed_argument(arg);
+                    free_unconsumed_argument(arg2);
+                    return ARGUMENT_ERROR;
+                }
+                append_instruction(prog, copy);
+                *operands[i] = temp;
+            }
+        }
+
         if (expr->operator == AST_OP_PLUS)
         {
             tac_argument temp = create_temporary_variable(arg.value_type, prog);
@@ -477,12 +615,6 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
         {
             tac_argument temp = create_temporary_variable(arg.value_type, prog);
             ADD_INSTR_RETURN_TEMP(TAC_DIV);
-        }
-
-        if (expr->operator == AST_OP_CONCAT)
-        {
-            tac_argument temp = create_temporary_variable(arg.value_type, prog);
-            ADD_INSTR_RETURN_TEMP(TAC_CONC); // todo:
         }
 
         if (expr->operator == AST_OP_EQUAL)
@@ -802,7 +934,7 @@ static tac_argument tac_emit_statement(error *err, ast_node *stat, tac_prog *pro
         stat->right_child->type == AST_NODE_ASSIGN_VAL)
     {
         // ASSIGNMENT INSTRUCTION BRANCH
-        tac_argument id = create_new_id(err, attr, stat->left_child);
+        tac_argument id = create_new_id(err, prog->attr_table, stat->left_child);
         if (id.type == ARG_ERROR || *err != NONE)
         {
             return ARGUMENT_ERROR;
@@ -901,7 +1033,7 @@ static tac_argument tac_evaluate_block(error *err, ast_node *block, tac_prog *pr
 static tac_argument tac_emit_param(error *err, ast_node *param, tac_prog *prog)
 {
     *err = NONE;
-    tac_argument new_id_name = create_new_id(err, &attr, param->left_child);
+    tac_argument new_id_name = create_new_id(err, prog->attr_table, param->left_child);
     if (new_id_name.type == ARG_ERROR)
     {
         return ARGUMENT_ERROR;
@@ -969,7 +1101,7 @@ static tac_argument tac_emit_func_start(error *err, ast_node *func_start, tac_pr
     *err = NONE;
 
     // func identifier
-    char *func_id = attribute_table_get_identifier(&attr, err, func_start->left_child->left_child->attribute_index);
+    char *func_id = attribute_table_get_identifier(prog->attr_table, err, func_start->left_child->left_child->attribute_index);
     if (*err != NONE)
     {
         return ARGUMENT_ERROR;
@@ -1009,7 +1141,7 @@ static tac_argument tac_emit_main_func(error *err, ast_node *main_func, tac_prog
     ast_node *func_body_node = main_func->right_child;
     ast_node *func_name_node = func_str_node->left_child->left_child;
 
-    char *func_id = attribute_table_get_identifier(&attr, err, func_name_node->attribute_index);
+    char *func_id = attribute_table_get_identifier(prog->attr_table, err, func_name_node->attribute_index);
     if (*err != NONE)
     {
         return ARGUMENT_ERROR;
@@ -1072,7 +1204,7 @@ static tac_argument tac_emit_func(error *err, ast_node *func_def, tac_prog *prog
     ast_node *body = func_def->right_child;
     ast_node *id = start->left_child->left_child;
 
-    char *name = attribute_table_get_identifier(&attr, err, id->attribute_index);
+    char *name = attribute_table_get_identifier(prog->attr_table, err, id->attribute_index);
     if (*err != NONE)
     {
         return ARGUMENT_ERROR;
@@ -1200,9 +1332,14 @@ tac_list *tac_generate(error *err, ast_node **root, attribute_table* attr_table)
     {
         tac_log_print("Error occurred during creation of TAC instructions!\n");
         tac_list_destruct(prog.list);
-        *err = GENERAL_INTERNAL;
+
+        // If error happened in ARG_ERROR
+        if (*err == NONE)
+        {
+            *err = GENERAL_INTERNAL;
+        }
+
         return NULL;
     }
-
     return prog.list;
 }

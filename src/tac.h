@@ -31,10 +31,10 @@ typedef enum
                     // BOOLEAN
     TAC_LESSER, // (LESSER, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 < op_2), RESULT = BOOLEAN
     TAC_NOT,    // (NOT, OPERAND_1, ---, RESULT), RESULT = result of expression (!op_1), RESULT = BOOLEAN
-    TAC_FUNC_START,   // (TAC_FUNC_START, ---, ---, FUNC_NAME)
-    TAC_FUNC_END,     // (TAC_FUNC_END, ---, ---, FUNC_NAME)
-    TAC_OR,           // (OR, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 || op_2)
-    TAC_AND,          // (AND, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 && op_2)
+    TAC_FUNC_START, // (TAC_FUNC_START, ---, ---, FUNC_NAME)
+    TAC_FUNC_END,   // (TAC_FUNC_END, ---, ---, FUNC_NAME)
+    TAC_OR,         // (OR, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 || op_2)
+    TAC_AND,        // (AND, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 && op_2)
     TAC_VAR_DEF, // (VAR_DEF, OPERAND_1, ---, RESULT) RESULT = defined variable for ex. var x = 10 => (VAR_DEF, 10, ---,
                  // x)
     TAC_VAL_DEF  // (VAL_DEF, OPERAND_1, ---, RESULT) RESULT = defined variable for ex. val x = 10 => (VAL_DEF, 10, ---,
@@ -109,9 +109,8 @@ typedef struct
 // @brief Destroy tac_list
 void tac_list_destruct(tac_list *self);
 
-
 //
-tac_list* tac_generate(error* err, ast_node** root, attribute_table* attr_table);
+tac_list *tac_generate(error *err, ast_node **root, attribute_table *attr_table);
 
 // @brief Gets current instruction and moves pointer to the next one
 // @return Pointer to current_instruction in the list

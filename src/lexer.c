@@ -265,7 +265,7 @@ token lexer_get_next_token(lexer *self, error *err)
                 self->current_state = STATE_AND;
                 break;
             case ',':
-                self->current_state = STATE_COMMA;
+                res.type = TOKEN_COMMA;
                 break;
             case ':':
                 res.type = TOKEN_COLON;
@@ -348,18 +348,6 @@ token lexer_get_next_token(lexer *self, error *err)
             res.line = self->current_line;
         }
         break;
-        case STATE_COMMA:
-            c = lexer_peek_char(err, &internal_err, in, 0);
-            if (c == ' ')
-                lexer_get_char(err, &internal_err, in, line);
-            else if (c == '\n' && self->Pdepth > 0)
-            {
-                self->indent_cnt = 0;
-                self->current_state = STATE_NL;
-            }
-            else
-                res.type = TOKEN_COMMA;
-            break;
 
         // ANNOTATION
         case STATE_ANNOTATION: {
@@ -589,17 +577,12 @@ token lexer_get_next_token(lexer *self, error *err)
                 self->indent_cnt = 0;
                 self->current_state = STATE_INDENT_DIV;
             }
-            else if (c == ')' && self->Pdepth > 0)
+            else if (self->Pdepth > 0)
             {
                 if (self->indent_cnt < lexer_indent_top(self, err))
-                    *err = INVALID_INDENTATION;
+                    *err = INVALID_PARENTACES_INDENTATION;
                 else
-                {
-                    lexer_get_char(err, &internal_err, in, line);
-                    self->Pdepth--;
-                    res.type = TOKEN_CLOSE_PAREN;
                     self->current_state = STATE_START;
-                }
             }
             else if (c == '\t')
                 *err = INVALID_INDENTATION;

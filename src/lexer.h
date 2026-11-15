@@ -73,7 +73,6 @@ typedef enum
     STATE_NL, // to detect indentation and dedentation, but not to return it as a
     STATE_INDENT_DIV,
 
-    STATE_COMMA,
     STATE_DEDENT
 } state;
 

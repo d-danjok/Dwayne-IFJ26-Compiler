@@ -409,7 +409,9 @@ static bool is_binary_op_node(const ast_node *node)
 
 static bool is_valid_operand(const ast_node *node)
 {
-    return node->type == AST_NODE_LITERAL || node->type == AST_NODE_IDENTIFIER;
+    return node->type == AST_NODE_LITERAL || node->type == AST_NODE_IDENTIFIER ||
+           node->type == AST_NODE_FUNC_CALL || node->type == AST_NODE_UNARY_OPERATION ||
+           node->type == AST_NODE_BINARY_OPERATION;
 }
 
 static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item **item_to_append,
@@ -453,37 +455,72 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
     }
 
     if (current_item->precedential_type == PRECEDENTIAL_LPAREN &&
-        (*item_to_append)->precedential_type == PRECEDENTIAL_RPAREN) // special case for ()
+        (*item_to_append)->precedential_type == PRECEDENTIAL_RPAREN)
     {
-        parser_stack_item *lparen_item = stack_pop(parse_stack, err);
-        if (*err != NONE)
+        if (current_peek_depth == 0)
         {
+            parser_stack_item *lparen_item = stack_pop(parse_stack, err);
+            if (*err != NONE)
+            {
+                return;
+            }
+
+            parser_stack_item_destruct(&lparen_item);
+            parser_stack_item_destruct(item_to_append);
+
+            parser_stack_item *unit_item = new_parser_stack_item(err, PRECEDENTIAL_OPERAND);
+            if (*err != NONE)
+            {
+                return;
+            }
+
+            ast_node *unit_node = new_ast_node(err);
+            if (*err != NONE)
+            {
+                parser_stack_item_destruct(&unit_item);
+                return;
+            }
+            unit_node->type = AST_NODE_LITERAL;
+            unit_node->literal_type = AST_TYPE_UNIT;
+            unit_node->src_line_number = current_line;
+
+            unit_item->item_ast_node = unit_node;
+            unit_item->item_type = ITEM_AST_NODE;
+            unit_item->is_marked = true;
+
+            stack_push(parse_stack, err, (void **)&unit_item);
             return;
         }
 
-        parser_stack_item_destruct(&lparen_item);
+        if (current_peek_depth == 1)
+        {
+            parser_stack_item *expression_item = stack_pop(parse_stack, err);
+            if (*err != NONE)
+            {
+                return;
+            }
+            parser_stack_item *lparen_item = stack_pop(parse_stack, err);
+            if (*err != NONE)
+            {
+                parser_stack_item_destruct(&expression_item);
+                return;
+            }
+            parser_stack_item_destruct(&lparen_item);
+            parser_stack_item_destruct(item_to_append);
+
+            expression_item->precedential_type = PRECEDENTIAL_OPERAND;
+            expression_item->is_marked = true;
+            stack_push(parse_stack, err, (void **)&expression_item);
+            if (*err != NONE)
+            {
+                parser_stack_item_destruct(&expression_item);
+            }
+            return;
+        }
+
+        *err = GENERAL_SYNTAX;
         parser_stack_item_destruct(item_to_append);
-
-        parser_stack_item *unit_item = new_parser_stack_item(err, PRECEDENTIAL_OPERAND);
-        if (*err != NONE)
-        {
-            return;
-        }
-
-        ast_node *unit_node = new_ast_node(err);
-        if (*err != NONE)
-        {
-            parser_stack_item_destruct(&unit_item);
-            return;
-        }
-        unit_node->type = AST_NODE_LITERAL;
-        unit_node->src_line_number = current_line;
-
-        unit_item->item_ast_node = unit_node;
-        unit_item->item_type = ITEM_AST_NODE;
-        unit_item->is_marked = true;
-
-        stack_push(parse_stack, err, (void **)unit_item);
+        log_printf("[%lu] invalid character combination inside of an expression", current_line);
         return;
     }
 
@@ -508,7 +545,9 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
             return;
         }
 
-        if (current_item->item_type == ITEM_AST_NODE && is_unary_op_node(current_item->item_ast_node))
+        if (current_item->item_type == ITEM_AST_NODE &&
+            current_item->precedential_type != PRECEDENTIAL_OPERAND &&
+            is_unary_op_node(current_item->item_ast_node))
         {
             parser_stack_item *operand_item = stack_pop(parse_stack, err);
             if (*err != NONE)
@@ -542,7 +581,9 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
                 return;
             }
         }
-        else if (current_item->item_type == ITEM_AST_NODE && is_binary_op_node(current_item->item_ast_node))
+        else if (current_item->item_type == ITEM_AST_NODE &&
+                 current_item->precedential_type != PRECEDENTIAL_OPERAND &&
+                 is_binary_op_node(current_item->item_ast_node))
         {
             parser_stack_item *right_operand_item = stack_pop(parse_stack, err);
             if (*err != NONE)
@@ -1503,6 +1544,16 @@ static ast_node *node_param_list_(error *err, FILE *src_stream, attribute_table 
         {
             return NULL;
         }
+    }
+    if (next_token.type == TOKEN_CLOSE_PAREN && next_token.line > current_token.line)
+    {
+        get_token(err, src_stream, attr_tab);
+        if (*err != NONE)
+        {
+            return NULL;
+        }
+        current_paren_depth--;
+        return NULL;
     }
 
     ast_node *param_list_ = new_ast_node(err);

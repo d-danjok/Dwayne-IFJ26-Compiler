@@ -261,6 +261,9 @@ token lexer_get_next_token(lexer *self, error *err)
             case '|':
                 self->current_state = STATE_OR;
                 break;
+            case '&':
+                self->current_state = STATE_AND;
+                break;
             case ',':
                 self->current_state = STATE_COMMA;
                 break;

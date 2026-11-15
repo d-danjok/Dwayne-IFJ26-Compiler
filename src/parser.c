@@ -410,9 +410,8 @@ static bool is_binary_op_node(const ast_node *node)
 
 static bool is_valid_operand(const ast_node *node)
 {
-    return node->type == AST_NODE_LITERAL || node->type == AST_NODE_IDENTIFIER ||
-           node->type == AST_NODE_FUNC_CALL || node->type == AST_NODE_UNARY_OPERATION ||
-           node->type == AST_NODE_BINARY_OPERATION;
+    return node->type == AST_NODE_LITERAL || node->type == AST_NODE_IDENTIFIER || node->type == AST_NODE_FUNC_CALL ||
+           node->type == AST_NODE_UNARY_OPERATION || node->type == AST_NODE_BINARY_OPERATION;
 }
 
 static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item **item_to_append,
@@ -546,8 +545,7 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
             return;
         }
 
-        if (current_item->item_type == ITEM_AST_NODE &&
-            current_item->precedential_type != PRECEDENTIAL_OPERAND &&
+        if (current_item->item_type == ITEM_AST_NODE && current_item->precedential_type != PRECEDENTIAL_OPERAND &&
             is_unary_op_node(current_item->item_ast_node))
         {
             parser_stack_item *operand_item = stack_pop(parse_stack, err);
@@ -582,8 +580,7 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
                 return;
             }
         }
-        else if (current_item->item_type == ITEM_AST_NODE &&
-                 current_item->precedential_type != PRECEDENTIAL_OPERAND &&
+        else if (current_item->item_type == ITEM_AST_NODE && current_item->precedential_type != PRECEDENTIAL_OPERAND &&
                  is_binary_op_node(current_item->item_ast_node))
         {
             parser_stack_item *right_operand_item = stack_pop(parse_stack, err);
@@ -735,13 +732,11 @@ static ast_node *node_func_body(error *err);
 
 static ast_node *node_block(error *err);
 static ast_node *node_stat_list(error *err);
-static ast_node *node_stat_list_(error *err,
-                                 bool newline_consumed_by_caller);
+static ast_node *node_stat_list_(error *err, bool newline_consumed_by_caller);
 static ast_node *node_statement(error *err);
 static ast_node *node_definition(error *err);
 
-static ast_node *node_expression_or_assignment_to_id(error *err,
-                                                     bool can_be_assignment);
+static ast_node *node_expression_or_assignment_to_id(error *err, bool can_be_assignment);
 static ast_node *node_while_loop(error *err);
 static ast_node *node_return_statement(error *err);
 static ast_node *node_assign_val(error *err);
@@ -1858,8 +1853,8 @@ static ast_node *node_stat_list(error *err)
     stat_list->src_line_number = statement_node->src_line_number;
     stat_list->left_child = statement_node;
 
-    const bool newline_was_consumed = statement_node->left_child->type == AST_NODE_IF_LIST ||
-                                    statement_node->left_child->type == AST_NODE_WHILE;
+    const bool newline_was_consumed =
+        statement_node->left_child->type == AST_NODE_IF_LIST || statement_node->left_child->type == AST_NODE_WHILE;
     stat_list->right_child = node_stat_list_(err, newline_was_consumed);
     if (*err != NONE)
     {
@@ -1869,8 +1864,7 @@ static ast_node *node_stat_list(error *err)
     return stat_list;
 }
 
-static ast_node *node_stat_list_(error *err,
-                                 bool newline_consumed_by_caller)
+static ast_node *node_stat_list_(error *err, bool newline_consumed_by_caller)
 {
     *err = NONE;
 
@@ -1925,8 +1919,8 @@ static ast_node *node_stat_list_(error *err,
     stat_list_->src_line_number = statement_node->src_line_number;
     stat_list_->left_child = statement_node;
 
-    const bool newline_was_consumed = statement_node->left_child->type == AST_NODE_IF_LIST ||
-                                    statement_node->left_child->type == AST_NODE_WHILE;
+    const bool newline_was_consumed =
+        statement_node->left_child->type == AST_NODE_IF_LIST || statement_node->left_child->type == AST_NODE_WHILE;
     stat_list_->right_child = node_stat_list_(err, newline_was_consumed);
     if (*err != NONE)
     {
@@ -2094,8 +2088,7 @@ static ast_node *node_definition(error *err)
     return definition;
 }
 
-static ast_node *node_expression_or_assignment_to_id(error *err,
-                                                     const bool can_be_assignment)
+static ast_node *node_expression_or_assignment_to_id(error *err, const bool can_be_assignment)
 {
     *err = NONE;
     const size_t expression_paren_depth = current_paren_depth;

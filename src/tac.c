@@ -753,22 +753,31 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
         free_unconsumed_argument(arg2);
         return ARGUMENT_ERROR;
     }
-    if (expr->type == AST_NODE_INT_TO_DOUBLE_CONVERSION) // TODO: CONVERT TO FUNCTION
+    if (expr->type == AST_NODE_INT_TO_DOUBLE_CONVERSION)
     {
         tac_argument arg = tac_expr_emit(err, expr->left_child, prog);
         if (*err != NONE || arg.type == ARG_ERROR)
         {
             return ARGUMENT_ERROR;
         }
-        tac_argument arg2 = {.type = ARG_EMPTY};
         tac_argument temp = create_temporary_variable(ARG_FLOAT, prog);
-        tac_instruction *new_instruction = create_instruction(err, TAC_INT_TO_FLOAT, arg, arg2, temp);
-        if (new_instruction == NULL)
+        tac_instruction *param = create_instruction(err, TAC_PARAM, arg, ARGUMENT_EMPTY, ARGUMENT_EMPTY);
+        if (param == NULL)
         {
             free_unconsumed_argument(arg);
             return ARGUMENT_ERROR;
         }
-        append_instruction(prog, new_instruction);
+        tac_argument func = {.type = ARG_FUNC, .value_type = ARG_FLOAT, .identifier_name = "INT_TO_FLOAT"};
+        tac_argument count = {.type = ARG_LITERAL, .value_type = ARG_INT, .const_int = 1};
+        tac_instruction *call = create_instruction(err, TAC_CALL, func, count, temp);
+        if (call == NULL)
+        {
+            free_unconsumed_argument(arg);
+            free(param);
+            return ARGUMENT_ERROR;
+        }
+        append_instruction(prog, param);
+        append_instruction(prog, call);
         return temp;
     }
     return ARGUMENT_ERROR; // return error if undefined
@@ -1278,38 +1287,115 @@ static tac_argument tac_evaluate_func_list(error *err, ast_node *def_list, tac_p
     return tac_evaluate_func_list(err, def_list->right_child, prog);
 }
 
-static tac_argument tac_if_emit(error *err, ast_node *node, tac_prog *prog)
+
+static tac_instruction* tac_emit_if(error *err, ast_node *if_node, tac_prog *prog, tac_argument false_label,
+    tac_argument end_label)
+{
+    *err = NONE;
+    tac_argument expr_arg = tac_expr_emit(err, if_node->left_child, prog);
+
+    if (expr_arg.type == ARG_ERROR || *err != NONE)
+    {
+        return NULL;
+    }
+
+    tac_argument start_label = create_label(prog);
+    tac_instruction* if_instruction = create_instruction(err, TAC_IF_JUMP, start_label, false_label, expr_arg);
+    if (if_instruction == NULL)
+    {
+        free_unconsumed_argument(expr_arg);
+        return NULL;
+    }
+
+    append_instruction(prog, if_instruction);
+    tac_instruction* start_label_instruction = create_instruction(err, TAC_LABEL, ARGUMENT_EMPTY, ARGUMENT_EMPTY, start_label);
+
+    if (start_label_instruction == NULL)
+    {
+        return NULL;
+    }
+
+    append_instruction(prog, start_label_instruction);
+    tac_argument block_arg = tac_evaluate_block(err,if_node->right_child, prog);
+
+    if (block_arg.type == ARG_ERROR || *err != NONE)
+    {
+        return NULL;
+    }
+
+    tac_instruction *skip_instruction = create_instruction(
+        err, TAC_GOTO, ARGUMENT_EMPTY, ARGUMENT_EMPTY, end_label);
+
+
+    if (skip_instruction == NULL)
+    {
+        return NULL;
+    }
+
+    append_instruction(prog, skip_instruction);
+    return if_instruction;
+}
+
+
+static tac_argument tac_emit_else(error* err, ast_node* else_node, tac_prog* prog)
 {
 
     *err = NONE;
-    patch_list *true_labels = NULL;
-    patch_list *false_labels = NULL;
-    patch_list *res_labels = NULL;
-    init_backpatch_list(err, true_labels);
-    if (*err != NONE)
+    if (else_node->left_child->type == AST_NODE_BLOCK)
     {
-        // TODO: IMPLEMENT
+        tac_argument result = tac_evaluate_block(err, else_node->left_child, prog);
+        if (result.type == ARG_ERROR || *err != NONE)
+        {
+            return ARGUMENT_ERROR;
+        }
     }
-    init_backpatch_list(err, false_labels);
-    if (*err != NONE)
+    tac_instruction* result = tac_emit_if(err, else_node->left_child, prog);
+    if (result == NULL)
     {
-        // TODO: IMPLEMENT
+            return ARGUMENT_ERROR;
     }
-    init_backpatch_list(err, res_labels);
-    if (*err != NONE)
+    return ARGUMENT_EMPTY;
+}
+
+static tac_argument tac_evaluate_if_list_(error *err, ast_node *if_list_, tac_prog *prog)
+{
+    *err = NONE;
+    if (if_list_ == NULL)
     {
-        // TODO: IMPLEMENT
+        return ARGUMENT_EMPTY;
     }
-    tac_argument expr = tac_expr_emit(err, node->left_child, prog);
+
+    tac_argument else_arg = tac_emit_else(err, if_list_->left_child, prog);
+    if (else_arg.type == ARG_ERROR || *err != NONE)
+    {
+        return ARGUMENT_ERROR;
+    }
+    return ARGUMENT_EMPTY;
+}
+
+
+static tac_argument tac_evaluate_if_list(error *err, ast_node *if_list, tac_prog *prog)
+{
+
+    *err = NONE;
+    tac_argument end_label = create_label(prog);
+
+    tac_argument false_label = end_label;
+
+
+    tac_instruction* if_stm = tac_emit_if(err, if_list->left_child, prog);
+
+    if (if_stm == NULL)
+    {
+        return ARGUMENT_ERROR;
+    }
+
+
     if (*err != NONE)
     {
         // TODO: IMPLEMENT
     }
 
-    tac_instruction *if_stm = create_instruction(err, TAC_IF_JUMP, (tac_argument){.type = ARG_EMPTY},
-                                                 (tac_argument){.type = ARG_EMPTY}, expr);
-    append_to_backpatch_list(err, if_stm, true_labels, PATCH_ARG1);
-    append_to_backpatch_list(err, if_stm, false_labels, PATCH_ARG2);
 }
 
 tac_list *tac_generate(error *err, ast_node **root, attribute_table* attr_table)

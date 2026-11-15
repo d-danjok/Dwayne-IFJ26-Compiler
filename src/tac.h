@@ -33,7 +33,6 @@ typedef enum
     TAC_NOT,    // (NOT, OPERAND_1, ---, RESULT), RESULT = result of expression (!op_1), RESULT = BOOLEAN
     TAC_FUNC_START,   // (TAC_FUNC_START, ---, ---, FUNC_NAME)
     TAC_FUNC_END,     // (TAC_FUNC_END, ---, ---, FUNC_NAME)
-    TAC_INT_TO_FLOAT, // (INT_TO_FLOAT, OPERAND_1, ---, RESULT), RESULT = result of int_to_float(op_1)
     TAC_OR,           // (OR, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 || op_2)
     TAC_AND,          // (AND, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 && op_2)
     TAC_VAR_DEF, // (VAR_DEF, OPERAND_1, ---, RESULT) RESULT = defined variable for ex. var x = 10 => (VAR_DEF, 10, ---,

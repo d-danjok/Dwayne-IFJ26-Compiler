@@ -582,6 +582,8 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
 
 static void parser_stack_destruct(stack **self, error *err)
 {
+    const error prev_err = *err;
+
     while (true)
     {
         parser_stack_item *item_to_free = stack_pop(*self, err);
@@ -589,6 +591,10 @@ static void parser_stack_destruct(stack **self, error *err)
         {
             if (*err != INTERNAL_STACK_IS_EMPTY && *err != INTERNAL_INDEX_OUT_OF_BOUNDS)
             {
+                if (prev_err != NONE) //if there was error previously it should be returned
+                {
+                    *err = prev_err;
+                }
                 return;
             }
             break;
@@ -596,6 +602,8 @@ static void parser_stack_destruct(stack **self, error *err)
         parser_stack_item_destruct(&item_to_free);
     }
     stack_destruct(self);
+
+    *err = prev_err;
 }
 
 // LL-rule function representations declaration
@@ -650,6 +658,10 @@ ast_node *parser_run(error *err, FILE *src_stream, attribute_table *attr_tab)
     token_buffer.content = EMPTY_TOKEN;
 
     lex = new_lexer(err, src_stream, attr_tab);
+    if (*err != NONE)
+    {
+        return NULL;
+    }
 
     ast_node *program = node_program(err, src_stream, attr_tab);
     // error check makes no sense here, if it happened it will simply propagate and return will be NULL anyway
@@ -1476,7 +1488,7 @@ static ast_node *node_param(error *err, FILE *src_stream, attribute_table *attr_
         return NULL;
     }
 
-    get_token(err, src_stream, attr_tab); // we dont need info, only capture err
+    current_token = get_token(err, src_stream, attr_tab);
     if (*err != NONE)
     {
         ast_node_destruct_recursively(&id_node);
@@ -1565,7 +1577,7 @@ static ast_node *node_func_body(error *err, FILE *src_stream, attribute_table *a
 {
     *err = NONE;
 
-    const token current_token = get_token(err, src_stream, attr_tab);
+    token current_token = get_token(err, src_stream, attr_tab);
     if (*err != NONE)
     {
         return NULL;
@@ -1580,8 +1592,9 @@ static ast_node *node_func_body(error *err, FILE *src_stream, attribute_table *a
     if (!(current_token.type == TOKEN_OPERATOR && current_token.attribute_index == OP_ASSIGN))
     {
         *err = GENERAL_SYNTAX;
-        log_printf("[%lu] expected: '=' god: ", current_token.line);
+        log_printf("[%lu] expected: '=' got: ", current_token.line);
         log_token_type(current_token.type);
+        log_printf("\n");
 
         return NULL;
     }
@@ -1609,6 +1622,21 @@ static ast_node *node_func_body(error *err, FILE *src_stream, attribute_table *a
         func_body->left_child = node_expression_or_assignment_to_id(err, src_stream, attr_tab, false);
         if (*err != NONE)
         {
+            ast_node_destruct_recursively(&func_body);
+            return NULL;
+        }
+
+        current_token = get_token(err, src_stream, attr_tab);
+        if (*err != NONE)
+        {
+            ast_node_destruct_recursively(&func_body);
+            return NULL;
+        }
+        if (current_token.type != TOKEN_EOL)
+        {
+            *err = GENERAL_SYNTAX;
+            log_error_expected(TOKEN_EOL, current_token.type, current_token.line);
+
             ast_node_destruct_recursively(&func_body);
             return NULL;
         }
@@ -2234,7 +2262,7 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
             *err = GENERAL_SYNTAX;
             log_printf("[%lu] ", next_token.line);
             log_token_type(next_token.type);
-            log_printf(" cannon be an expression member\n");
+            log_printf(" cannot be an expression member\n");
 
             parser_stack_destruct(&expression_parse_stack, err);
             return NULL;
@@ -2285,6 +2313,7 @@ static ast_node *node_expression_or_assignment_to_id(error *err, FILE *src_strea
         parser_stack_destruct(&expression_parse_stack, err);
         return NULL;
     }
+    terminator_item->item_type = ITEM_TERMINATOR;
 
     parse_stack_append(expression_parse_stack, err, &terminator_item, next_token.line);
     if (*err != NONE)

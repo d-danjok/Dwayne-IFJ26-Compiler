@@ -23,7 +23,7 @@
 23. \<param_list’>  ::= __)__
 24. \<param>  ::= ID __:__ TYPE
 25. \<func_body>  ::= __=__ \<block>
-26. \<func_body> ::= __=__ \<expression>
+26. \<func_body> ::= __=__ \<expression> EOL
 27. \<block>  ::= EOL INDENT \<stat_list> DEDENT
 28. \<stat_list> ::= \<statement>\<stat_list’>
 29. \<stat_list’> ::= __;__ \<statement>\<stat_list’>

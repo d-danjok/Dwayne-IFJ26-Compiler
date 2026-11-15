@@ -22,7 +22,10 @@ typedef struct
 // globals
 static size_t current_paren_depth =
     0; // needed to track if we are inside of parentheses to ignore indents and new lines
-static token_input_buffer token_buffer = {.was_stored = false, .content = EMPTY_TOKEN};
+static token_input_buffer token_buffer = {
+    .was_stored = false,
+    .content = {.type = TOKEN_UNDEFINED, .attribute_index = -1, .line = 0},
+};
 static lexer *lex;
 static attribute_table *attribute_tab;
 

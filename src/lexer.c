@@ -229,7 +229,7 @@ token lexer_get_next_token(lexer *self, error *err)
     FILE *in = self->input;
     error internal_err = NONE;
     size_t *line = &self->current_line;
-    size_t *strt_line = line;
+    // size_t *strt_line = line;
     char c;
     token res = {TOKEN_UNDEFINED, -1, 0};
 
@@ -314,14 +314,6 @@ token lexer_get_next_token(lexer *self, error *err)
                 self->buffer[self->buffer_index++] = c;
                 self->current_state = STATE_UNDERSCORE;
                 break;
-            case 'a' ... 'z':
-                self->buffer[self->buffer_index++] = c;
-                self->current_state = STATE_IDENTIFIER;
-                break;
-            case 'A' ... 'Z':
-                self->buffer[self->buffer_index++] = c;
-                self->current_state = STATE_IDENTIFIER;
-                break;
             // Annotations
             case '@':
                 self->current_state = STATE_ANNOTATION;
@@ -331,10 +323,6 @@ token lexer_get_next_token(lexer *self, error *err)
                 self->current_state = STATE_STR_START;
                 break;
             // Numeric
-            case '1' ... '9':
-                self->buffer[self->buffer_index++] = c;
-                self->current_state = STATE_INT;
-                break;
             case '0':
                 self->buffer[self->buffer_index++] = c;
                 self->current_state = STATE_ZERO;
@@ -344,7 +332,18 @@ token lexer_get_next_token(lexer *self, error *err)
                 self->current_state = STATE_DOT;
                 break;
             default:
-                *err = INVALID_SYMBOL;
+                if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
+                {
+                    self->buffer[self->buffer_index++] = c;
+                    self->current_state = STATE_IDENTIFIER;
+                }
+                else if (c >= '1' && c <= '9')
+                {
+                    self->buffer[self->buffer_index++] = c;
+                    self->current_state = STATE_INT;
+                }
+                else
+                    *err = INVALID_SYMBOL;
             }
             res.line = self->current_line;
         }

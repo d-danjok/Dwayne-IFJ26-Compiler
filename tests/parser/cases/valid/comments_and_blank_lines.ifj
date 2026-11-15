@@ -1,0 +1,11 @@
+import ifj26.*
+
+// comment
+def f(): Unit =
+  val a = 1 // trailing
+
+  /* block */
+  /* multi
+     line */
+  print(a)
+

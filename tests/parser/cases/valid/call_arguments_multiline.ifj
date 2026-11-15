@@ -1,0 +1,9 @@
+import ifj26.*
+def f(): Unit =
+  foo(1,
+      2,
+      3)
+  bar(
+      1,
+      2,
+      )

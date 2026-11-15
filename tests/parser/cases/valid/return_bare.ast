@@ -1,0 +1,13 @@
+DEF_LIST @2
+└─L FUNC_DEF @2
+   ├─L FUNC_START @2
+   │  ├─L FUNC_NAME @2
+   │  │  └─L IDENTIFIER 'f' @2
+   │  └─R FUNC_HEAD @2
+   │     ├─L PARAM_LIST @2
+   │     └─R TYPE Unit @2
+   └─R FUNC_BODY @2
+      └─L BLOCK block=1 @3
+         └─L STAT_LIST @3
+            └─L STATEMENT @3
+               └─L RETURN @3

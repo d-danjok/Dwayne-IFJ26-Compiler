@@ -1,0 +1,4 @@
+import ifj26.*
+def f(): Unit =
+  var a = readInt()
+  a = readInt()

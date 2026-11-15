@@ -11,8 +11,7 @@
 #include "token.h"
 #include "utils.h"
 
-#define EMPTY_TOKEN                                                                                                    \
-    (token){.type = TOKEN_UNDEFINED, .attribute_index = -1, .line = 0}                                                 \
+#define EMPTY_TOKEN (token){.type = TOKEN_UNDEFINED, .attribute_index = -1, .line = 0}
 
 typedef struct
 {
@@ -448,6 +447,41 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
         }
     }
 
+    if (current_item->precedential_type == PRECEDENTIAL_LPAREN &&
+        (*item_to_append)->precedential_type == PRECEDENTIAL_RPAREN) // special case for ()
+    {
+        parser_stack_item *lparen_item = stack_pop(parse_stack, err);
+        if (*err != NONE)
+        {
+            return;
+        }
+
+        parser_stack_item_destruct(&lparen_item);
+        parser_stack_item_destruct(item_to_append);
+
+        parser_stack_item *unit_item = new_parser_stack_item(err, PRECEDENTIAL_OPERAND);
+        if (*err != NONE)
+        {
+            return;
+        }
+
+        ast_node *unit_node = new_ast_node(err);
+        if (*err != NONE)
+        {
+            parser_stack_item_destruct(&unit_item);
+            return;
+        }
+        unit_node->type = AST_NODE_LITERAL;
+        unit_node->src_line_number = current_line;
+
+        unit_item->item_ast_node = unit_node;
+        unit_item->item_type = ITEM_AST_NODE;
+        unit_item->is_marked = true;
+
+        stack_push(parse_stack, err, (void **)unit_item);
+        return;
+    }
+
     switch (precedence_table[current_item->precedential_type][(*item_to_append)->precedential_type])
     {
     case LS:
@@ -566,6 +600,8 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
 
         break;
 
+        // case GR end
+
     case IV:
         *err = GENERAL_SYNTAX;
 
@@ -577,7 +613,7 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
         *err = INTERNAL_FATAL;
 
         log_printf("[%lu] FATAL: invalid data value in variable of type: operator_priority\n", current_line);
-    }
+    } // switch end
 }
 
 static void parser_stack_destruct(stack **self, error *err)
@@ -591,7 +627,7 @@ static void parser_stack_destruct(stack **self, error *err)
         {
             if (*err != INTERNAL_STACK_IS_EMPTY && *err != INTERNAL_INDEX_OUT_OF_BOUNDS)
             {
-                if (prev_err != NONE) //if there was error previously it should be returned
+                if (prev_err != NONE) // if there was error previously it should be returned
                 {
                     *err = prev_err;
                 }
@@ -1140,7 +1176,6 @@ static ast_node *node_main_func(error *err, FILE *src_stream, attribute_table *a
         log_error_expected(TOKEN_KEYWORD, next_token.type, next_token.line);
         return NULL;
     }
-
 
     ast_node *main_func_def_node = node_func_def(err, src_stream, attr_tab);
     if (*err != NONE)

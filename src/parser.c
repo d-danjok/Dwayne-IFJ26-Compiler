@@ -2955,6 +2955,7 @@ static ast_node *node_call_params_(error *err)
     {
         return NULL;
     }
+    const size_t start_line = current_token.line;
 
     if (current_token.type == TOKEN_CLOSE_PAREN)
     {
@@ -2974,32 +2975,32 @@ static ast_node *node_call_params_(error *err)
         return NULL;
     }
 
-    token next_token = peek_token(err);
+    const token next_token = peek_token(err);
     if (*err != NONE)
     {
         return NULL;
     }
 
-    bool had_end_of_line = false;
-
-    while (next_token.type == TOKEN_EOL)
-    {
-        had_end_of_line = true;
-        get_token(err);
-        if (*err != NONE)
-        {
-            return NULL;
-        }
-        next_token = peek_token(err);
-        if (*err != NONE)
-        {
-            return NULL;
-        }
-    }
+    // bool had_end_of_line = false;
+    //
+    // while (next_token.type == TOKEN_EOL)
+    // {
+    //     had_end_of_line = true;
+    //     get_token(err);
+    //     if (*err != NONE)
+    //     {
+    //         return NULL;
+    //     }
+    //     next_token = peek_token(err);
+    //     if (*err != NONE)
+    //     {
+    //         return NULL;
+    //     }
+    // }
 
     if (next_token.type == TOKEN_CLOSE_PAREN)
     {
-        if (!had_end_of_line)
+        if (next_token.line <= start_line)
         {
             *err = GENERAL_SYNTAX;
 

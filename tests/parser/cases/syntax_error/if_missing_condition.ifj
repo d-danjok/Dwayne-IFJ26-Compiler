@@ -1,0 +1,6 @@
+import ifj26.*
+def f(): Unit =
+  if then
+    ()
+  else
+    ()

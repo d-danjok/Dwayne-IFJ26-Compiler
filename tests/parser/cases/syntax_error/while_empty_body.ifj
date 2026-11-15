@@ -1,0 +1,5 @@
+import ifj26.*
+def f(): Unit =
+  var i = 1
+  while i > 0 do
+  print(i)

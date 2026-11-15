@@ -1,0 +1,7 @@
+import ifj26.*
+def f(): Unit =
+  val a = 1
+  if a + 1 < a * 2 then
+    ()
+  else
+    ()

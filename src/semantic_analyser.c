@@ -10,12 +10,19 @@
 #define AST_NODE_IF_LIST_R AST_NODE_IF_LIST_
 #define AST_NODE_CALL_PARAMS_R AST_NODE_CALL_PARAMS_
 
+// block index of the scope with function parameters (parser numbers real blocks from 1)
+// Implies shadowing of function parameters by function local variables
+// Can be changed later
+#define PARAMS_BLOCK_INDEX 0
+
+
 // current scope with depth
 typedef struct
 {
     symtable *table;
     long block_index;
 } scope;
+
 
 // needed to properly parse
 // 1. recursion
@@ -27,6 +34,7 @@ typedef enum
     FUNC_IN_PROGRESS,
     FUNC_CHECKED,
 } function_state;
+
 
 typedef struct
 {
@@ -40,13 +48,17 @@ typedef struct
     function_state state;
 } function_info;
 
+
 // shared state of the whole analysis
 typedef struct
 {
     function_info *functions;
     int function_count;
+    function_info *current_function;
+    stack *scopes;
     error *err;
 } sem_context;
+
 
 static void scopes_stack_destruct(stack **scopes)
 {
@@ -65,6 +77,7 @@ static void scopes_stack_destruct(stack **scopes)
     }
     stack_destruct(scopes); // stack is empty now, free the stack itself
 }
+
 
 static void scope_push(stack *scopes, error *err, const long block_index)
 {
@@ -88,6 +101,7 @@ static void scope_push(stack *scopes, error *err, const long block_index)
     }
 }
 
+
 static void scope_pop(stack *scopes, error *err)
 {
     scope *top_scope = stack_pop(scopes, err);
@@ -98,9 +112,10 @@ static void scope_pop(stack *scopes, error *err)
     UTILS_SAFE_FREE(&top_scope);
 }
 
-static void scope_declare_id(stack *scopes, error *err, const int identifier_id, identifier_data **data)
+
+static void scope_declare_id(const stack *scopes, error *err, const int identifier_id, identifier_data **data)
 {
-    scope *current_scope = stack_peek(scopes, err, 0);
+    const scope *current_scope = stack_peek(scopes, err, 0);
     if (*err != NONE || current_scope == NULL)
     {
         UTILS_SAFE_FREE(data);
@@ -118,6 +133,7 @@ static void scope_declare_id(stack *scopes, error *err, const int identifier_id,
     if (*err != NONE)
         UTILS_SAFE_FREE(data);
 }
+
 
 static identifier_data *scope_lookup(const stack *scopes, error *err, const int identifier_id, long *block_index)
 {
@@ -139,6 +155,33 @@ static identifier_data *scope_lookup(const stack *scopes, error *err, const int 
     *err = VAR_USE_OUT_OF_SCOPE;
     return NULL;
 }
+
+
+// puts a variable into the innermost scope and writes its block index and type into the IDENTIFIER node
+static void declare_variable(const sem_context *ctx, ast_node *id_node, const identifier_type kind,
+                             const ast_literal_type type)
+{
+    identifier_data *data = NEW_IDENTIFIER_DATA(ctx->err, 0);
+    if (*ctx->err != NONE)
+        return;
+
+    data->value_type = (data_type)type; // symtable stores data_type, enum values are the same
+    data->type = kind;
+    data->function_arg_count = 0;
+
+    scope_declare_id(ctx->scopes, ctx->err, id_node->attribute_index, &data); // takes ownership of data
+    if (*ctx->err != NONE)
+        return;
+
+    const scope *current_scope = stack_peek(ctx->scopes, ctx->err, 0);
+    if (*ctx->err != NONE)
+        return;
+
+    // for TAC
+    id_node->block_index = current_scope->block_index;
+    id_node->literal_type = type;
+}
+
 
 static void register_function(sem_context *ctx, const ast_node *def_list)
 {
@@ -209,6 +252,7 @@ static void register_function(sem_context *ctx, const ast_node *def_list)
     ctx->function_count++;
 }
 
+
 static void check_main(const sem_context *ctx)
 {
     const function_info *main_func = NULL;
@@ -239,6 +283,72 @@ static void check_main(const sem_context *ctx)
     if (main_func->has_declared_return_type && main_func->return_type != AST_TYPE_UNIT)
         *ctx->err = ENTER_FUNC_INVALID_RETURN_TYPE;
 }
+
+
+// pass 2: checks the body of one function
+// called from check_all_bodies and later also from a call of a not yet checked function (a "jump"),
+// that is why it saves and restores the state of whoever called it
+static void check_function(sem_context *ctx, function_info *func)
+{
+    // we need to remember the state of the caller
+    // so we can use "jump" to parse another function while parsing the body of the caller
+    stack *caller_scopes = ctx->scopes;
+    function_info *caller = ctx->current_function;
+
+    func->state = FUNC_IN_PROGRESS;
+    ctx->current_function = func;
+    ctx->scopes = new_stack(ctx->err); // empty: variables of the caller must stay invisible
+    if (*ctx->err != NONE)
+    {
+        // "pop" the caller's scope and return
+        ctx->scopes = caller_scopes;
+        ctx->current_function = caller;
+        return;
+    }
+
+    //                      FUNC_DEF
+    //    L: FUNC_START                R: FUNC_BODY
+    //         R: FUNC_HEAD       L: BLOCK or expression
+    //    L: PARAM_LIST
+    const ast_node *func_head = func->definition->left_child->right_child; //TODO: add NULL check for builtins
+
+    // parse all function parameters
+    scope_push(ctx->scopes, ctx->err, PARAMS_BLOCK_INDEX);
+    for (const ast_node *param_list = func_head->left_child;
+         *ctx->err == NONE && param_list != NULL && param_list->left_child != NULL;
+         param_list = param_list->right_child)
+    {
+        //              PARAM
+        // L: IDENTIFIER     R: TYPE
+        const ast_node *param = param_list->left_child;
+        declare_variable(ctx, param->left_child, ID_TYPE_CONSTANT, param->right_child->literal_type);
+    }
+
+    // TODO: check the body func->definition->right_child
+
+    scopes_stack_destruct(&ctx->scopes); // frees all scopes that are left, also after an error
+    ctx->scopes = caller_scopes;
+    ctx->current_function = caller;
+
+    if (*ctx->err == NONE)
+        func->state = FUNC_CHECKED;
+}
+
+
+// pass 2
+// every function in the order of the source code
+static void check_all_bodies(sem_context *ctx)
+{
+    for (int i = 0; i < ctx->function_count && *ctx->err == NONE; i++)
+    {
+        function_info *curr_func = &ctx->functions[i];
+        if (curr_func->state == FUNC_CHECKED)
+            continue; // already checked through a jump from an earlier call
+
+        check_function(ctx, curr_func);
+    }
+}
+
 
 ast_node *parse_node(const ast_node *root_node, error *err)
 {
@@ -298,6 +408,7 @@ ast_node *parse_node(const ast_node *root_node, error *err)
     return 0;
 }
 
+
 ast_node *semantic_analyser_run(error *err, ast_node **parser_tree, attribute_table *attr_tab)
 {
     (void)attr_tab; // needed in pass 2
@@ -306,7 +417,14 @@ ast_node *semantic_analyser_run(error *err, ast_node **parser_tree, attribute_ta
     ast_node *ast_root = *parser_tree;
     *parser_tree = NULL; // the analyser owns the tree now
 
-    sem_context ctx = {.functions = NULL, .function_count = 0, .err = err};
+    sem_context ctx =
+    {
+        .functions = NULL,
+        .function_count = 0,
+        .current_function = NULL,
+        .scopes = NULL,
+        .err = err
+    };
 
     // pass 1
     // array with one record per function
@@ -317,6 +435,7 @@ ast_node *semantic_analyser_run(error *err, ast_node **parser_tree, attribute_ta
     if (def_count > 0)
         ctx.functions = utils_safe_malloc(err, (size_t)def_count * sizeof(function_info));
 
+    // pass 1
     for (const ast_node *def_list_it = ast_root; *err == NONE && def_list_it != NULL;
          def_list_it = def_list_it->right_child)
     {
@@ -326,8 +445,12 @@ ast_node *semantic_analyser_run(error *err, ast_node **parser_tree, attribute_ta
     if (*err == NONE)
         check_main(&ctx);
 
-    // TODO: pass 2
+    // pass 2
+    if (*err == NONE)
+        check_all_bodies(&ctx);
 
+
+    // free all allocations for semantic analysis
     for (int i = 0; i < ctx.function_count; i++)
         UTILS_SAFE_FREE(&ctx.functions[i].arg_types);
     UTILS_SAFE_FREE(&ctx.functions);

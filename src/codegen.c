@@ -166,6 +166,7 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
             printf("PUSHFRAME\n");
             printf("DEFVAR LF@$res\n");
             printf("MOVE LF@$res nil@nil\n");
+            last_was_FUNC_START = true;
 
             // Go thrugh whole function only declaring vars once
             tac_instruction *tt = t->next_instruction;
@@ -234,8 +235,8 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
                     frame_open = true;
                     fn_var_cnt = 0;
                 }
-                if (fn_var_cnt == 0)
-                    f0_type = t->arg1.value_type;
+                // if (fn_var_cnt == 0)
+                f0_type = t->arg1.value_type;
                 printf("DEFVAR TF@$f%u\n", fn_var_cnt);
                 printf("MOVE TF@$f%u", fn_var_cnt++);
                 print_symbol(&t->arg1);
@@ -247,7 +248,13 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
             // check for inline functions first
             if (strcmp(t->arg1.identifier_name, "print") == 0)
             {
-                printf(f0_type == ARG_UNIT ? "WRITE string@()\n" : "WRITE TF@$f0\n");
+                printf(f0_type == ARG_UNIT ? "WRITE string@()\n" : "WRITE TF@$f%u\n", fn_var_cnt - 1);
+                if (t->result.type != ARG_EMPTY)
+                {
+                    printf("MOVE");
+                    print_symbol(&t->result);
+                    printf(" nil@nil\n");
+                }
             }
             else if (strcmp(t->arg1.identifier_name, "readLine") == 0)
             { // read should always have result variable
@@ -277,37 +284,58 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
             {
                 printf("STRLEN");
                 print_symbol(&t->result);
-                printf(" TF@$f0\n");
+                printf(" TF@$f%u\n", fn_var_cnt - 1);
             }
             else if (strcmp(t->arg1.identifier_name, "chr") == 0)
             {
                 printf("INT2CHAR");
                 print_symbol(&t->result);
-                printf(" TF@$f0\n");
+                printf(" TF@$f%u\n", fn_var_cnt - 1);
             }
             else if (strcmp(t->arg1.identifier_name, "ord") == 0)
             {
                 printf("STRI2INT");
                 print_symbol(&t->result);
-                printf(" TF@$f0 TF@$f1\n");
+                printf(" TF@$f%u TF@$f%u\n", fn_var_cnt - 1, fn_var_cnt - 2);
+                fn_var_cnt -= 2;
             }
             else if (strcmp(t->arg1.identifier_name, "toInt") == 0)
             {
                 printf("FLOAT2INT");
                 print_symbol(&t->result);
-                printf(" TF@$f0\n");
+                printf(" TF@$f%u\n", fn_var_cnt - 1);
             }
             else if (strcmp(t->arg1.identifier_name, "INT_TO_FLOAT") == 0)
             {
                 printf("INT2FLOAT");
                 print_symbol(&t->result);
-                printf(" TF@$f0\n");
+                printf(" TF@$f%u\n", fn_var_cnt - 1);
+            }
+            else if (strcmp(t->arg1.identifier_name, "toStr") == 0 && f0_type == ARG_INT)
+            {
+                printf("INT2STR");
+                print_symbol(&t->result);
+                printf(" TF@$f%u\n", fn_var_cnt - 1);
+            }
+            else if (strcmp(t->arg1.identifier_name, "toStr") == 0 && f0_type == ARG_FLOAT)
+            {
+                printf("FLOAT2STR");
+                print_symbol(&t->result);
+                printf(" TF@$f%u\n", fn_var_cnt - 1);
+            }
+            else if (strcmp(t->arg1.identifier_name, "toStr") == 0 && f0_type == ARG_BOOL)
+            {
+                printf("DEFVAR TF@$bl\
+                    MOVE LF@$bl string@false\n\
+                    JUMPIFNEQ $toStr0 TF@$bl bool@true\n\
+                    MOVE LF@$bl string@true\n\
+                    LABEL $toStr0\n");
             }
             else if (strcmp(t->arg1.identifier_name, "toStr") == 0)
             {
-                printf(f0_type == ARG_INT ? "INT2STR" : f0_type == ARG_FLOAT ? "FLOAT2STR" : "MOVE");
+                printf("MOVE");
                 print_symbol(&t->result);
-                printf(f0_type == ARG_UNIT ? " string@()\n" : " TF@$f0\n");
+                printf(f0_type == ARG_UNIT ? " string@()\n" : " TF@$f%u\n", fn_var_cnt - 1);
             }
             else if (strcmp(t->arg1.identifier_name, "subStr") == 0)
             {
@@ -356,4 +384,5 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
         if (t->op != TAC_PARAM && t->op != TAC_FUNC_START)
             last_was_FUNC_START = false;
     }
+    tac_list_destruct(tac_l);
 }

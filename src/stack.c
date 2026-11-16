@@ -123,3 +123,8 @@ void *stack_peek(const stack *self, error *err, const int depth)
     }
     return current_item->data;
 }
+
+int stack_get_item_count(const stack *self)
+{
+    return self->item_count;
+}

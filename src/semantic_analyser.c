@@ -48,7 +48,7 @@ typedef struct
     error *err;
 } sem_context;
 
-static void scopes_destruct(stack **scopes)
+static void scopes_stack_destruct(stack **scopes)
 {
     if (*scopes == NULL)
         return;
@@ -98,7 +98,7 @@ static void scope_pop(stack *scopes, error *err)
     UTILS_SAFE_FREE(&top_scope);
 }
 
-static void scope_declare(stack *scopes, error *err, const int identifier_id, identifier_data **data)
+static void scope_declare_id(stack *scopes, error *err, const int identifier_id, identifier_data **data)
 {
     scope *current_scope = stack_peek(scopes, err, 0);
     if (*err != NONE || current_scope == NULL)

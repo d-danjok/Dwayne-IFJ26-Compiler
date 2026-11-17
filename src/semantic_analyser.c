@@ -86,7 +86,7 @@ static void check_main(const sem_context *ctx);
 // ==================- Second run functions -==================
 static ast_literal_type check_binary_operation(sem_context *ctx, ast_node *expression);
 static ast_literal_type check_unary_operation(sem_context *ctx, ast_node *expression);
-static ast_literal_type check_expression(sem_context *ctx, ast_node **expression);
+static ast_literal_type check_expression(sem_context *ctx, ast_node *expression);
 static void check_statement(sem_context *ctx, ast_node *statement_def);
 static void check_block(sem_context *ctx, const ast_node *block);
 static void check_function(sem_context *ctx, function_info *func);
@@ -349,11 +349,11 @@ static ast_literal_type check_binary_operation(sem_context *ctx, ast_node *expre
 {
     ast_node *binary_op = expression;
 
-    ast_literal_type left_literal = check_expression(ctx, &binary_op->left_child);
+    ast_literal_type left_literal = check_expression(ctx, binary_op->left_child);
     if (*ctx->err != NONE)
         return AST_TYPE_NONE;
 
-    ast_literal_type right_literal = check_expression(ctx, &binary_op->right_child);
+    ast_literal_type right_literal = check_expression(ctx, binary_op->right_child);
     if (*ctx->err != NONE)
         return AST_TYPE_NONE;
 
@@ -472,7 +472,7 @@ static ast_literal_type check_unary_operation(sem_context *ctx, ast_node *expres
     //
     // in our case always unary
     ast_node *unary_op = expression;
-    const ast_literal_type operand_type = check_expression(ctx, &unary_op->left_child);
+    const ast_literal_type operand_type = check_expression(ctx, unary_op->left_child);
     if (*ctx->err != NONE)
         return AST_TYPE_NONE;
 
@@ -513,31 +513,27 @@ static ast_literal_type check_unary_operation(sem_context *ctx, ast_node *expres
 
 
 // finds out the type of an expression and writes it into its nodes (TAC reads them)
-// gets the address of the parent's pointer, so later an INT_TO_DOUBLE node can be inserted above the expression
 // returns AST_TYPE_NONE after an error
-static ast_literal_type check_expression(sem_context *ctx, ast_node **expression)
+static ast_literal_type check_expression(sem_context *ctx, ast_node *expression)
 {
-    //
-    ast_node *node = *expression;
-
-    switch (node->type)
+    switch (expression->type)
     {
     case AST_NODE_LITERAL:
-        return node->literal_type;
+        return expression->literal_type;
 
     case AST_NODE_IDENTIFIER:
-        use_variable(ctx, node);
+        use_variable(ctx, expression);
         if (*ctx->err != NONE)
             return AST_TYPE_NONE;
-        return node->literal_type;
+        return expression->literal_type;
 
-        // TODO: AST_NODE_BINARY_OPERATION, AST_NODE_FUNC_CALL
+        // TODO: AST_NODE_FUNC_CALL
 
     case AST_NODE_UNARY_OPERATION:
-        return check_unary_operation(ctx, *expression);
+        return check_unary_operation(ctx, expression);
 
     case AST_NODE_BINARY_OPERATION:
-        return check_binary_operation(ctx, *expression);
+        return check_binary_operation(ctx, expression);
 
     default:
         return AST_TYPE_NONE;
@@ -576,7 +572,7 @@ static void check_statement(sem_context *ctx, ast_node *statement_def)
 
     default: // plain expression: print(x), f(1)
              // TODO: check_expression
-        check_expression(ctx, &statement_def->left_child);
+        check_expression(ctx, statement_def->left_child);
         break;
     }
 }

@@ -430,6 +430,50 @@ static ast_literal_type check_binary_operation(sem_context *ctx, ast_node *expre
     return result;
 }
 
+static ast_literal_type check_unary_operation(sem_context *ctx, ast_node *expression)
+{
+    // statement --L-> definition --R--> assign_val --L--> expression
+    // in our case always unary
+    ast_node *unary_op = expression;
+    const ast_literal_type operand_type = check_expression(ctx, &unary_op->left_child);
+    if (*ctx->err != NONE)
+        return AST_TYPE_NONE;
+
+    ast_literal_type result = AST_TYPE_NONE;
+    switch (unary_op->operator)
+    {
+    case AST_OP_MINUS_UNARY:
+        if (operand_type != AST_TYPE_INT && operand_type != AST_TYPE_DOUBLE)
+        {
+            result = AST_TYPE_NONE;
+            break;
+        }
+        result = operand_type == AST_TYPE_INT ? AST_TYPE_INT : AST_TYPE_DOUBLE;
+        break;
+
+    case AST_OP_NOT:
+        if (operand_type != AST_TYPE_BOOLEAN)
+        {
+            result = AST_TYPE_NONE;
+            break;
+        }
+        result = AST_TYPE_BOOLEAN;
+        break;
+
+    default:
+        break;
+    }
+
+    if (result == AST_TYPE_NONE)
+    {
+        *ctx->err = OPERATOR_WRONG_OPERANDS;
+        return AST_TYPE_NONE;
+    }
+
+    unary_op->literal_type = result;
+    return result;
+}
+
 // finds out the type of an expression and writes it into its nodes (TAC reads them)
 // gets the address of the parent's pointer, so later an INT_TO_DOUBLE node can be inserted above the expression
 // returns AST_TYPE_NONE after an error
@@ -448,11 +492,10 @@ static ast_literal_type check_expression(sem_context *ctx, ast_node **expression
             return AST_TYPE_NONE;
         return node->literal_type;
 
-        // TODO: AST_NODE_UNARY_OPERATION, AST_NODE_BINARY_OPERATION, AST_NODE_FUNC_CALL
+        // TODO: AST_NODE_BINARY_OPERATION, AST_NODE_FUNC_CALL
 
     case AST_NODE_UNARY_OPERATION:
-        // check_unary_operation(ctx, expression);
-        return AST_TYPE_NONE;
+        return check_unary_operation(ctx, *expression);
 
     case AST_NODE_BINARY_OPERATION:
         return check_binary_operation(ctx, *expression);
@@ -614,66 +657,6 @@ static identifier_data *use_variable(const sem_context *ctx, ast_node *var)
 
     return id_data;
 }
-
-
-ast_node *parse_node(const ast_node *root_node, error *err)
-{
-    if (root_node == NULL)
-        return 0;
-    switch (root_node->type)
-    {
-    case AST_NODE_DEF_LIST: // NOLINT(bugprone-branch-clone)
-        break;
-
-    case AST_NODE_FUNC_DEF:
-        break;
-
-    case AST_NODE_MAIN_FUNC_DEF:
-        break;
-
-    case AST_NODE_PARAM_LIST:
-        break;
-
-    case AST_NODE_BLOCK: // NOLINT(bugprone-branch-clone)
-        break;
-
-    case AST_NODE_STATEMENT:
-        break;
-
-    case AST_NODE_DEFINITION:
-        break;
-
-    case AST_NODE_WHILE:
-        break;
-
-    case AST_NODE_IF_LIST:
-        break;
-
-    case AST_NODE_RETURN:
-        break;
-
-    case AST_NODE_FUNC_CALL:
-        break;
-
-    case AST_NODE_UNARY_OPERATION:
-        break;
-
-    case AST_NODE_BINARY_OPERATION:
-        break;
-
-    case AST_NODE_LITERAL:
-        break;
-
-    case AST_NODE_IDENTIFIER:
-        break;
-
-    default:
-        break;
-    }
-
-    return 0;
-}
-
 
 ast_node *semantic_analyser_run(error *err, ast_node **parser_tree, attribute_table *attr_tab)
 {

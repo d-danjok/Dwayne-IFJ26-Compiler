@@ -800,7 +800,7 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
             return ARGUMENT_ERROR;
         }
         tac_argument temp = create_temporary_variable(ARG_FLOAT, prog);
-        tac_instruction *param = create_instruction(err, TAC_PARAM, arg, ARGUMENT_EMPTY, ARGUMENT_EMPTY);
+        tac_instruction *param = create_instruction(err, TAC_CALL_PARAM, arg, ARGUMENT_EMPTY, ARGUMENT_EMPTY);
         if (param == NULL)
         {
             free_unconsumed_argument(arg);

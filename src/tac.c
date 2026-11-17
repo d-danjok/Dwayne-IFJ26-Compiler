@@ -338,13 +338,13 @@ static tac_argument tac_emit_call_param(error *err, ast_node *call_param, tac_pr
         return ARGUMENT_ERROR;
     }
     *num_of_args += 1;
-    stack_push(prog->params,err,(void**)&call_param_instruction);
+    tac_instruction* t =call_param_instruction ;
+    stack_push(prog->params,err,(void**)&t);
     if (*err != NONE)
     {
         free_unconsumed_argument(expr);
         return ARGUMENT_ERROR;
     }
-    append_instruction(prog, call_param_instruction);
     return ARGUMENT_EMPTY;
 }
 
@@ -387,20 +387,20 @@ static tac_argument tac_evaluate_call_param_list(error *err, ast_node *call_para
         return ARGUMENT_ERROR;
     }
     // <call_params'> Node
-    tac_argument result = tac_evaluate_call_param_list_(err, call_param_list->right_child, prog, num_of_args);
-    if (result.type == ARG_ERROR)
+    tac_argument result2 = tac_evaluate_call_param_list_(err, call_param_list->right_child, prog, num_of_args);
+    if (result2.type == ARG_ERROR)
     {
         return ARGUMENT_ERROR;
     }
-    while (true)
+
+    for (long long int i = 0; i < *num_of_args; ++i)
     {
-        tac_instruction* param_instruction = stack_pop(prog->params,err );
+        tac_instruction *param_instruction = stack_pop(prog->params, err);
         if (*err != NONE)
-        {
-            break;
-        }
-        append_instruction(prog,param_instruction);
+            return ARGUMENT_ERROR;
+        append_instruction(prog, param_instruction);
     }
+
     return ARGUMENT_EMPTY;
 
 }

@@ -113,8 +113,8 @@ def main():
                 detail=str(exc)
             passed=actual==expected and exit_code==0
             print(f'[{"PASS" if passed else "FAIL"} {total:02}] {name}')
-            print(f'  Program:  {example}\n  Input:    {stdin!r}\n  Expected: {expected!r}\n  Actual:   {actual!r} (exit={exit_code})')
             if not passed:
+                print(f'  Program:  {example}\n  Input:    {stdin!r}\n  Expected: {expected!r}\n  Actual:   {actual!r} (exit={exit_code})')
                 failed+=1
                 if detail: print('  Error:    '+detail)
                 print(f'  Inspect:  {locations(group)}; {codegen_location(name)}')

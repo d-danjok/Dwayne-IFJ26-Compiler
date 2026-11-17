@@ -29,8 +29,8 @@ def normalized(value):
 class TacVM:
     """Reference TAC evaluator, not a replacement for the official target interpreter.
 
-    CALL consumes its own last N PARAM values. Incoming arities belong to fixtures,
-    independently of codegen's unfinished PARAM discrimination.
+    CALL_PARAM pushes a call argument (TAC emits them last arg first), CALL consumes its
+    own last N of them and PARAM receives the callee's formal parameters in order.
     """
     def __init__(self, code, inputs=(7,)):
         self.code = code
@@ -100,13 +100,14 @@ class TacVM:
             if op in ('LABEL','MAIN'): pass
             elif op == 'FUNC_START': raise Fault('fell through into a function')
             elif op in ('ASSIGNMENT','VAR_DEF','VAL_DEF'): self.put(r,self.get(a))
+            elif op == 'CALL_PARAM': self.pending.append(self.get(a))
             elif op == 'PARAM':
-                if self.receiving: self.put(a,self.receiving.pop(0))
-                else: self.pending.append(self.get(a))
+                if not self.receiving: raise Fault('PARAM without an incoming argument')
+                self.put(a,self.receiving.pop(0))
             elif op == 'CALL':
                 count=self.typed(b,'int')
                 if count<0 or len(self.pending)<count: raise Fault('not enough call arguments')
-                args=self.pending[-count:] if count else []
+                args=self.pending[-count:][::-1] if count else []  # CALL_PARAMs come last arg first
                 if count: del self.pending[-count:]
                 name=a[2]
                 if name in self.functions:
@@ -246,7 +247,7 @@ def build(directory,cc,sanitize,with_codegen=False):
     obj=directory/'optimizer.o';tac_obj=directory/'tac.o';exe=directory/'driver'
     commands=[flags+['-Dutils_safe_malloc=test_tac_malloc','-c',str(ROOT/'src/tac.c'),'-o',str(tac_obj)],
               flags+['-Dutils_safe_malloc=test_optimizer_malloc','-c',str(ROOT/'src/tac_optimizer.c'),'-o',str(obj)],
-              flags+[str(HERE/'tac_optimizer_driver.c'),str(obj),str(tac_obj),*[str(ROOT/'src'/f) for f in ('ast.c','attribute_table.c','utils.c')],'-lm','-o',str(exe)]]
+              flags+[str(HERE/'tac_optimizer_driver.c'),str(HERE/'ast_print.c'),str(obj),str(tac_obj),*[str(ROOT/'src'/f) for f in ('ast.c','attribute_table.c','utils.c','stack.c')],'-lm','-o',str(exe)]]
     if with_codegen:
         codegen_obj=directory/'codegen.o'
         commands.insert(-1,flags+['-Dtac_list_destruct=test_codegen_destruct','-c',str(ROOT/'src/codegen.c'),'-o',str(codegen_obj)])

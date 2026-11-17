@@ -1,4 +1,5 @@
 /* Test fixture only: compile with run_tests.py, never as part of the compiler. */
+#include "ast_print.h"
 #include "tac.h"
 #include "tac_optimizer.h"
 #ifdef TEST_CODEGEN
@@ -10,6 +11,8 @@ void test_codegen_destruct(tac_list *list)
     tac_list_destruct(list);
 }
 #endif
+#include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <limits.h>
 #include <math.h>
@@ -97,7 +100,7 @@ static void add(tac_list *list, tac_operator op, tac_argument a, tac_argument b,
 }
 static void emit_print(tac_list *l, tac_argument a)
 {
-    add(l, TAC_PARAM, a, empty(), empty());
+    add(l, TAC_CALL_PARAM, a, empty(), empty());
     add(l, TAC_CALL, function_name("print"), integer(1), temp(900, ARG_UNIT));
 }
 static tac_list *raw(const char *name, unsigned seed)
@@ -188,7 +191,7 @@ static tac_list *raw(const char *name, unsigned seed)
         if (!strcmp(name, "call_barrier"))
             add(l, TAC_CALL, function_name("readInt"), integer(0), temp(1, ARG_INT));
         else if (!strcmp(name, "param_barrier"))
-            add(l, TAC_PARAM, variable("x"), empty(), empty());
+            add(l, TAC_CALL_PARAM, variable("x"), empty(), empty());
         else
             add(l, TAC_LABEL, empty(), empty(), label(1));
         add(l, TAC_RETURN, empty(), empty(), variable("x"));
@@ -202,13 +205,13 @@ static tac_list *raw(const char *name, unsigned seed)
         if (!strcmp(name, "convert_boundary"))
             add(l, TAC_LABEL, empty(), empty(), label(1));
         if (!strcmp(name, "convert_nested"))
-            add(l, TAC_PARAM, integer(5), empty(), empty());
-        add(l, TAC_PARAM, !strcmp(name, "convert_nested") ? integer(42) : variable("x"), empty(), empty());
+            add(l, TAC_CALL_PARAM, integer(5), empty(), empty());
+        add(l, TAC_CALL_PARAM, !strcmp(name, "convert_nested") ? integer(42) : variable("x"), empty(), empty());
         add(l, TAC_CALL, function_name(ordinary ? "identity" : "INT_TO_FLOAT"), integer(1),
             temp(1, ordinary ? ARG_INT : ARG_FLOAT));
         if (!strcmp(name, "convert_nested"))
         {
-            add(l, TAC_PARAM, temp(1, ARG_FLOAT), empty(), empty());
+            add(l, TAC_CALL_PARAM, temp(1, ARG_FLOAT), empty(), empty());
             add(l, TAC_CALL, function_name("sum"), integer(2), temp(2, ARG_FLOAT));
             add(l, TAC_RETURN, empty(), empty(), temp(2, ARG_FLOAT));
         }
@@ -682,7 +685,7 @@ static const char *operation(tac_operator op)
         OP(PLUS)
         OP(MINUS)
         OP(UNARY_MINUS) OP(MUL) OP(DIV) OP(CALL) OP(GOTO) OP(PARAM) OP(ASSIGNMENT) OP(RETURN) OP(IF_JUMP) OP(LABEL)
-            OP(EQUALS) OP(GREATER) OP(LESSER) OP(NOT) OP(FUNC_START) OP(FUNC_END) OP(OR) OP(AND) OP(VAR_DEF) OP(VAL_DEF)
+            OP(EQUALS) OP(GREATER) OP(LESSER) OP(NOT) OP(FUNC_START) OP(FUNC_END) OP(OR) OP(AND) OP(VAR_DEF) OP(VAL_DEF) OP(CALL_PARAM)
     }
 #undef OP
     return "UNKNOWN";
@@ -754,6 +757,8 @@ int main(int argc, char **argv)
     if (!strcmp(argv[1], "ast") || generating_code)
     {
         ast_node *root = ast_fixture(name);
+        if (getenv("DUMP_AST"))
+            ast_print(stderr, root, table);
         list = tac_generate(&err, &root, table);
         consumed = root == NULL;
     }

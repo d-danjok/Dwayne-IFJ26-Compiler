@@ -1,5 +1,34 @@
 # TAC, codegen output, and optimizer tests
 
+## Pretty report (both suites)
+
+```sh
+python3 tests/codegen/pretty.py              # both suites: build, groups, failures, totals
+python3 tests/codegen/pretty.py -q           # failed names and totals only
+python3 tests/codegen/pretty.py --suite output -k loop --optimize --sanitize
+python3 tests/codegen/pretty.py --show                 # + AST, TAC, optimized TAC, IFJcode26 of each failure
+python3 tests/codegen/pretty.py --show all -k factorial # same for passing cases too
+python3 tests/codegen/pretty.py --trace -k factorial     # --show + execute the code, one row per step
+python3 tests/codegen/pretty.py --step --suite output -k sum_loop --show all   # same, Enter after each step
+```
+
+`--show` builds the driver once more and prints, per case:
+
+- the fixture AST (`ast_print.c`, copied from the parser tests);
+- a side-by-side table: each TAC instruction on the left, the IFJcode26 lines
+  codegen emitted for it on the right (with line numbers; the line where the test
+  executor failed is marked);
+- the other TAC variant (optimized, or unoptimized with `--optimize`).
+
+`--trace` also runs the generated code in `target_executor.py` and prints every
+executed instruction with the TAC instruction it belongs to and its effect
+(variable written, jump taken, stdout). `--step` pauses after each step.
+Raw TAC fixtures have no AST or codegen, only the TAC before/after the optimizer.
+
+The pairing works without touching `src/`: `codegen.c` is compiled with
+`-Dtac_get_curr_instruction=test_codegen_next`, and with `TAC_MARKERS` set the
+driver prints a `#@tac N` comment before the code of TAC instruction N.
+
 ## Program output: TAC + codegen
 
 ```sh

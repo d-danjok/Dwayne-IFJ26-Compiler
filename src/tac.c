@@ -261,21 +261,18 @@ static tac_argument create_new_id(error *err, attribute_table *attr_table, ast_n
     char *id_name = attribute_table_get_identifier(attr_table, err, identifier->attribute_index);
     if (*err != NONE)
     {
-        // TODO: ERROR
         return ARGUMENT_ERROR;
     }
     int new_size = snprintf(NULL, 0, "%s_%ld", id_name, identifier->block_index);
     if (new_size < 0)
     {
         *err = GENERAL_INTERNAL;
-        // TODO: ERROR
         return ARGUMENT_ERROR;
     }
 
     id_argument.identifier_name = utils_safe_malloc(err, (size_t)(new_size + 1));
     if (*err != NONE)
     {
-        // TODO: ERROR
         return ARGUMENT_ERROR;
     }
     snprintf(id_argument.identifier_name, (size_t)(new_size + 1), "%s_%ld", id_name, identifier->block_index);

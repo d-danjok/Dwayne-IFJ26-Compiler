@@ -428,12 +428,6 @@ static void check_definition(sem_context *ctx, ast_node *definition_node)
     if (*ctx->err != NONE)
         return;
 
-    if (value_type == AST_TYPE_BOOLEAN)
-    {
-        *ctx->err = VAR_WRONG_ASSIGN_TYPE;
-        return;
-    }
-
     // no type written.
     // variable gets the type of the value
     ast_literal_type var_type = value_type;
@@ -469,7 +463,7 @@ static void check_assignment(sem_context *ctx, ast_node *statement)
      * d = 1            int to double                   | require_type
      * a = 1.5          cannot convert double to int    | require_type
      * a = "s"          variable type is immutable      | require_type
-     * a = 1 < 2        cannot assign boolean value     | second if
+     * a = 1 < 2        boolean into int                | require_type
      * c = 2            constants are immutable         | first if
      * p = 2            parameters are immutable        | first if
      * zz = 1           var doesn't exist               | scope_lookup undefined error
@@ -482,12 +476,6 @@ static void check_assignment(sem_context *ctx, ast_node *statement)
     if (id_data->type == ID_TYPE_CONSTANT)
     {
         *ctx->err = GENERAL_SEMANTICS_IMMUTABLE_CHANGE_ATTEMPT;
-        return;
-    }
-
-    if (assign_expression_type == AST_TYPE_BOOLEAN)
-    {
-        *ctx->err = GENERAL_SEMANTICS_TYPE_INCOMPATIBILITY;
         return;
     }
 
@@ -598,6 +586,18 @@ static ast_literal_type check_binary_operation(sem_context *ctx, ast_node *expre
             result = AST_TYPE_BOOLEAN;
             break;
         }
+
+        if (left_literal == AST_TYPE_BOOLEAN && right_literal == AST_TYPE_BOOLEAN)
+        {
+            result = AST_TYPE_BOOLEAN;
+            break;
+        }
+        break;
+
+    case AST_OP_AND:
+    case AST_OP_OR:
+        if (left_literal == AST_TYPE_BOOLEAN && right_literal == AST_TYPE_BOOLEAN)
+            result = AST_TYPE_BOOLEAN;
         break;
 
     default:

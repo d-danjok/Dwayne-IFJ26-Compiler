@@ -575,23 +575,9 @@ static ast_literal_type check_binary_operation(sem_context *ctx, ast_node *expre
             break;
         }
 
-        if (both_numeric && left_literal == right_literal)
-        {
+        // two values of the same type: Int, Double, String, Boolean, Unit
+        if (left_literal == right_literal)
             result = AST_TYPE_BOOLEAN;
-            break;
-        }
-
-        if (left_literal == AST_TYPE_STRING && right_literal == AST_TYPE_STRING)
-        {
-            result = AST_TYPE_BOOLEAN;
-            break;
-        }
-
-        if (left_literal == AST_TYPE_BOOLEAN && right_literal == AST_TYPE_BOOLEAN)
-        {
-            result = AST_TYPE_BOOLEAN;
-            break;
-        }
         break;
 
     case AST_OP_AND:

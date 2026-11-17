@@ -60,10 +60,42 @@ typedef struct
 } sem_context;
 
 
-static void check_block(sem_context *ctx, const ast_node *block);
-static identifier_data *use_variable(const sem_context *ctx, ast_node *var);
-static void check_function(sem_context *ctx, function_info *func);
+// ==================- HELPER FUNCTIONS -==================
+//                - FUNCTION FOR FUNCTIONS -
+static bool is_numeric(ast_literal_type type);
+static void insert_int_to_double(sem_context *ctx, ast_node **ast_int_node);
+// ==================- HELPER FUNCTIONS -==================
+
+
+// ==================- Stack and Symtable Functions -==================
+static void scopes_stack_destruct(stack **scopes);
+static void scope_push(stack *scopes, error *err, long block_index);
+static void scope_pop(stack *scopes, error *err);
+static void scope_declare_id(const stack *scopes, error *err, int identifier_id, identifier_data **data);
+static identifier_data *scope_lookup(const stack *scopes, error *err, int identifier_id, long *block_index);
+static void declare_variable(const sem_context *ctx, ast_node *id_node, identifier_type id_type, ast_literal_type type);
+// ==================- Stack and Symtable Functions -==================
+
+
+// ==================- First run functions -==================
+static void register_function(sem_context *ctx, const ast_node *def_list);
+static void check_main(const sem_context *ctx);
+// ==================- First run functions -==================
+
+
+// ==================- Second run functions -==================
+static ast_literal_type check_binary_operation(sem_context *ctx, ast_node *expression);
+static ast_literal_type check_unary_operation(sem_context *ctx, ast_node *expression);
 static ast_literal_type check_expression(sem_context *ctx, ast_node **expression);
+static void check_statement(sem_context *ctx, ast_node *statement_def);
+static void check_block(sem_context *ctx, const ast_node *block);
+static void check_function(sem_context *ctx, function_info *func);
+static void check_all_bodies(sem_context *ctx);
+static identifier_data *use_variable(const sem_context *ctx, ast_node *var);
+// ==================- Second run functions -==================
+
+
+ast_node *semantic_analyser_run(error *err, ast_node **parser_tree, attribute_table *attr_tab);
 
 
 static bool is_numeric(const ast_literal_type type)
@@ -140,6 +172,7 @@ static void scope_pop(stack *scopes, error *err)
 }
 
 
+// inserts identifier into the symtable
 static void scope_declare_id(const stack *scopes, error *err, const int identifier_id, identifier_data **data)
 {
     const scope *current_scope = stack_peek(scopes, err, 0);
@@ -185,7 +218,7 @@ static identifier_data *scope_lookup(const stack *scopes, error *err, const int 
 
 
 // puts a variable into the innermost scope and writes its block index and type into the IDENTIFIER node
-static void declare_variable(const sem_context *ctx, ast_node *id_node, const identifier_type kind,
+static void declare_variable(const sem_context *ctx, ast_node *id_node, const identifier_type id_type,
                              const ast_literal_type type)
 {
     identifier_data *data = NEW_IDENTIFIER_DATA(ctx->err, 0);
@@ -193,7 +226,7 @@ static void declare_variable(const sem_context *ctx, ast_node *id_node, const id
         return;
 
     data->value_type = (data_type)type; // symtable stores data_type, enum values are the same
-    data->type = kind;
+    data->type = id_type;
     data->function_arg_count = 0;
 
     scope_declare_id(ctx->scopes, ctx->err, id_node->attribute_index, &data); // takes ownership of data
@@ -432,7 +465,11 @@ static ast_literal_type check_binary_operation(sem_context *ctx, ast_node *expre
 
 static ast_literal_type check_unary_operation(sem_context *ctx, ast_node *expression)
 {
-    // statement --L-> definition --R--> assign_val --L--> expression
+    //                  statement
+    //          definition
+    //                  assign_val
+    //            expression
+    //
     // in our case always unary
     ast_node *unary_op = expression;
     const ast_literal_type operand_type = check_expression(ctx, &unary_op->left_child);
@@ -474,11 +511,13 @@ static ast_literal_type check_unary_operation(sem_context *ctx, ast_node *expres
     return result;
 }
 
+
 // finds out the type of an expression and writes it into its nodes (TAC reads them)
 // gets the address of the parent's pointer, so later an INT_TO_DOUBLE node can be inserted above the expression
 // returns AST_TYPE_NONE after an error
 static ast_literal_type check_expression(sem_context *ctx, ast_node **expression)
 {
+    //
     ast_node *node = *expression;
 
     switch (node->type)
@@ -505,7 +544,7 @@ static ast_literal_type check_expression(sem_context *ctx, ast_node **expression
     }
 }
 
-// TODO: checks one statement
+
 static void check_statement(sem_context *ctx, ast_node *statement_def)
 {
     //            x = expr
@@ -521,18 +560,18 @@ static void check_statement(sem_context *ctx, ast_node *statement_def)
 
     switch (inner->type)
     {
-    case AST_NODE_DEFINITION: // yes
+    case AST_NODE_DEFINITION:
         break;
 
-    case AST_NODE_WHILE: // yes
+    case AST_NODE_WHILE:
         // TODO: condition must be boolean
         check_block(ctx, inner->right_child);
         break;
 
-    case AST_NODE_IF_LIST: // yes
+    case AST_NODE_IF_LIST:
         break;
 
-    case AST_NODE_RETURN: // yes
+    case AST_NODE_RETURN:
         break;
 
     default: // plain expression: print(x), f(1)
@@ -541,6 +580,7 @@ static void check_statement(sem_context *ctx, ast_node *statement_def)
         break;
     }
 }
+
 
 // opens a new scope for the block, checks every statement in it and closes the scope
 // so variables declared inside the block are visible only until its end
@@ -658,10 +698,9 @@ static identifier_data *use_variable(const sem_context *ctx, ast_node *var)
     return id_data;
 }
 
+
 ast_node *semantic_analyser_run(error *err, ast_node **parser_tree, attribute_table *attr_tab)
 {
-    (void)attr_tab; // needed in pass 2
-
     *err = NONE;
     ast_node *ast_root = *parser_tree;
     *parser_tree = NULL; // the analyser owns the tree now

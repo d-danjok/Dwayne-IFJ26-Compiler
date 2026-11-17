@@ -60,6 +60,33 @@ typedef struct
 } sem_context;
 
 
+static void check_block(sem_context *ctx, const ast_node *block);
+static identifier_data *use_variable(const sem_context *ctx, ast_node *var);
+static void check_function(sem_context *ctx, function_info *func);
+static ast_literal_type check_expression(sem_context *ctx, ast_node **expression);
+
+
+static bool is_numeric(const ast_literal_type type)
+{
+    return type == AST_TYPE_INT || type == AST_TYPE_DOUBLE;
+}
+
+
+static void insert_int_to_double(sem_context *ctx, ast_node **ast_int_node)
+{
+    ast_node *int_to_double = new_ast_node(ctx->err);
+    if (*ctx->err != NONE)
+        return;
+
+    int_to_double->type = AST_NODE_INT_TO_DOUBLE_CONVERSION;
+    int_to_double->literal_type = AST_TYPE_DOUBLE;
+    int_to_double->src_line_number = (*ast_int_node)->src_line_number;
+
+    int_to_double->left_child = *ast_int_node;
+    *ast_int_node = int_to_double;
+}
+
+
 static void scopes_stack_destruct(stack **scopes)
 {
     if (*scopes == NULL)
@@ -285,6 +312,217 @@ static void check_main(const sem_context *ctx)
 }
 
 
+static ast_literal_type check_binary_operation(sem_context *ctx, ast_node *expression)
+{
+    ast_node *binary_op = expression;
+
+    ast_literal_type left_literal = check_expression(ctx, &binary_op->left_child);
+    if (*ctx->err != NONE)
+        return AST_TYPE_NONE;
+
+    ast_literal_type right_literal = check_expression(ctx, &binary_op->right_child);
+    if (*ctx->err != NONE)
+        return AST_TYPE_NONE;
+
+    ast_literal_type result = AST_TYPE_NONE; // stays NONE if the operand types do not fit
+    const bool both_numeric = is_numeric(left_literal) && is_numeric(right_literal);
+    switch (binary_op->operator)
+    {
+    case AST_OP_PLUS:
+        if (left_literal == AST_TYPE_STRING && right_literal == AST_TYPE_STRING)
+        {
+            result = AST_TYPE_STRING;
+            break;
+        }
+    case AST_OP_MINUS:
+    case AST_OP_MULTIPLY:
+    case AST_OP_DIV:
+        // two numbers with the same type -> that same type
+        // two numbers with different types -> double
+        if (!is_numeric(left_literal) || !is_numeric(right_literal))
+            break;
+        if (left_literal == right_literal)
+            result = left_literal; // int+int -> int, double+double -> double
+        else
+        {
+            if (left_literal == AST_TYPE_INT)
+                insert_int_to_double(ctx, &binary_op->left_child);
+            else
+                insert_int_to_double(ctx, &binary_op->right_child);
+
+            if (*ctx->err != NONE)
+                return AST_TYPE_NONE;
+
+            result = AST_TYPE_DOUBLE;
+        }
+        break;
+
+    case AST_OP_LESS:
+    case AST_OP_LESS_EQUAL:
+    case AST_OP_GREATER:
+    case AST_OP_GREATER_EQUAL:
+        // two numbers with the same type or two values of the same type -> boolean
+        // two numbers with different types -> (adding conversion node to int) -> double
+        if (left_literal == AST_TYPE_STRING && right_literal == AST_TYPE_STRING)
+        {
+            result = AST_TYPE_BOOLEAN;
+            break;
+        }
+        if (both_numeric && left_literal != right_literal)
+        {
+            if (left_literal == AST_TYPE_INT)
+                insert_int_to_double(ctx, &binary_op->left_child);
+            else
+                insert_int_to_double(ctx, &binary_op->right_child);
+            if (*ctx->err != NONE)
+                return AST_TYPE_NONE;
+            result = AST_TYPE_BOOLEAN;
+            break;
+        }
+        if (both_numeric && left_literal == right_literal)
+        {
+            result = AST_TYPE_BOOLEAN;
+            break;
+        }
+        break;
+
+    case AST_OP_EQUAL:
+    case AST_OP_NOT_EQUAL:
+        // two numbers or two values of the same type -> boolean
+        if (both_numeric && left_literal != right_literal)
+        {
+            if (left_literal == AST_TYPE_INT)
+                insert_int_to_double(ctx, &binary_op->left_child);
+            else
+                insert_int_to_double(ctx, &binary_op->right_child);
+
+            if (*ctx->err != NONE)
+                return AST_TYPE_NONE;
+
+            result = AST_TYPE_BOOLEAN;
+            break;
+        }
+
+        if (both_numeric && left_literal == right_literal)
+        {
+            result = AST_TYPE_BOOLEAN;
+            break;
+        }
+
+        if (left_literal == AST_TYPE_STRING && right_literal == AST_TYPE_STRING)
+        {
+            result = AST_TYPE_BOOLEAN;
+            break;
+        }
+        break;
+
+    default:
+        break;
+    }
+
+    if (result == AST_TYPE_NONE)
+    {
+        *ctx->err = OPERATOR_WRONG_OPERANDS;
+        return AST_TYPE_NONE;
+    }
+
+    binary_op->literal_type = result;
+    return result;
+}
+
+// finds out the type of an expression and writes it into its nodes (TAC reads them)
+// gets the address of the parent's pointer, so later an INT_TO_DOUBLE node can be inserted above the expression
+// returns AST_TYPE_NONE after an error
+static ast_literal_type check_expression(sem_context *ctx, ast_node **expression)
+{
+    ast_node *node = *expression;
+
+    switch (node->type)
+    {
+    case AST_NODE_LITERAL:
+        return node->literal_type;
+
+    case AST_NODE_IDENTIFIER:
+        use_variable(ctx, node);
+        if (*ctx->err != NONE)
+            return AST_TYPE_NONE;
+        return node->literal_type;
+
+        // TODO: AST_NODE_UNARY_OPERATION, AST_NODE_BINARY_OPERATION, AST_NODE_FUNC_CALL
+
+    case AST_NODE_UNARY_OPERATION:
+        // check_unary_operation(ctx, expression);
+        return AST_TYPE_NONE;
+
+    case AST_NODE_BINARY_OPERATION:
+        return check_binary_operation(ctx, *expression);
+
+    default:
+        return AST_TYPE_NONE;
+    }
+}
+
+// TODO: checks one statement
+static void check_statement(sem_context *ctx, ast_node *statement_def)
+{
+    //            x = expr
+    // L: IDENTIFIER     R: ASSIGN_VAL
+
+    if (statement_def->right_child != NULL)
+    {
+        // TODO: check_assignment
+        return;
+    }
+
+    ast_node *inner = statement_def->left_child;
+
+    switch (inner->type)
+    {
+    case AST_NODE_DEFINITION: // yes
+        break;
+
+    case AST_NODE_WHILE: // yes
+        // TODO: condition must be boolean
+        check_block(ctx, inner->right_child);
+        break;
+
+    case AST_NODE_IF_LIST: // yes
+        break;
+
+    case AST_NODE_RETURN: // yes
+        break;
+
+    default: // plain expression: print(x), f(1)
+             // TODO: check_expression
+        check_expression(ctx, &statement_def->left_child);
+        break;
+    }
+}
+
+// opens a new scope for the block, checks every statement in it and closes the scope
+// so variables declared inside the block are visible only until its end
+static void check_block(sem_context *ctx, const ast_node *block)
+{
+    scope_push(ctx->scopes, ctx->err, block->block_index);
+    if (*ctx->err != NONE)
+        return;
+
+    //            BLOCK
+    //      L: STAT_LIST
+    // L: STATEMENT     R: STAT_LIST_R -> ...
+    for (const ast_node *stat_list = block->left_child; *ctx->err == NONE && stat_list != NULL;
+         stat_list = stat_list->right_child)
+    {
+        check_statement(ctx, stat_list->left_child);
+    }
+
+    if (*ctx->err != NONE)
+        return; // the scope is freed by scopes_stack_destruct in check_function
+
+    scope_pop(ctx->scopes, ctx->err);
+}
+
+
 // pass 2: checks the body of one function
 // called from check_all_bodies and later also from a call of a not yet checked function (a "jump"),
 // that is why it saves and restores the state of whoever called it
@@ -310,7 +548,7 @@ static void check_function(sem_context *ctx, function_info *func)
     //    L: FUNC_START                R: FUNC_BODY
     //         R: FUNC_HEAD       L: BLOCK or expression
     //    L: PARAM_LIST
-    const ast_node *func_head = func->definition->left_child->right_child; //TODO: add NULL check for builtins
+    const ast_node *func_head = func->definition->left_child->right_child; // TODO: add NULL check for builtins
 
     // parse all function parameters
     scope_push(ctx->scopes, ctx->err, PARAMS_BLOCK_INDEX);
@@ -324,7 +562,13 @@ static void check_function(sem_context *ctx, function_info *func)
         declare_variable(ctx, param->left_child, ID_TYPE_CONSTANT, param->right_child->literal_type);
     }
 
-    // TODO: check the body func->definition->right_child
+    // check the body
+    //      FUNC_BODY
+    // L: BLOCK or expression
+    const ast_node *body = func->definition->right_child->left_child;
+    if (*ctx->err == NONE && body->type == AST_NODE_BLOCK)
+        check_block(ctx, body);
+    // TODO: one-line body (expression)
 
     scopes_stack_destruct(&ctx->scopes); // frees all scopes that are left, also after an error
     ctx->scopes = caller_scopes;
@@ -347,6 +591,28 @@ static void check_all_bodies(sem_context *ctx)
 
         check_function(ctx, curr_func);
     }
+}
+
+
+// checks if var exists
+// writes block_index in IDENTIFIER node and literal_type
+// called in `x = expr` cases
+// returns identifier_data*
+static identifier_data *use_variable(const sem_context *ctx, ast_node *var)
+{
+    long block_index = 0;
+    identifier_data *id_data = scope_lookup(ctx->scopes, ctx->err, var->attribute_index, &block_index);
+
+    if (id_data == NULL)
+    {
+        // *ctx->err = GENERAL_SEMANTICS_USE_WITHOUT_DEFINITION; scope_lookup already sets the error.
+        //                                                       error will be different, but both have enum value 3
+        return NULL;
+    }
+    var->block_index = block_index;
+    var->literal_type = (ast_literal_type)id_data->value_type;
+
+    return id_data;
 }
 
 

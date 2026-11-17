@@ -662,12 +662,23 @@ token lexer_get_next_token(lexer *self, error *err)
                 {
                     if (strcmp(self->buffer, keyword_str[i]) == 0)
                     {
+
                         res.type = TOKEN_KEYWORD;
                         res.attribute_index = i;
                         break;
                     }
                 }
-                if (res.type != TOKEN_KEYWORD)
+                if (strcmp(self->buffer, "false") == 0)
+                {
+                    res.type = TOKEN_BOOLEAN;
+                    res.attribute_index = 0;
+                }
+                else if (strcmp(self->buffer, "true") == 0)
+                {
+                    res.type = TOKEN_BOOLEAN;
+                    res.attribute_index = 1;
+                }
+                if (res.type != TOKEN_KEYWORD && res.type != TOKEN_BOOLEAN)
                 {
                     res.type = TOKEN_IDENTIFIER;
                     res.attribute_index = lexer_insert_identifier(self, err);

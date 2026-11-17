@@ -14,50 +14,17 @@ HEADER_FILES_FOLDER = #nothing
 
 FILES_TO_FORMAT := $(wildcard $(SOURCE_FILES_FOLDER)*.c $(HEADER_FILES_FOLDER)*.h)
 
-.PHONY: fmt
 fmt:
 	@$(CLANG_FORMAT) -i --style=$(FORMAT_STYLE) $(FILES_TO_FORMAT)
 
-.PHONY: fmt-check
 fmt-check:
 	@$(CLANG_FORMAT) --dry-run --Werror --style=$(FORMAT_STYLE) $(FILES_TO_FORMAT)
 
-PROG_OBJECTS = main.o ast.o attribute_table.o bst.o error.o lexer.o parser.o stack.o symtable.o token.o utils.o #TODO: append other parts when done
-.PHONY: build
+PROG_COMPS = main.c ast.c attribute_table.c bst.c error.c lexer.c parser.c stack.c symtable.c token.c utils.c #TODO: append other parts when done
 
-build: $(PROG_OBJECTS)
-	$(CC) $(FLAGS) $(PROG_OBJECTS) -o $(PROG_NAME)
-	rm *.o
+all: build
 
-main.o: main.c
-	$(CC) $(CFLAGS) -c $< -o $@
+build: $(PROG_COMPS)
+	$(CC) $(FLAGS) $(PROG_COMPS) -o $(PROG_NAME)
 
-ast.o: ast.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-attribute_table.o: attribute_table.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-bst.o: bst.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-error.o: error.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-lexer.o: lexer.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-parser.o: parser.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-stack.o: stack.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-symtable.o: symtable.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-token.o: token.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-utils.o: utils.c
-	$(CC) $(CFLAGS) -c $< -o $@
+.PHONY: fmt fmt-check build

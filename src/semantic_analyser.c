@@ -84,6 +84,9 @@ static void check_main(const sem_context *ctx);
 
 
 // ==================- Second run functions -==================
+static void require_type(sem_context *ctx, ast_node **parent_node, ast_literal_type expected, ast_literal_type actual,
+                         error mismatch_error);
+static void check_definition(sem_context *ctx, ast_node *definition_node);
 static ast_literal_type check_binary_operation(sem_context *ctx, ast_node *expression);
 static ast_literal_type check_unary_operation(sem_context *ctx, ast_node *expression);
 static ast_literal_type check_expression(sem_context *ctx, ast_node *expression);
@@ -344,6 +347,103 @@ static void check_main(const sem_context *ctx)
         *ctx->err = ENTER_FUNC_INVALID_RETURN_TYPE;
 }
 
+// check type compatibility
+static void require_type(sem_context *ctx, ast_node **parent_node, const ast_literal_type expected,
+                         const ast_literal_type actual, const error mismatch_error)
+{
+    if (expected == actual)
+        return;
+
+    if (expected == AST_TYPE_DOUBLE && actual == AST_TYPE_INT)
+    {
+        insert_int_to_double(ctx, parent_node);
+        return;
+    }
+
+    *ctx->err = mismatch_error;
+}
+
+static void check_definition(sem_context *ctx, ast_node *definition_node)
+{
+
+    ast_node *assign_val = definition_node->right_child;
+    ast_node *def_body = definition_node->left_child->left_child;
+    ast_node *id_node = def_body->left_child;
+    ast_node *type_notation = def_body->right_child;
+
+    const identifier_type id_type =
+        definition_node->left_child->type == AST_NODE_VAL_DEF ? ID_TYPE_CONSTANT : ID_TYPE_VARIABLE;
+
+    // val x = x + 1
+    ast_literal_type value_type = check_expression(ctx, assign_val->left_child);
+    if (*ctx->err != NONE)
+        return;
+
+    if (value_type == AST_TYPE_BOOLEAN)
+    {
+        *ctx->err = VAR_WRONG_ASSIGN_TYPE;
+        return;
+    }
+
+    // no type written.
+    // variable gets the type of the value
+    ast_literal_type var_type = value_type;
+    if (type_notation != NULL)
+    {
+        var_type = type_notation->left_child->literal_type;
+        require_type(ctx, &assign_val->left_child, var_type, value_type, VAR_WRONG_ASSIGN_TYPE);
+        if (*ctx->err != NONE)
+            return;
+    }
+
+    declare_variable(ctx, id_node, id_type, var_type);
+}
+
+static void check_assignment(sem_context *ctx, ast_node *statement)
+{
+    ast_node *identifier = statement->left_child;
+    ast_node *assign_val = statement->right_child;
+
+    identifier_data *id_data = use_variable(ctx, identifier);
+
+    if (*ctx->err != NONE)
+        return;
+
+    ast_literal_type assign_expression_type = check_expression(ctx, assign_val->left_child);
+    if (*ctx->err != NONE)
+        return;
+
+    /*
+     * a = 5            int to int                      | require_type
+     * a = a + 1        old value                       | require_type
+     * d = 1            int to double                   | require_type
+     * a = 1.5          cannot convert double to int    | require_type
+     * a = "s"          variable type is immutable      | require_type
+     * a = 1 < 2        cannot assign boolean value     | second if
+     * c = 2            constants are immutable         | first if
+     * p = 2            parameters are immutable        | first if
+     * zz = 1           var doesn't exist               | scope_lookup undefined error
+     * a = zz           var doesn't exist               | check_expression -> use_var -> error undefined
+     */
+
+    //  TODO: IMPORTANT! Check error order
+    //  zz = a -> error 3 or 7? We need to check error priority
+
+    if (id_data->type == ID_TYPE_CONSTANT)
+    {
+        *ctx->err = GENERAL_SEMANTICS_IMMUTABLE_CHANGE_ATTEMPT;
+        return;
+    }
+
+    if (assign_expression_type == AST_TYPE_BOOLEAN)
+    {
+        *ctx->err = GENERAL_SEMANTICS_TYPE_INCOMPATIBILITY;
+        return;
+    }
+
+    require_type(ctx, &assign_val->left_child, (ast_literal_type)id_data->value_type, assign_expression_type,
+                 VAR_WRONG_ASSIGN_TYPE);
+}
 
 static ast_literal_type check_binary_operation(sem_context *ctx, ast_node *expression)
 {
@@ -548,7 +648,7 @@ static void check_statement(sem_context *ctx, ast_node *statement_def)
 
     if (statement_def->right_child != NULL)
     {
-        // TODO: check_assignment
+        check_assignment(ctx, statement_def);
         return;
     }
 
@@ -557,12 +657,22 @@ static void check_statement(sem_context *ctx, ast_node *statement_def)
     switch (inner->type)
     {
     case AST_NODE_DEFINITION:
+        check_definition(ctx, inner);
         break;
 
-    case AST_NODE_WHILE:
-        // TODO: condition must be boolean
+    case AST_NODE_WHILE: {
+        ast_literal_type condition_type = check_expression(ctx, inner->left_child);
+        if (*ctx->err != NONE)
+            return;
+
+        if (condition_type != AST_TYPE_BOOLEAN)
+        {
+            *ctx->err = GENERAL_SEMANTICS_TYPE_INCOMPATIBILITY;
+            return;
+        }
         check_block(ctx, inner->right_child);
         break;
+    }
 
     case AST_NODE_IF_LIST:
         break;

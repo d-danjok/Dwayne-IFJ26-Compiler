@@ -4,7 +4,7 @@
 
 #include <math.h>
 #include <stdarg.h>
-
+#include "stack.h"
 #define ARGUMENT_ERROR                                                                                                 \
     (tac_argument)                                                                                                     \
     {                                                                                                                  \
@@ -24,6 +24,7 @@ typedef struct
     unsigned int temporary_var_id;
     unsigned int instruction_id;
     unsigned int label_id;
+    stack *params;
 } tac_prog;
 
 // @brief Function to create and append PARAM instruction
@@ -337,6 +338,12 @@ static tac_argument tac_emit_call_param(error *err, ast_node *call_param, tac_pr
         return ARGUMENT_ERROR;
     }
     *num_of_args += 1;
+    stack_push(prog->params,err,(void**)&call_param_instruction);
+    if (*err != NONE)
+    {
+        free_unconsumed_argument(expr);
+        return ARGUMENT_ERROR;
+    }
     append_instruction(prog, call_param_instruction);
     return ARGUMENT_EMPTY;
 }
@@ -380,7 +387,22 @@ static tac_argument tac_evaluate_call_param_list(error *err, ast_node *call_para
         return ARGUMENT_ERROR;
     }
     // <call_params'> Node
-    return tac_evaluate_call_param_list_(err, call_param_list->right_child, prog, num_of_args);
+    tac_argument result = tac_evaluate_call_param_list_(err, call_param_list->right_child, prog, num_of_args);
+    if (result.type == ARG_ERROR)
+    {
+        return ARGUMENT_ERROR;
+    }
+    while (true)
+    {
+        tac_instruction* param_instruction = stack_pop(prog->params,err );
+        if (*err != NONE)
+        {
+            break;
+        }
+        append_instruction(prog,param_instruction);
+    }
+    return ARGUMENT_EMPTY;
+
 }
 static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
 {
@@ -1429,18 +1451,28 @@ tac_list *tac_generate(error *err, ast_node **root, attribute_table *attr_table)
 {
     *err = NONE;
     tac_prog prog = {0};
+    stack* call_param_stack = new_stack(err);
+
+    if (*err != NONE)
+    {
+        tac_log_print("Error occurred during creation of stack in TAC module!\n");
+        return NULL;
+    }
+
     prog.attr_table = attr_table;
+    prog.params = call_param_stack;
 
     new_tac_prog(err, &prog);
     if (*err != NONE)
     {
         tac_log_print("Error occurred during creation of TAC Program!\n");
         ast_node_destruct_recursively(root);
+        stack_destruct(&call_param_stack);
         return NULL;
     }
     tac_argument result = tac_evaluate_func_list(err, *root, &prog);
     ast_node_destruct_recursively(root);
-
+    stack_destruct(&call_param_stack);
     if (result.type == ARG_ERROR || *err != NONE)
     {
         tac_log_print("Error occurred during creation of TAC instructions!\n");

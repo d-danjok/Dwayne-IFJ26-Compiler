@@ -64,6 +64,8 @@ typedef struct
 //                - FUNCTION FOR FUNCTIONS -
 static bool is_numeric(ast_literal_type type);
 static void insert_int_to_double(sem_context *ctx, ast_node **ast_int_node);
+static void check_condition(sem_context *ctx, ast_node *condition);
+static void check_if_list(sem_context *ctx, const ast_node *if_list);
 // ==================- HELPER FUNCTIONS -==================
 
 
@@ -119,6 +121,51 @@ static void insert_int_to_double(sem_context *ctx, ast_node **ast_int_node)
 
     int_to_double->left_child = *ast_int_node;
     *ast_int_node = int_to_double;
+}
+
+
+// check condition type in the loop, must always be boolean
+static void check_condition(sem_context *ctx, ast_node *condition)
+{
+    const ast_literal_type condition_type = check_expression(ctx, condition);
+    if (*ctx->err != NONE)
+        return;
+
+    if (condition_type != AST_TYPE_BOOLEAN)
+        *ctx->err = GENERAL_SEMANTICS_TYPE_INCOMPATIBILITY;
+}
+
+
+// if / else if / else: every branch with a condition gets check_condition, every branch gets its own block
+static void check_if_list(sem_context *ctx, const ast_node *if_list)
+{
+    //                IF_LIST
+    //     L: IF                  R: IF_LIST_ or NULL (no more branches)
+    // L: condition  R: BLOCK     L: ELSE                    R: IF_LIST_ or NULL
+    //                            L: IF (else if) or BLOCK (else)
+    const ast_node *branch = if_list->left_child; // first branch is always IF
+    const ast_node *rest = if_list->right_child;
+
+    while (*ctx->err == NONE)
+    {
+        if (branch->type == AST_NODE_IF)
+        {
+            check_condition(ctx, branch->left_child);
+            if (*ctx->err != NONE)
+                return;
+            check_block(ctx, branch->right_child);
+        }
+        else // else: BLOCK without a condition
+        {
+            check_block(ctx, branch);
+        }
+
+        if (rest == NULL)
+            return; // that was the last branch
+
+        branch = rest->left_child->left_child; // IF_LIST_ -> ELSE -> IF or BLOCK
+        rest = rest->right_child;
+    }
 }
 
 
@@ -347,6 +394,7 @@ static void check_main(const sem_context *ctx)
         *ctx->err = ENTER_FUNC_INVALID_RETURN_TYPE;
 }
 
+
 // check type compatibility
 static void require_type(sem_context *ctx, ast_node **parent_node, const ast_literal_type expected,
                          const ast_literal_type actual, const error mismatch_error)
@@ -362,6 +410,7 @@ static void require_type(sem_context *ctx, ast_node **parent_node, const ast_lit
 
     *ctx->err = mismatch_error;
 }
+
 
 static void check_definition(sem_context *ctx, ast_node *definition_node)
 {
@@ -398,6 +447,7 @@ static void check_definition(sem_context *ctx, ast_node *definition_node)
 
     declare_variable(ctx, id_node, id_type, var_type);
 }
+
 
 static void check_assignment(sem_context *ctx, ast_node *statement)
 {
@@ -444,6 +494,7 @@ static void check_assignment(sem_context *ctx, ast_node *statement)
     require_type(ctx, &assign_val->left_child, (ast_literal_type)id_data->value_type, assign_expression_type,
                  VAR_WRONG_ASSIGN_TYPE);
 }
+
 
 static ast_literal_type check_binary_operation(sem_context *ctx, ast_node *expression)
 {
@@ -563,6 +614,7 @@ static ast_literal_type check_binary_operation(sem_context *ctx, ast_node *expre
     return result;
 }
 
+
 static ast_literal_type check_unary_operation(sem_context *ctx, ast_node *expression)
 {
     //                  statement
@@ -660,28 +712,21 @@ static void check_statement(sem_context *ctx, ast_node *statement_def)
         check_definition(ctx, inner);
         break;
 
-    case AST_NODE_WHILE: {
-        ast_literal_type condition_type = check_expression(ctx, inner->left_child);
+    case AST_NODE_WHILE:
+        check_condition(ctx, inner->left_child);
         if (*ctx->err != NONE)
             return;
-
-        if (condition_type != AST_TYPE_BOOLEAN)
-        {
-            *ctx->err = GENERAL_SEMANTICS_TYPE_INCOMPATIBILITY;
-            return;
-        }
         check_block(ctx, inner->right_child);
         break;
-    }
 
     case AST_NODE_IF_LIST:
+        check_if_list(ctx, inner);
         break;
 
     case AST_NODE_RETURN:
         break;
 
     default: // plain expression: print(x), f(1)
-             // TODO: check_expression
         check_expression(ctx, statement_def->left_child);
         break;
     }

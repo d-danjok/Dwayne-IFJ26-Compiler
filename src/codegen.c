@@ -93,16 +93,13 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
 {
     printf(".IFJcode26\n");
 
-    tac_l->curr_instruction = tac_l->first_instruction;
-    tac_instruction *t;
-    unsigned fn_var_cnt = 0;
-    bool last_was_FUNC_START = false;
+    // tac_l->curr_instruction = tac_l->first_instruction;
+    tac_instruction *t = tac_l->first_instruction;
     bool frame_open = false;
     tac_argument_value_type f0_type;
 
     for (int tac_instr_cnt = 0; tac_instr_cnt < tac_l->size; tac_instr_cnt++)
     {
-        t = tac_get_curr_instruction(tac_l);
         switch (t->op)
         {
         case TAC_VAL_DEF: // temp
@@ -215,39 +212,42 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
                 d_vars_list = next;
             }
             break;
+
+        case TAC_PARAM:
+            printf("POPS");
+            print_symbol(&t->arg1);
+            putchar('\n');
+            break;
         case TAC_FUNC_END:
             printf("POPFRAME\n");
             printf("RETURN\n");
             break;
-        case TAC_PARAM:
-            if (last_was_FUNC_START)
+        case TAC_CALL_PARAM:
+            if (!frame_open)
             {
-                printf("MOVE");
-                print_symbol(&t->arg1);
-                printf(" LF@$f%u\n", fn_var_cnt++);
+                printf("CREATEFRAME\n");
+                frame_open = true;
+                // fn_var_cnt = 0;
             }
-            else
-            {
-                if (!frame_open)
-                {
-                    printf("CREATEFRAME\n");
-                    frame_open = true;
-                    fn_var_cnt = 0;
-                }
-                if (fn_var_cnt == 0)
-                    f0_type = t->arg1.value_type;
-                printf("DEFVAR TF@$f%u\n", fn_var_cnt);
-                printf("MOVE TF@$f%u", fn_var_cnt++);
-                print_symbol(&t->arg1);
-                putchar('\n');
-            }
+            f0_type = t->arg1.value_type;
+            printf("PUSHS");
+            print_symbol(&t->arg1);
+            putchar('\n');
+
             break;
 
         case TAC_CALL:
             // check for inline functions first
             if (strcmp(t->arg1.identifier_name, "print") == 0)
             {
-                printf(f0_type == ARG_UNIT ? "WRITE string@()\n" : "WRITE TF@$f0\n");
+                printf("DEFVAR TF@$tt\nPOPS TF@$tt\n");
+                printf(f0_type == ARG_UNIT ? "WRITE string@()\n" : "WRITE TF@$tt\n");
+                if (t->result.type != ARG_EMPTY)
+                {
+                    printf("MOVE");
+                    print_symbol(&t->result);
+                    printf(" nil@nil\n");
+                }
             }
             else if (strcmp(t->arg1.identifier_name, "readLine") == 0)
             { // read should always have result variable
@@ -257,9 +257,14 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
             }
             else if (strcmp(t->arg1.identifier_name, "readInt") == 0)
             {
+                static unsigned read_int_cnt = 0;
                 printf("READ");
                 print_symbol(&t->result);
-                printf(" int\n");
+                printf(" int\nJUMPIFNEQ $readInt%u", read_int_cnt);
+                print_symbol(&t->result);
+                printf(" nil@nil\nMOVE");
+                print_symbol(&t->result);
+                printf(" int@0\nLABEL $readInt%u\n", read_int_cnt++);
             }
             else if (strcmp(t->arg1.identifier_name, "readDouble") == 0)
             {
@@ -275,39 +280,77 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
             }
             else if (strcmp(t->arg1.identifier_name, "strLength") == 0)
             {
+                printf("DEFVAR TF@$tt\nPOPS TF@$tt\n");
                 printf("STRLEN");
                 print_symbol(&t->result);
-                printf(" TF@$f0\n");
+                printf(" TF@$tt\n");
             }
             else if (strcmp(t->arg1.identifier_name, "chr") == 0)
             {
+                printf("DEFVAR TF@$tt\nPOPS TF@$tt\n");
                 printf("INT2CHAR");
                 print_symbol(&t->result);
-                printf(" TF@$f0\n");
+                printf(" TF@$tt\n");
             }
             else if (strcmp(t->arg1.identifier_name, "ord") == 0)
             {
+                printf("DEFVAR TF@$tt\nPOPS TF@$tt\n");
+                printf("DEFVAR TF@$ttt\nPOPS TF@$ttt\n");
                 printf("STRI2INT");
                 print_symbol(&t->result);
-                printf(" TF@$f0 TF@$f1\n");
+                printf(" TF@$tt TF@$ttt\n"); // first arg (string) is on top
             }
             else if (strcmp(t->arg1.identifier_name, "toInt") == 0)
             {
+                printf("DEFVAR TF@$tt\nPOPS TF@$tt\n");
                 printf("FLOAT2INT");
                 print_symbol(&t->result);
-                printf(" TF@$f0\n");
+                printf(" TF@$tt\n");
             }
             else if (strcmp(t->arg1.identifier_name, "INT_TO_FLOAT") == 0)
             {
+                printf("DEFVAR TF@$tt\nPOPS TF@$tt\n");
                 printf("INT2FLOAT");
                 print_symbol(&t->result);
-                printf(" TF@$f0\n");
+                printf(" TF@$tt\n");
+            }
+            else if (strcmp(t->arg1.identifier_name, "toStr") == 0 && f0_type == ARG_INT)
+            {
+                printf("DEFVAR TF@$tt\nPOPS TF@$tt\n");
+                printf("INT2STR");
+                print_symbol(&t->result);
+                printf(" TF@$tt\n");
+            }
+            else if (strcmp(t->arg1.identifier_name, "toStr") == 0 && f0_type == ARG_FLOAT)
+            {
+                printf("DEFVAR TF@$tt\nPOPS TF@$tt\n");
+                printf("FLOAT2STR");
+                print_symbol(&t->result);
+                printf(" TF@$tt\n");
+            }
+            else if (strcmp(t->arg1.identifier_name, "toStr") == 0 && f0_type == ARG_BOOL)
+            {
+                static unsigned to_str_cnt = 0;
+                printf("MOVE");
+                print_symbol(&t->result);
+                printf(" string@false\n");
+                printf("DEFVAR TF@$tt\n\
+                    POPS TF@$tt\n\
+                    JUMPIFNEQ $toStr%u TF@$tt bool@true\n",
+                       to_str_cnt);
+                printf("MOVE");
+                print_symbol(&t->result);
+                printf(" string@true\n");
+
+                printf("LABEL $toStr%u\n", to_str_cnt++);
             }
             else if (strcmp(t->arg1.identifier_name, "toStr") == 0)
             {
-                printf(f0_type == ARG_INT ? "INT2STR" : f0_type == ARG_FLOAT ? "FLOAT2STR" : "MOVE");
+                if (f0_type != ARG_UNIT)
+                    printf("DEFVAR TF@$tt\nPOPS TF@$tt\n");
+                printf("MOVE");
                 print_symbol(&t->result);
-                printf(f0_type == ARG_UNIT ? " string@()\n" : " TF@$f0\n");
+                printf(f0_type == ARG_UNIT ? " string@()\n" : " TF@$tt\n");
             }
             else if (strcmp(t->arg1.identifier_name, "subStr") == 0)
             {
@@ -318,7 +361,11 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
             else // handle program functions
             {
                 if (!frame_open) // still create frame for fn with no args
+                {
                     printf("CREATEFRAME\n");
+                    frame_open = true;
+                }
+
                 PRINT_1AC("CALL", &t->arg1)
                 if (t->result.type != ARG_EMPTY)
                 {
@@ -330,7 +377,7 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
             frame_open = false;
             break;
         case TAC_RETURN:
-            if (t->result.type != ARG_EMPTY)
+            if (t->result.type != ARG_EMPTY && t->result.value_type != ARG_UNIT)
             {
                 printf("MOVE LF@$res");
                 print_symbol(&t->result);
@@ -353,7 +400,12 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
 
             break;
         }
-        if (t->op != TAC_PARAM && t->op != TAC_FUNC_START)
-            last_was_FUNC_START = false;
+        if (t->op != TAC_CALL_PARAM && t->op != TAC_CALL)
+            frame_open = false;
+
+        if (t->next_instruction == NULL)
+            break;
+        t = t->next_instruction;
     }
+    tac_list_destruct(tac_l);
 }

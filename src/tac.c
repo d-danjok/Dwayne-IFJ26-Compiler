@@ -2,9 +2,9 @@
 // @author Oleksandr Fedorenko (xfedoro00)
 #include "tac.h"
 
+#include "stack.h"
 #include <math.h>
 #include <stdarg.h>
-#include "stack.h"
 #define ARGUMENT_ERROR                                                                                                 \
     (tac_argument)                                                                                                     \
     {                                                                                                                  \
@@ -331,15 +331,16 @@ static tac_argument tac_emit_call_param(error *err, ast_node *call_param, tac_pr
     {
         return ARGUMENT_ERROR;
     }
-    tac_instruction *call_param_instruction = create_instruction(err, TAC_CALL_PARAM, expr, ARGUMENT_EMPTY, ARGUMENT_EMPTY);
+    tac_instruction *call_param_instruction =
+        create_instruction(err, TAC_CALL_PARAM, expr, ARGUMENT_EMPTY, ARGUMENT_EMPTY);
     if (call_param_instruction == NULL)
     {
         free_unconsumed_argument(expr);
         return ARGUMENT_ERROR;
     }
     *num_of_args += 1;
-    tac_instruction* t =call_param_instruction ;
-    stack_push(prog->params,err,(void**)&t);
+    tac_instruction *t = call_param_instruction;
+    stack_push(prog->params, err, (void **)&t);
     if (*err != NONE)
     {
         free_unconsumed_argument(expr);
@@ -393,6 +394,7 @@ static tac_argument tac_evaluate_call_param_list(error *err, ast_node *call_para
         return ARGUMENT_ERROR;
     }
 
+    // Giving CALL_PARAMS in reverse, using CDECL convension
     for (long long int i = 0; i < *num_of_args; ++i)
     {
         tac_instruction *param_instruction = stack_pop(prog->params, err);
@@ -402,7 +404,6 @@ static tac_argument tac_evaluate_call_param_list(error *err, ast_node *call_para
     }
 
     return ARGUMENT_EMPTY;
-
 }
 static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
 {
@@ -1451,7 +1452,7 @@ tac_list *tac_generate(error *err, ast_node **root, attribute_table *attr_table)
 {
     *err = NONE;
     tac_prog prog = {0};
-    stack* call_param_stack = new_stack(err);
+    stack *call_param_stack = new_stack(err);
 
     if (*err != NONE)
     {

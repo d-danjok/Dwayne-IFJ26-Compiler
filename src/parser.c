@@ -22,7 +22,10 @@ typedef struct
 // globals
 static size_t current_paren_depth =
     0; // needed to track if we are inside of parentheses to ignore indents and new lines
-static token_input_buffer token_buffer = {.was_stored = false, .content = EMPTY_TOKEN};
+static token_input_buffer token_buffer = {
+    .was_stored = false,
+    .content = {.type = TOKEN_UNDEFINED, .attribute_index = -1, .line = 0},
+};
 static lexer *lex;
 static attribute_table *attribute_tab;
 
@@ -2952,6 +2955,7 @@ static ast_node *node_call_params_(error *err)
     {
         return NULL;
     }
+    const size_t start_line = current_token.line;
 
     if (current_token.type == TOKEN_CLOSE_PAREN)
     {
@@ -2971,32 +2975,32 @@ static ast_node *node_call_params_(error *err)
         return NULL;
     }
 
-    token next_token = peek_token(err);
+    const token next_token = peek_token(err);
     if (*err != NONE)
     {
         return NULL;
     }
 
-    bool had_end_of_line = false;
-
-    while (next_token.type == TOKEN_EOL)
-    {
-        had_end_of_line = true;
-        get_token(err);
-        if (*err != NONE)
-        {
-            return NULL;
-        }
-        next_token = peek_token(err);
-        if (*err != NONE)
-        {
-            return NULL;
-        }
-    }
+    // bool had_end_of_line = false;
+    //
+    // while (next_token.type == TOKEN_EOL)
+    // {
+    //     had_end_of_line = true;
+    //     get_token(err);
+    //     if (*err != NONE)
+    //     {
+    //         return NULL;
+    //     }
+    //     next_token = peek_token(err);
+    //     if (*err != NONE)
+    //     {
+    //         return NULL;
+    //     }
+    // }
 
     if (next_token.type == TOKEN_CLOSE_PAREN)
     {
-        if (!had_end_of_line)
+        if (next_token.line <= start_line)
         {
             *err = GENERAL_SYNTAX;
 

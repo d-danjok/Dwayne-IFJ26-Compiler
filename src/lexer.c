@@ -229,7 +229,7 @@ token lexer_get_next_token(lexer *self, error *err)
     FILE *in = self->input;
     error internal_err = NONE;
     size_t *line = &self->current_line;
-    size_t *strt_line = line;
+    // size_t *strt_line = line;
     char c;
     token res = {TOKEN_UNDEFINED, -1, 0};
 
@@ -265,7 +265,7 @@ token lexer_get_next_token(lexer *self, error *err)
                 self->current_state = STATE_AND;
                 break;
             case ',':
-                self->current_state = STATE_COMMA;
+                res.type = TOKEN_COMMA;
                 break;
             case ':':
                 res.type = TOKEN_COLON;
@@ -314,14 +314,6 @@ token lexer_get_next_token(lexer *self, error *err)
                 self->buffer[self->buffer_index++] = c;
                 self->current_state = STATE_UNDERSCORE;
                 break;
-            case 'a' ... 'z':
-                self->buffer[self->buffer_index++] = c;
-                self->current_state = STATE_IDENTIFIER;
-                break;
-            case 'A' ... 'Z':
-                self->buffer[self->buffer_index++] = c;
-                self->current_state = STATE_IDENTIFIER;
-                break;
             // Annotations
             case '@':
                 self->current_state = STATE_ANNOTATION;
@@ -331,10 +323,6 @@ token lexer_get_next_token(lexer *self, error *err)
                 self->current_state = STATE_STR_START;
                 break;
             // Numeric
-            case '1' ... '9':
-                self->buffer[self->buffer_index++] = c;
-                self->current_state = STATE_INT;
-                break;
             case '0':
                 self->buffer[self->buffer_index++] = c;
                 self->current_state = STATE_ZERO;
@@ -344,23 +332,22 @@ token lexer_get_next_token(lexer *self, error *err)
                 self->current_state = STATE_DOT;
                 break;
             default:
-                *err = INVALID_SYMBOL;
+                if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
+                {
+                    self->buffer[self->buffer_index++] = c;
+                    self->current_state = STATE_IDENTIFIER;
+                }
+                else if (c >= '1' && c <= '9')
+                {
+                    self->buffer[self->buffer_index++] = c;
+                    self->current_state = STATE_INT;
+                }
+                else
+                    *err = INVALID_SYMBOL;
             }
             res.line = self->current_line;
         }
         break;
-        case STATE_COMMA:
-            c = lexer_peek_char(err, &internal_err, in, 0);
-            if (c == ' ')
-                lexer_get_char(err, &internal_err, in, line);
-            else if (c == '\n' && self->Pdepth > 0)
-            {
-                self->indent_cnt = 0;
-                self->current_state = STATE_NL;
-            }
-            else
-                res.type = TOKEN_COMMA;
-            break;
 
         // ANNOTATION
         case STATE_ANNOTATION: {
@@ -590,17 +577,12 @@ token lexer_get_next_token(lexer *self, error *err)
                 self->indent_cnt = 0;
                 self->current_state = STATE_INDENT_DIV;
             }
-            else if (c == ')' && self->Pdepth > 0)
+            else if (self->Pdepth > 0)
             {
                 if (self->indent_cnt < lexer_indent_top(self, err))
-                    *err = INVALID_INDENTATION;
+                    *err = INVALID_PARENTACES_INDENTATION;
                 else
-                {
-                    lexer_get_char(err, &internal_err, in, line);
-                    self->Pdepth--;
-                    res.type = TOKEN_CLOSE_PAREN;
                     self->current_state = STATE_START;
-                }
             }
             else if (c == '\t')
                 *err = INVALID_INDENTATION;

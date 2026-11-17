@@ -330,7 +330,7 @@ static tac_argument tac_emit_call_param(error *err, ast_node *call_param, tac_pr
     {
         return ARGUMENT_ERROR;
     }
-    tac_instruction *call_param_instruction = create_instruction(err, TAC_PARAM, expr, ARGUMENT_EMPTY, ARGUMENT_EMPTY);
+    tac_instruction *call_param_instruction = create_instruction(err, TAC_CALL_PARAM, expr, ARGUMENT_EMPTY, ARGUMENT_EMPTY);
     if (call_param_instruction == NULL)
     {
         free_unconsumed_argument(expr);
@@ -556,7 +556,7 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
                 }
                 return tac_expr_emit(err, expr->right_child, prog);
             }
-
+            // temp so after jump it returns argument
             tac_argument temp = create_temporary_variable(ARG_BOOL, prog);
 
             tac_argument right_label = create_label(prog);
@@ -1050,7 +1050,7 @@ static tac_argument tac_evaluate_block(error *err, ast_node *block, tac_prog *pr
         return ARGUMENT_ERROR;
     }
     return ARGUMENT_EMPTY;
-};
+}
 static tac_argument tac_emit_param(error *err, ast_node *param, tac_prog *prog)
 {
     *err = NONE;

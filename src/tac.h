@@ -37,8 +37,9 @@ typedef enum
     TAC_AND,        // (AND, OPERAND_1, OPERAND_2, RESULT), RESULT = result of expression (op_1 && op_2)
     TAC_VAR_DEF, // (VAR_DEF, OPERAND_1, ---, RESULT) RESULT = defined variable for ex. var x = 10 => (VAR_DEF, 10, ---,
                  // x)
-    TAC_VAL_DEF  // (VAL_DEF, OPERAND_1, ---, RESULT) RESULT = defined variable for ex. val x = 10 => (VAL_DEF, 10, ---,
+    TAC_VAL_DEF,  // (VAL_DEF, OPERAND_1, ---, RESULT) RESULT = defined variable for ex. val x = 10 => (VAL_DEF, 10, ---,
                  // x)
+    TAC_CALL_PARAM // (TAC_CALL_PARAM, PARAM_1, ---, ---)
 } tac_operator;
 
 // @brief Enum of argument/operand type

@@ -1123,8 +1123,8 @@ static tac_argument tac_evaluate_func_body(error *err, const ast_node *func_body
 static tac_argument tac_emit_main_func(error *err, const ast_node *main_func, tac_prog *prog)
 {
     *err = NONE;
-    const ast_node *func_str_node = main_func->left_child->left_child;
-    const ast_node *func_body_node = main_func->left_child->right_child;
+    const ast_node *func_str_node = main_func->left_child;
+    const ast_node *func_body_node = main_func->right_child;
     const ast_node *func_name_node = func_str_node->left_child->left_child;
 
     char *func_id = attribute_table_get_identifier(prog->attr_table, err, func_name_node->attribute_index);

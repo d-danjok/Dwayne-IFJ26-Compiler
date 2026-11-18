@@ -71,7 +71,7 @@ int main()
         return err;
     }
 
-    codegen_run(&err, tac_l, attr_tab);
+    codegen_run(&err, tac_l);
     if (err != NONE)
     {
         err = convert_err_for_program_return(err);

@@ -11,3 +11,4 @@ __pycache__
 !/tests/lexer/
 
 src/ifj26
+qa/

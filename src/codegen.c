@@ -89,14 +89,14 @@ typedef struct declared_var_node_s
     struct declared_var_node_s *next;
 } declared_var_node;
 
-void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
+void codegen_run(error *err, tac_list *tac_l)
 {
     printf(".IFJcode26\n");
 
     // tac_l->curr_instruction = tac_l->first_instruction;
     tac_instruction *t = tac_l->first_instruction;
     bool frame_open = false;
-    tac_argument_value_type f0_type;
+    tac_argument_value_type f0_type = ARG_NONE;
 
     for (int tac_instr_cnt = 0; tac_instr_cnt < tac_l->size; tac_instr_cnt++)
     {

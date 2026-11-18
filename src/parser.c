@@ -29,6 +29,7 @@ static token_input_buffer token_buffer = {
 };
 static lexer *lex;
 static attribute_table *attribute_tab;
+static bool prev_was_else_node;
 
 typedef enum
 {
@@ -2699,6 +2700,8 @@ static ast_node *node_if_list(error *err)
 {
     *err = NONE;
 
+    prev_was_else_node = false;
+
     const token next_token = peek_token(err);
     if (*err != NONE)
     {
@@ -2741,6 +2744,8 @@ static ast_node *node_if_list(error *err)
 static ast_node *node_if_list_(error *err)
 {
     *err = NONE;
+
+    prev_was_else_node = false;
 
     const token next_token = peek_token(err);
     if (*err != NONE)
@@ -2883,6 +2888,15 @@ static ast_node *node_else_block(error *err)
         ast_node_destruct_recursively(&else_node);
         return NULL;
     }
+    if (prev_was_else_node){
+        *err = GENERAL_SEMANTICS_COMMON;
+        log_printf("[%lu] semantics error: more that one else branch", current_token.line);
+
+        ast_node_destruct_recursively(&else_node);
+        return NULL;
+    }
+    prev_was_else_node = true;
+
     return else_node;
 }
 

@@ -140,7 +140,6 @@ void log_printf(const char *fmt, ...)
     va_start(args, fmt);
 
     vfprintf(stderr, fmt, args);
-    fprintf(stderr, "\n");
 
     va_end(args);
 }

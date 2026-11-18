@@ -8,13 +8,10 @@
 #include "attribute_table.h"
 #include "parser.h"
 #include "symtable.h"
+#include "semantic_analyser.h"
 
 // temporary placeholders for project structure representation TODO: implement and delete from here
 typedef struct tac_s tac; // tmp placeholder, delete it
-
-ast_node *semantic_analyser_run(error *err, ast_node **parser_tree, attribute_table *attr_tab);
-
-// NOTE: takes ownership of parser_tree (should free it itself if no longer needs it)
 
 tac *tac_generate(error *err, ast_node **ast_root, attribute_table *attr_tab);
 

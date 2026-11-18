@@ -9,3 +9,5 @@ __pycache__
 /test_bench*
 /tests/*
 !/tests/lexer/
+
+src/ifj26

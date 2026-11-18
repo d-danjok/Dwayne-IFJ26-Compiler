@@ -20,7 +20,7 @@ fmt:
 fmt-check:
 	@$(CLANG_FORMAT) --dry-run --Werror --style=$(FORMAT_STYLE) $(FILES_TO_FORMAT)
 
-PROG_COMPS = main.c ast.c attribute_table.c bst.c error.c lexer.c parser.c stack.c symtable.c token.c utils.c #TODO: append other parts when done
+PROG_COMPS = main.c ast.c attribute_table.c bst.c error.c lexer.c parser.c stack.c symtable.c utils.c #TODO: append other parts when done
 
 all: build
 

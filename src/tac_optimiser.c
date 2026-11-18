@@ -410,7 +410,6 @@ static void update_list_info(tac_list *list)
     }
 }
 
-
 // @brief Function to detect INT_TO_FLOAT instruction
 static bool is_conversion_call(const tac_instruction *param, const tac_instruction *call)
 {

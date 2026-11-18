@@ -7,8 +7,8 @@
 #include "ast.h"
 #include "attribute_table.h"
 #include "parser.h"
-#include "symtable.h"
 #include "semantic_analyser.h"
+#include "symtable.h"
 
 // temporary placeholders for project structure representation TODO: implement and delete from here
 typedef struct tac_s tac; // tmp placeholder, delete it

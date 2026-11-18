@@ -1,3 +1,7 @@
+// @brief Header file for TAC_OPTIMIZER
+// @author Oleksandr Fedorenko (xfedoro00)
+
+
 #ifndef TAC_OPTIMISER_H
 #define TAC_OPTIMISER_H
 

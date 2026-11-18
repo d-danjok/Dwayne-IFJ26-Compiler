@@ -1,3 +1,6 @@
+// @brief Implementation for TAC OPTIMIZER
+// @author Oleksandr Fedorenko (xfedoro00)
+
 #include "tac_optimiser.h"
 #include <math.h>
 

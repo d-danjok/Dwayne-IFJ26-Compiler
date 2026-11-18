@@ -7,7 +7,6 @@
 // 			so on repository only one author is seen
 
 #include "attribute_table.h"
-#include <math.h>
 
 #define INITIAL_SLICE_CAPACITY 100
 #define FLOAT_EQUALITY_TOLERANCE 0.0001

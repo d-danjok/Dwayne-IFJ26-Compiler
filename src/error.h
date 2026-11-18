@@ -6,8 +6,6 @@
 #ifndef ERROR_H
 #define ERROR_H
 
-#include <stdbool.h>
-
 typedef enum
 {
     NONE = 0, // not an error btw

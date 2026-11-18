@@ -10,8 +10,8 @@ typedef struct stack_item_s
 {
     struct stack_item_s *next;
     void *data;
-} stack_item; // implemented as linked list since it is way easier to implement
-// and it wont house large amount of data, so it being slightly slower is not critical
+} stack_item; // implemented as linked list since it is way easier to implement,
+// and it won't house large amount of data, so it being slightly slower is not critical
 
 struct stack_s
 {

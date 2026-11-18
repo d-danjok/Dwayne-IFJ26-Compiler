@@ -420,7 +420,6 @@ static bool is_valid_operand(const ast_node *node)
 static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item **item_to_append,
                                const size_t current_line)
 {
-    // TODO: do a better review of this function, and fix it eventually
     *err = NONE;
 
     int current_peek_depth = 0;

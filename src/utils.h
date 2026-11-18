@@ -51,13 +51,13 @@ char utils_peek_char(error *err, FILE *stream, int offset);
 // @param err is a pointer to error handling variable in calling function
 // @param string is a string we want to convert
 // @return integer value of string, if conversion fails returns 0 and sets error
-int utils_string_to_int(error *err, char *string);
+int utils_string_to_int(error *err, const char *string);
 
 // @brief function for converting string to double
 // @param err is a pointer to error handling variable in calling function
 // @param string is a string we want to convert
 // @return double value of string, if conversion fails returns 0 and sets error
-double utils_string_to_double(error *err, char *string);
+double utils_string_to_double(error *err, const char *string);
 
 // @brief function for printing logs to Stderr
 //

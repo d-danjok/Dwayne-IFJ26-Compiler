@@ -3,6 +3,8 @@
 // @brief symbol table
 // @author Daniil Didenko (xdidend00)
 
+#include <stdbool.h>
+
 #include "symtable.h"
 #include "bst.h"
 #include "utils.h"

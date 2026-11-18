@@ -5,12 +5,10 @@
 #ifndef TOKEN_H
 #define TOKEN_H
 
-#include <stdbool.h>
 #include <stddef.h>
 
 typedef enum
 {
-    // TODO: complete list
     TOKEN_UNDEFINED,
 
     TOKEN_EOL, // \n
@@ -108,7 +106,5 @@ typedef struct
 
     size_t line; // only for error messages(used size_t to avoid hypothetical overflow of int)
 } token;
-
-#define TOKEN_GET_VAL(token) // TODO: implement this using attribute_table_get_...
 
 #endif

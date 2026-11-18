@@ -5,7 +5,6 @@
 
 #ifndef AST_H
 #define AST_H
-#include <stddef.h>
 
 #include "error.h"
 #include "token.h"

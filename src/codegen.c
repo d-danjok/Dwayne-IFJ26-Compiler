@@ -250,33 +250,56 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
                 }
             }
             else if (strcmp(t->arg1.identifier_name, "readLine") == 0)
-            { // read should always have result variable
+            {
+                static unsigned read_cnt = 0;
                 printf("READ");
                 print_symbol(&t->result);
                 printf(" string\n");
+                printf("JUMPIFNEQ $read%u", read_cnt);
+                print_symbol(&t->result);
+                printf(" nil@nil\nMOVE");
+                print_symbol(&t->result);
+                printf(" string@\n");
+                printf("LABEL $read%u\n", read_cnt++);
             }
             else if (strcmp(t->arg1.identifier_name, "readInt") == 0)
             {
                 static unsigned read_int_cnt = 0;
                 printf("READ");
                 print_symbol(&t->result);
-                printf(" int\nJUMPIFNEQ $readInt%u", read_int_cnt);
+                printf(" int\n");
+                printf("JUMPIFNEQ $readInt%u", read_int_cnt);
                 print_symbol(&t->result);
                 printf(" nil@nil\nMOVE");
                 print_symbol(&t->result);
-                printf(" int@0\nLABEL $readInt%u\n", read_int_cnt++);
+                printf(" int@0\n");
+                printf("LABEL $readInt%u\n", read_int_cnt++);
             }
             else if (strcmp(t->arg1.identifier_name, "readDouble") == 0)
             {
+                static unsigned read_double_cnt = 0;
                 printf("READ");
                 print_symbol(&t->result);
                 printf(" float\n");
+                printf("JUMPIFNEQ $readDouble%u", read_double_cnt);
+                print_symbol(&t->result);
+                printf(" nil@nil\nMOVE");
+                print_symbol(&t->result);
+                printf(" float@0\n");
+                printf("LABEL $readDouble%u\n", read_double_cnt++);
             }
             else if (strcmp(t->arg1.identifier_name, "readBoolean") == 0)
             {
+                static unsigned read_bool_cnt = 0;
                 printf("READ");
                 print_symbol(&t->result);
                 printf(" bool\n");
+                printf("JUMPIFNEQ $readBool%u", read_bool_cnt);
+                print_symbol(&t->result);
+                printf(" nil@nil\nMOVE");
+                print_symbol(&t->result);
+                printf(" bool@false\n");
+                printf("LABEL $readBool%u\n", read_bool_cnt++);
             }
             else if (strcmp(t->arg1.identifier_name, "strLength") == 0)
             {
@@ -354,9 +377,37 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
             }
             else if (strcmp(t->arg1.identifier_name, "subStr") == 0)
             {
-                // subStr args validation:
+                static unsigned substr_cnt = 0;
+                // read args
+                printf("DEFVAR TF@$tt_s\nPOPS TF@$tt_s\n"); // string
+                printf("DEFVAR TF@$tt_i\nPOPS TF@$tt_i\n"); // start
+                printf("DEFVAR TF@$tt_j\nPOPS TF@$tt_j\n"); // end
 
-                // subStr loop
+                printf("DEFVAR TF@$tt_len\nSTRLEN TF@$tt_len TF@$tt_s\n");
+                printf("DEFVAR TF@$tt_b\n");
+
+                // runtime checks
+                printf("LT TF@$tt_b TF@$tt_i int@0\nJUMPIFEQ $subStrErr%u TF@$tt_b bool@true\n", substr_cnt); // start < 0
+                printf("GT TF@$tt_b TF@$tt_i TF@$tt_j\nJUMPIFEQ $subStrErr%u TF@$tt_b bool@true\n", substr_cnt); // start > end 
+                printf("LT TF@$tt_b TF@$tt_i TF@$tt_len\nJUMPIFEQ $subStrErr%u TF@$tt_b bool@false\n", substr_cnt); // start >= len
+                printf("GT TF@$tt_b TF@$tt_j TF@$tt_len\nJUMPIFEQ $subStrErr%u TF@$tt_b bool@true\n", substr_cnt); // end > len
+
+                printf("MOVE"); 
+                print_symbol(&t->result); 
+                printf(" string@\n");
+                printf("DEFVAR TF@$tt_c\n");
+                printf("LABEL $subStrLoop%u\n",substr_cnt);
+                printf("JUMPIFEQ $subStrEnd%u TF@$tt_i TF@$tt_j\n", substr_cnt);   // start <= end is checked, so EQ is enough
+                printf("GETCHAR TF@$tt_c TF@$tt_s TF@$tt_i\n");
+                printf("CONCAT");
+                print_symbol(&t->result); 
+                print_symbol(&t->result); 
+                printf(" TF@$tt_c\n");
+                printf("ADD TF@$tt_i TF@$tt_i int@1\n");
+                printf("JUMP $subStrLoop%u\n", substr_cnt);
+                printf("LABEL $subStrErr%u\n", substr_cnt);
+                printf("EXIT int@40\n");
+                printf("LABEL $subStrEnd%u\n", substr_cnt++);
             }
             else // handle program functions
             {

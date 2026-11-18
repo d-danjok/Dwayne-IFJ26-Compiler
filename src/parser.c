@@ -2886,7 +2886,8 @@ static ast_node *node_else_block(error *err)
         ast_node_destruct_recursively(&else_node);
         return NULL;
     }
-    if (prev_was_else_node){
+    if (prev_was_else_node)
+    {
         *err = GENERAL_SEMANTICS_COMMON;
         log_printf("[%lu] semantics error: more that one else branch", current_token.line);
 

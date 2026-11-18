@@ -4,7 +4,7 @@
 CC = gcc
 CFLAGS = -std=c11 -Wall -Wextra -Werror -pedantic
 
-PROG_NAME = ifj26_compiler
+PROG_NAME = ifj26
 
 #defines for clang-format
 CLANG_FORMAT = clang-format

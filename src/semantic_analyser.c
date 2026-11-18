@@ -882,6 +882,7 @@ static ast_literal_type check_binary_operation(sem_context *ctx, ast_node *expre
             result = AST_TYPE_STRING;
             break;
         }
+        /* fall through */
     case AST_OP_MINUS:
     case AST_OP_MULTIPLY:
     case AST_OP_DIV:

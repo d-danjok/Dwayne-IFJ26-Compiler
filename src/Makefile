@@ -2,7 +2,7 @@
 
 #defines for compilation
 CC = gcc
-CFLAGS = -std=c11 -Wall -Wextra -Werror -pedantic -02
+CFLAGS = -std=c11 -Wall -Wextra -Werror -pedantic -O2
 
 PROG_NAME = ifj26
 

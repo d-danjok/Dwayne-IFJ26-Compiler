@@ -2,7 +2,7 @@
 
 #defines for compilation
 CC = gcc
-CFLAGS = -std=c11 -Wall -Wextra -Werror -pedantic
+CFLAGS = -std=c11 -Wall -Wextra -Werror -pedantic -02
 
 PROG_NAME = ifj26
 
@@ -25,6 +25,6 @@ PROG_COMPS = main.c ast.c attribute_table.c bst.c error.c lexer.c parser.c stack
 all: build
 
 build: $(PROG_COMPS)
-	$(CC) $(FLAGS) $(PROG_COMPS) -o $(PROG_NAME)
+	$(CC) $(CFLAGS) $(PROG_COMPS) -o $(PROG_NAME)
 
 .PHONY: fmt fmt-check build

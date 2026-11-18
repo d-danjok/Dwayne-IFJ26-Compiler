@@ -3,6 +3,7 @@
 // @author 	Daniil Didenko (xdidend00)
 
 #include <stdio.h>
+#include <stdbool.h>
 
 #include "ast.h"
 #include "attribute_table.h"
@@ -1866,7 +1867,7 @@ static ast_node *node_stat_list(error *err)
     return stat_list;
 }
 
-static ast_node *node_stat_list_(error *err, bool newline_consumed_by_caller)
+static ast_node *node_stat_list_(error *err, const bool newline_consumed_by_caller)
 {
     *err = NONE;
 
@@ -1886,8 +1887,10 @@ static ast_node *node_stat_list_(error *err, bool newline_consumed_by_caller)
         return NULL;
     }
 
-    if (next_token.type == TOKEN_EOL || next_token.type == TOKEN_SEMICOLON)
+    while (next_token.type == TOKEN_EOL || next_token.type == TOKEN_SEMICOLON)
     {
+        const token prev_token = next_token;
+
         get_token(err);
         if (*err != NONE)
         {

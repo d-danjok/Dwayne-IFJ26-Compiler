@@ -1,3 +1,5 @@
+## General grammar
+
 1. \<program> ::= __import ifj26.*__ EOL \<def_list>
 2. \<def_list>  ::= \<func_def>\<def_list>
 3. \<def_list>  ::= \<main_func>\<def_list>
@@ -11,8 +13,8 @@
 11. \<main_func>  ::= __@main__ \<func_start>\<func_body>
 12. \<main_func>  ::= __@main__ EOL \<func_start>\<func_body>
 13. \<func_start>  ::= \<func_name>\<func_head>
-14. \<func_head>  ::= __(__ \<param_list> __:__ TYP
-15. \<func_head>  ::= (\<param_list>
+14. \<func_head>  ::= __(__ \<param_list> __:__ TYPE
+15. \<func_head>  ::= __(__ \<param_list>
 16. \<func_name>  ::= __def__ ID
 17. \<param_list>  ::= )
 18. \<param_list>  ::= EOL\<param_list>
@@ -53,7 +55,9 @@
 49. \<return> ::= __return__ \<assign_val>
 50. \<return> ::= __return__
 
-NOTE: Following will be used inside of expressions
+
+## Func-call grammar 
+> NOTE: Following will be used inside of expressions
 
 1. \<func_call> ::= ID __(__\<call_params>
 2. \<call_params> ::= __)__

@@ -9,6 +9,7 @@
 #include "stack.h"
 #include "token.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 
 #define BUFFER_SIZE 128

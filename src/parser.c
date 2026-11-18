@@ -2,8 +2,8 @@
 //
 // @author 	Daniil Didenko (xdidend00)
 
-#include <stdio.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "ast.h"
 #include "attribute_table.h"
@@ -556,6 +556,14 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
             {
                 return;
             }
+            if (operand_item == NULL || operand_item->item_ast_node == NULL)
+            {
+                *err = GENERAL_SYNTAX;
+                log_printf("[%lu] invalid character combination inside of an expression", current_line);
+
+                parser_stack_item_destruct(&operand_item);
+                return;
+            }
             ast_node *operand = operand_item->item_ast_node;
             UTILS_SAFE_FREE(&operand_item);
 
@@ -563,12 +571,21 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
             {
                 *err = GENERAL_SYNTAX;
                 log_printf("[%lu] invalid character combination inside of an expression", current_line);
+                ast_node_destruct_recursively(&operand);
                 return;
             }
 
             parser_stack_item *operator_item = stack_pop(parse_stack, err);
             if (*err != NONE)
             {
+                return;
+            }
+            if (operator_item == NULL || operator_item->item_ast_node == NULL)
+            {
+                *err = GENERAL_SYNTAX;
+                log_printf("[%lu] invalid character combination inside of an expression", current_line);
+
+                parser_stack_item_destruct(&operator_item);
                 return;
             }
 
@@ -591,6 +608,13 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
             {
                 return;
             }
+            if (right_operand_item == NULL || right_operand_item->item_ast_node == NULL)
+            {
+                parser_stack_item_destruct(&right_operand_item);
+                *err = GENERAL_SYNTAX;
+                log_printf("[%lu] invalid character combination inside of an expression", current_line);
+                return;
+            }
             ast_node *right_operand = right_operand_item->item_ast_node;
             UTILS_SAFE_FREE(&right_operand_item);
 
@@ -598,12 +622,22 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
             {
                 *err = GENERAL_SYNTAX;
                 log_printf("[%lu] invalid character combination inside of an expression", current_line);
+
+                ast_node_destruct_recursively(&right_operand);
                 return;
             }
 
             parser_stack_item *operator_item = stack_pop(parse_stack, err);
             if (*err != NONE)
             {
+                return;
+            }
+            if (operator_item == NULL || operator_item->item_ast_node == NULL)
+            {
+                *err = GENERAL_SYNTAX;
+                log_printf("[%lu] invalid character combination inside of an expression", current_line);
+
+                parser_stack_item_destruct(&operator_item);
                 return;
             }
 
@@ -614,6 +648,17 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
                 // that can only happen is expression was invalid
                 *err = GENERAL_SYNTAX;
                 log_printf("[%lu] invalid character combination inside of an expression", current_line);
+
+                return;
+            }
+            if (left_operand_item == NULL || left_operand_item->item_ast_node == NULL)
+            {
+                *err = GENERAL_SYNTAX;
+                log_printf("[%lu] invalid character combination inside of an expression", current_line);
+
+                parser_stack_item_destruct(&left_operand_item);
+                parser_stack_item_destruct(&operator_item);
+
                 return;
             }
             ast_node *left_operand = left_operand_item->item_ast_node;
@@ -622,7 +667,14 @@ static void parse_stack_append(stack *parse_stack, error *err, parser_stack_item
             if (!is_valid_operand(left_operand))
             {
                 *err = GENERAL_SYNTAX;
+
                 log_printf("[%lu] invalid character combination inside of an expression", current_line);
+                ast_node_destruct_recursively(&left_operand);
+                ast_node_destruct_recursively(&right_operand);
+                ast_node_destruct_recursively(&operator_item->item_ast_node);
+                operator_item->item_ast_node = NULL;
+                parser_stack_item_destruct(&operator_item);
+
                 return;
             }
 

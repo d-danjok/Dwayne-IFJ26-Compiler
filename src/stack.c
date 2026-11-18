@@ -66,6 +66,12 @@ void stack_push(stack *self, error *err, void **data)
 {
     *err = NONE;
 
+    if (self == NULL)
+    {
+        *err = INTERNAL_FATAL;
+        return;
+    }
+
     if (data == NULL || *data == NULL)
     {
         *err = INTERNAL_NULL_ITEM_INSERT;

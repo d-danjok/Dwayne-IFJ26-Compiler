@@ -5,8 +5,8 @@
 
 #include <stdbool.h>
 
-#include "symtable.h"
 #include "bst.h"
+#include "symtable.h"
 #include "utils.h"
 
 typedef struct symtable_s

@@ -4,7 +4,6 @@
 #include "error.h"
 #include "token.h"
 
-
 typedef enum
 {
     DATA_TYPE_UNDEFINED,

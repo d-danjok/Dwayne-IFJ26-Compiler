@@ -1,41 +1,43 @@
-#include "tac_optimizer.h"
+#include "tac_optimiser.h"
 #include <math.h>
 
-// Boudaries of integer
 #define TAC_INTEGER_MAX 9223372036854775807LL
 #define TAC_INTEGER_MIN (-TAC_INTEGER_MAX - 1LL)
 
 // @brief Predicate to determine whether argument is variable or not
-static bool is_variable(tac_argument argument)
+static bool is_variable(const tac_argument argument)
 {
     return argument.type == ARG_ID || argument.type == ARG_TEMPORARY_VAR;
 }
 
 // @brief Predicate to determine whether it is the same variable
-static bool is_same_variable(tac_argument first_argument, tac_argument second_argument)
+static bool is_same_variable(const tac_argument first_argument, const tac_argument second_argument)
 {
     if (first_argument.type != second_argument.type || first_argument.value_type != second_argument.value_type)
+    {
         return false;
+    }
 
-    // Check if temporary variable is same
     if (first_argument.type == ARG_TEMPORARY_VAR)
     {
         return first_argument.temporary_var_id == second_argument.temporary_var_id;
     }
-    // Check if id variable is same
+
     return first_argument.type == ARG_ID &&
            strcmp(first_argument.identifier_name, second_argument.identifier_name) == 0;
 }
 
 // @brief Same as in TAC
-static void free_unconsumed_argument(tac_argument argument)
+static void free_unconsumed_argument(const tac_argument argument)
 {
     if (argument.type == ARG_ID)
+    {
         free(argument.identifier_name);
+    }
 }
 
 // @brief Predicate to detect whether expr is an operation
-static bool is_expression_operation(tac_operator op)
+static bool is_expression_operation(const tac_operator op)
 {
     switch (op)
     {
@@ -87,14 +89,14 @@ static bool tac_propagate_argument(error *err, tac_instruction **instructions, s
         bool found_definition = false;
         for (size_t definition_index = search_limit; definition_index > block_start;)
         {
-            tac_instruction *definition_instruction = instructions[--definition_index];
+            const tac_instruction *definition_instruction = instructions[--definition_index];
 
             // skip removed instruction
             if (definition_instruction == NULL)
             {
                 continue;
             }
-            tac_operator op = definition_instruction->op;
+            const tac_operator op = definition_instruction->op;
 
             if (!is_expression_operation(op) && op != TAC_ASSIGNMENT && op != TAC_VAR_DEF && op != TAC_VAL_DEF &&
                 op != TAC_CALL)
@@ -110,7 +112,7 @@ static bool tac_propagate_argument(error *err, tac_instruction **instructions, s
             {
                 return true;
             }
-            tac_argument source_argument = definition_instruction->arg1;
+            const tac_argument source_argument = definition_instruction->arg1;
             if (source_argument.type != ARG_LITERAL && !is_variable(source_argument))
             {
                 return true;
@@ -123,10 +125,10 @@ static bool tac_propagate_argument(error *err, tac_instruction **instructions, s
             {
                 for (size_t write_index = definition_index; write_index < use_index; ++write_index)
                 {
-                    tac_instruction *write_instruction = instructions[write_index];
+                    const tac_instruction *write_instruction = instructions[write_index];
                     if (write_instruction == NULL)
                         continue;
-                    tac_operator write_op = write_instruction->op;
+                    const tac_operator write_op = write_instruction->op;
                     if ((is_expression_operation(write_op) || write_op == TAC_ASSIGNMENT || write_op == TAC_VAR_DEF ||
                          write_op == TAC_VAL_DEF || write_op == TAC_CALL) &&
                         is_same_variable(write_instruction->result, source_argument))
@@ -149,11 +151,11 @@ static bool tac_propagate_argument(error *err, tac_instruction **instructions, s
     return true;
 }
 // @brief Function to fold constant literals
-static bool tac_fold_constants(tac_instruction *instruction, tac_argument *folded_result)
+static bool tac_fold_constants(const tac_instruction *instruction, tac_argument *folded_result)
 {
 
-    tac_argument first_argument = instruction->arg1;
-    tac_argument second_argument = instruction->arg2;
+    const tac_argument first_argument = instruction->arg1;
+    const tac_argument second_argument = instruction->arg2;
 
     *folded_result = (tac_argument){.type = ARG_LITERAL, .value_type = instruction->result.value_type};
 
@@ -193,8 +195,8 @@ static bool tac_fold_constants(tac_instruction *instruction, tac_argument *folde
     // Constant folding for integer with overflow checks
     if (first_argument.value_type == ARG_INT && folded_result->value_type == ARG_INT)
     {
-        long long left = first_argument.const_int;
-        long long right = second_argument.const_int;
+        const long long left = first_argument.const_int;
+        const long long right = second_argument.const_int;
 
         switch (instruction->op)
         {
@@ -202,7 +204,6 @@ static bool tac_fold_constants(tac_instruction *instruction, tac_argument *folde
             if ((right > 0 && left > TAC_INTEGER_MAX - right) || (right < 0 && left < TAC_INTEGER_MIN - right))
             {
                 return false;
-
             }
             folded_result->const_int = left + right;
             return true;
@@ -323,7 +324,6 @@ static bool tac_fold_constants(tac_instruction *instruction, tac_argument *folde
     return false;
 }
 
-
 static void remove_instruction(tac_instruction **instruction_link)
 {
     tac_instruction *instruction = *instruction_link;
@@ -334,9 +334,10 @@ static void remove_instruction(tac_instruction **instruction_link)
     free(instruction);
 }
 // @brief Predicate to detect whether variable is used in instruction before, used for dead-code elimination
-static bool is_variable_used(tac_list *list, tac_argument argument)
+static bool is_variable_used(const tac_list *list, tac_argument argument)
 {
-    for (tac_instruction *instruction = list->first_instruction; instruction != NULL; instruction = instruction->next_instruction)
+    for (const tac_instruction *instruction = list->first_instruction; instruction != NULL;
+         instruction = instruction->next_instruction)
     {
         if (is_same_variable(argument, instruction->arg1) || is_same_variable(argument, instruction->arg2))
         {
@@ -436,7 +437,7 @@ static void tac_move_main_to_start(tac_list *list)
     update_list_info(list);
 }
 // @brief Function to detect INT_TO_FLOAT instruction
-static bool is_conversion_call(tac_instruction *param, tac_instruction *call)
+static bool is_conversion_call(const tac_instruction *param, const tac_instruction *call)
 {
     return param->op == TAC_CALL_PARAM && call != NULL && call->op == TAC_CALL && call->arg1.identifier_name != NULL &&
            strcmp(call->arg1.identifier_name, "INT_TO_FLOAT") == 0 && call->arg2.type == ARG_LITERAL &&
@@ -444,7 +445,7 @@ static bool is_conversion_call(tac_instruction *param, tac_instruction *call)
            call->result.value_type == ARG_FLOAT;
 }
 
-tac_list *tac_optimize(error *err, tac_list *list)
+tac_list *tac_optimise(error *err, tac_list *list)
 {
     *err = NONE;
     if (list == NULL)
@@ -454,7 +455,7 @@ tac_list *tac_optimize(error *err, tac_list *list)
     }
 
     tac_move_main_to_start(list);
-    long instruction_count = list->size;
+    const long instruction_count = list->size;
 
     // Return empty list, make no optimization
     if (instruction_count == 0)
@@ -489,13 +490,13 @@ tac_list *tac_optimize(error *err, tac_list *list)
             continue; // A folded conversion call was removed from the list.
         }
         tac_instruction *call = instruction->next_instruction;
-        bool conversion = is_conversion_call(instruction, call);
-        bool propogation_result = true;
+        const bool conversion = is_conversion_call(instruction, call);
+        bool propagation_result = true;
 
         // Check to reduce INT_TO_FLOAT instruction
         if (conversion)
         {
-            propogation_result =
+            propagation_result =
                 tac_propagate_argument(err, instructions, block_start, instruction_index, &instruction->arg1);
         }
 
@@ -503,17 +504,17 @@ tac_list *tac_optimize(error *err, tac_list *list)
         else if (is_expression_operation(instruction->op) || instruction->op == TAC_ASSIGNMENT ||
                  instruction->op == TAC_VAR_DEF || instruction->op == TAC_VAL_DEF)
         {
-            propogation_result =
+            propagation_result =
                 tac_propagate_argument(err, instructions, block_start, instruction_index, &instruction->arg1) &&
                 tac_propagate_argument(err, instructions, block_start, instruction_index, &instruction->arg2);
         }
         // Propagate to TAC_RETURN and TAC_IF_JUMP
         else if (instruction->op == TAC_RETURN || instruction->op == TAC_IF_JUMP)
         {
-            propogation_result =
+            propagation_result =
                 tac_propagate_argument(err, instructions, block_start, instruction_index, &instruction->result);
         }
-        if (!propogation_result)
+        if (!propagation_result)
         {
             free(instructions);
             update_list_info(list);
@@ -551,7 +552,7 @@ tac_list *tac_optimize(error *err, tac_list *list)
         else if ((instruction->op == TAC_IF_JUMP) && (instruction->result.type == ARG_LITERAL) &&
                  (instruction->result.value_type == ARG_BOOL))
         {
-            tac_argument target_label = instruction->result.const_bool ? instruction->arg1 : instruction->arg2;
+            const tac_argument target_label = instruction->result.const_bool ? instruction->arg1 : instruction->arg2;
             instruction->op = TAC_GOTO;
             instruction->arg1 = (tac_argument){.type = ARG_EMPTY};
             instruction->arg2 = (tac_argument){.type = ARG_EMPTY};

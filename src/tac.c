@@ -27,99 +27,44 @@ typedef struct
     stack *params;
 } tac_prog;
 
-// @brief Function to create and append PARAM instruction
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_emit_call_param(error *err, ast_node *call_param, tac_prog *prog, long long int *num_of_args);
-
-// @brief Function to evaluatre <call_params'> Node
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_evaluate_call_param_list_(error *err, ast_node *call_param_list_, tac_prog *prog,
+// Call functions
+static tac_argument tac_emit_call_param(error *err, const ast_node *call_param, tac_prog *prog, long long int *num_of_args);
+static tac_argument tac_evaluate_call_param_list_(error *err, const ast_node *call_param_list_, tac_prog *prog,
                                                   long long int *num_of_args);
-
-// @brief Function to evaluatre <call_params> Node
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_evaluate_call_param_list(error *err, ast_node *call_param_list, tac_prog *prog,
+static tac_argument tac_evaluate_call_param_list(error *err, const ast_node *call_param_list, tac_prog *prog,
                                                  long long int *num_of_args);
-// @brief Recursive function to  create instructions of expressions  and append them to tac_list
-// @return Argument of instruction
+
+// Keywords
 static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog);
+static tac_argument tac_emit_return(error *err, const ast_node *ret, tac_prog *prog);
+static tac_argument tac_emit_while(error *err, const ast_node *while_node, tac_prog *prog);
 
-// @brief Function to create and append a VAL_DEF/VAR_DEF instruction
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_emit_definition(error *err, ast_node *def, tac_prog *prog);
+// Blocks, statements
+static tac_argument tac_emit_statement(error *err, const ast_node *stat, tac_prog *prog);
+static tac_argument tac_emit_definition(error *err, const ast_node *def, tac_prog *prog);
+static tac_argument tac_emit_stat_list_(error *err, const ast_node *stat_list_, tac_prog *prog);
+static tac_argument tac_evaluate_block(error *err, const ast_node *block, tac_prog *prog);
 
-// @brief Function to create and append a RETURN instruction
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_emit_return(error *err, ast_node *ret, tac_prog *prog);
+// Functions
+static tac_argument tac_emit_param(error *err, const ast_node *param, tac_prog *prog);
+static tac_argument tac_evaluate_param_list_(error *err, const ast_node *param_list_, tac_prog *prog);
+static tac_argument tac_evaluate_param_list(error *err, const ast_node *param_list, tac_prog *prog);
+static tac_argument tac_emit_func_start(error *err, const ast_node *func_start, tac_prog *prog);
+static tac_argument tac_evaluate_func_body(error *err, const ast_node *func_body, tac_prog *prog);
+static tac_argument tac_emit_main_func(error *err, const ast_node *main_func, tac_prog *prog);
+static tac_argument tac_emit_func(error *err, const ast_node *func_def, tac_prog *prog);
+static tac_argument tac_evaluate_func_list(error *err, const ast_node *def_list, tac_prog *prog);
 
-// @brief Function to create and append a WHILE instruction
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_emit_while(error *err, ast_node *while_node, tac_prog *prog);
-
-// @brief Function to evaluate a statement node
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_emit_statement(error *err, ast_node *stat, tac_prog *prog);
-
-// @brief Function to evaluate a statement_list' node
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_emit_stat_list_(error *err, ast_node *stat_list_, tac_prog *prog);
-
-// @brief Function to evaluate a block node
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_evaluate_block(error *err, ast_node *block, tac_prog *prog);
-
-// @brief Function to create and append PARAM instruction
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_emit_param(error *err, ast_node *param, tac_prog *prog);
-
-// @brief Function to evaluate a param_list' node
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_evaluate_param_list_(error *err, ast_node *param_list_, tac_prog *prog);
-
-// @brief Function to evaluate a param_list node
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_evaluate_param_list(error *err, ast_node *param_list, tac_prog *prog);
-
-// @brief Function to create and append FUNC_BEGIN instruction
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_emit_func_start(error *err, ast_node *func_start, tac_prog *prog);
-
-// @brief Function to evaluate func_body node
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_evaluate_func_body(error *err, ast_node *func_body, tac_prog *prog);
-
-// @brief Function to create and append TAC_MAIN, RETURN, FUNC_END instructions
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_emit_main_func(error *err, ast_node *main_func, tac_prog *prog);
-
-// @brief Function to create and append RETURN, FUNC_END instructions
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_emit_func(error *err, ast_node *func_def, tac_prog *prog);
-
-// @brief Function to evaluate func_list node
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_evaluate_func_list(error *err, ast_node *def_list, tac_prog *prog);
-
-// @brief Function to create and append IF_JUMP instruction
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_instruction *tac_emit_if(error *err, ast_node *if_node, tac_prog *prog, tac_argument false_label,
+// IF
+static tac_instruction *tac_emit_if(error *err, const ast_node *if_node, tac_prog *prog, tac_argument false_label,
                                     tac_argument end_label);
-
-// @brief Function to create and append GOTO instruction
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_emit_else(error *err, ast_node *else_node, tac_prog *prog, tac_argument false_label,
+static tac_argument tac_emit_else(error *err, const ast_node *else_node, tac_prog *prog, tac_argument false_label,
                                   tac_argument end_label);
-
-// @brief Function to evaluate <if_list'> Node
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_evaluate_if_list_(error *err, ast_node *if_list_, tac_prog *prog, tac_argument branch_label,
+static tac_argument tac_evaluate_if_list_(error *err, const ast_node *if_list_, tac_prog *prog, tac_argument branch_label,
                                           tac_argument end_label);
+static tac_argument tac_evaluate_if_list(error *err, const ast_node *if_list, tac_prog *prog);
 
-// @brief Function to evaluate <if_list> node
-// @return Argument of type EMPTY if no errors occurred otherwise ERROR
-static tac_argument tac_evaluate_if_list(error *err, ast_node *if_list, tac_prog *prog);
 
-// @brief Function to free identifier name that have been allocated
 static void free_unconsumed_argument(tac_argument arg)
 {
     if (arg.type == ARG_ID)
@@ -151,7 +96,7 @@ static void tac_log_print(const char *fmt, ...)
 }
 
 // @brief Function that initialize new tac_list and a program
-void new_tac_prog(error *err, tac_prog *prog)
+static void new_tac_prog(error *err, tac_prog *prog)
 {
     *err = NONE;
     tac_list *list = (tac_list *)utils_safe_malloc(err, sizeof(tac_list));
@@ -160,7 +105,6 @@ void new_tac_prog(error *err, tac_prog *prog)
         return;
 
     list->size = 0;
-    list->curr_instruction = NULL;
     list->first_instruction = NULL;
     list->last_instruction = NULL;
 
@@ -169,13 +113,24 @@ void new_tac_prog(error *err, tac_prog *prog)
     prog->temporary_var_id = 0;
     prog->label_id = 0;
 }
-// @brief Predicate for checking if list is empty
-// @return true if empty
-static bool is_empty(tac_list *self)
+static bool is_empty(const tac_list *self)
 {
     return self->first_instruction == NULL;
 }
-// @brief Simple list destructor
+
+
+static void update_instruction_id(tac_list * list)
+{
+    list->size = 0;
+    list->last_instruction = NULL;
+    for (tac_instruction *instruction = list->first_instruction; instruction != NULL;
+         instruction = instruction->next_instruction)
+    {
+        instruction->id = (unsigned int)list->size++;
+        list->last_instruction = instruction;
+    }
+}
+
 void tac_list_destruct(tac_list *self)
 {
     if (self == NULL)
@@ -196,8 +151,6 @@ void tac_list_destruct(tac_list *self)
     free(self);
 }
 
-// @brief Function to create a new instruction (OP, ARG1, ARG2, RESULT)
-// @return New instruction tac_instruction
 static tac_instruction *create_instruction(error *err, const tac_operator op, const tac_argument arg1,
                                            const tac_argument arg2, const tac_argument result)
 {
@@ -215,7 +168,6 @@ static tac_instruction *create_instruction(error *err, const tac_operator op, co
 
     return new_ir_node;
 }
-// @brief Function to append instruction into existing tac_list
 static void append_instruction(tac_prog *prog, tac_instruction *ir_node)
 {
     ir_node->id = prog->instruction_id;
@@ -223,7 +175,6 @@ static void append_instruction(tac_prog *prog, tac_instruction *ir_node)
     if (is_empty(prog->list))
     {
         prog->list->first_instruction = ir_node;
-        prog->list->curr_instruction = ir_node;
         prog->list->last_instruction = ir_node;
         prog->list->size = 1;
         return;
@@ -235,17 +186,13 @@ static void append_instruction(tac_prog *prog, tac_instruction *ir_node)
     prog->list->size += 1;
 }
 
-// @brief Function to create temporary variable for a simple tac instructions
-// @return Temporary variable (tn) of type ARG_TEMPORARY_VARIABLE
-static tac_argument create_temporary_variable(tac_argument_value_type expr_type, tac_prog *prog)
+static tac_argument create_temporary_variable(const tac_argument_value_type expr_type, tac_prog *prog)
 {
-    tac_argument new_temporary = {
+    const tac_argument new_temporary = {
         .type = ARG_TEMPORARY_VAR, .value_type = expr_type, .temporary_var_id = prog->temporary_var_id};
     prog->temporary_var_id++;
     return new_temporary;
 }
-// @brief Function to create label simple tac instructions
-// @return Argument of type ARG_LABEL
 static tac_argument create_label(tac_prog *prog)
 {
     tac_argument new_label = {.type = ARG_LABEL, .value_type = ARG_NONE, .label_id = prog->label_id};
@@ -253,9 +200,7 @@ static tac_argument create_label(tac_prog *prog)
     return new_label;
 }
 
-// @brief Function to create new identifier (id_scope_id)
-// @return Argument of type ARG_ID
-static tac_argument create_new_id(error *err, attribute_table *attr_table, ast_node *identifier)
+static tac_argument create_new_id(error *err, const attribute_table *attr_table, const ast_node *identifier)
 {
     tac_argument id_argument = {.type = ARG_ID, .value_type = (tac_argument_value_type)identifier->literal_type};
     *err = NONE;
@@ -281,11 +226,11 @@ static tac_argument create_new_id(error *err, attribute_table *attr_table, ast_n
 }
 // @brief Wrapper function to create proper assignment argument, can create and expression instruction
 // @return Argument of type EXPR if no errors occurred otherwise ERROR
-static tac_argument tac_arg_assignment(error *err, ast_node *node, tac_prog *prog)
+static tac_argument tac_arg_assignment(error *err, const ast_node *node, tac_prog *prog)
 {
     // Creation of assignment argument
     *err = NONE;
-    tac_argument ass_value = tac_expr_emit(err, node->left_child, prog);
+    const tac_argument ass_value = tac_expr_emit(err, node->left_child, prog);
 
     if (ass_value.type == ARG_ERROR || *err != NONE)
     {
@@ -296,11 +241,11 @@ static tac_argument tac_arg_assignment(error *err, ast_node *node, tac_prog *pro
 }
 // @brief Wrapper function to create proper val_def argument(result)
 // @return Argument of type ID if no errors occurred otherwise ERROR
-static tac_argument tac_arg_val_def(error *err, ast_node *val, tac_prog *prog)
+static tac_argument tac_arg_val_def(error *err, const ast_node *val, const tac_prog *prog)
 {
     *err = NONE;
-    ast_node *id = val->left_child->left_child;
-    tac_argument val_variable = create_new_id(err, prog->attr_table, id);
+    const ast_node *id = val->left_child->left_child;
+    const tac_argument val_variable = create_new_id(err, prog->attr_table, id);
     if (val_variable.type == ARG_ERROR || *err != NONE)
     {
         return ARGUMENT_ERROR;
@@ -310,11 +255,11 @@ static tac_argument tac_arg_val_def(error *err, ast_node *val, tac_prog *prog)
 
 // @brief Wrapper function to create proper var_def argument (result)
 // @return Argument of type ID if no errors occurred otherwise ERROR
-static tac_argument tac_arg_var_def(error *err, ast_node *var, tac_prog *prog)
+static tac_argument tac_arg_var_def(error *err, const ast_node *var, const tac_prog *prog)
 {
     *err = NONE;
-    ast_node *id = var->left_child->left_child;
-    tac_argument val_variable = create_new_id(err, prog->attr_table, id);
+    const ast_node *id = var->left_child->left_child;
+    const tac_argument val_variable = create_new_id(err, prog->attr_table, id);
     if (val_variable.type == ARG_ERROR || *err != NONE)
     {
         return ARGUMENT_ERROR;
@@ -322,11 +267,10 @@ static tac_argument tac_arg_var_def(error *err, ast_node *var, tac_prog *prog)
     return val_variable;
 }
 
-// Function implementation
-static tac_argument tac_emit_call_param(error *err, ast_node *call_param, tac_prog *prog, long long int *num_of_args)
+static tac_argument tac_emit_call_param(error *err, const ast_node *call_param, tac_prog *prog, long long int *num_of_args)
 {
     *err = NONE;
-    tac_argument expr = tac_expr_emit(err, call_param->left_child, prog);
+    const tac_argument expr = tac_expr_emit(err, call_param->left_child, prog);
     if (expr.type == ARG_ERROR || *err != NONE)
     {
         return ARGUMENT_ERROR;
@@ -349,7 +293,7 @@ static tac_argument tac_emit_call_param(error *err, ast_node *call_param, tac_pr
     return ARGUMENT_EMPTY;
 }
 
-static tac_argument tac_evaluate_call_param_list_(error *err, ast_node *call_param_list_, tac_prog *prog,
+static tac_argument tac_evaluate_call_param_list_(error *err, const ast_node *call_param_list_, tac_prog *prog,
                                                   long long int *num_of_args)
 {
     *err = NONE;
@@ -358,7 +302,7 @@ static tac_argument tac_evaluate_call_param_list_(error *err, ast_node *call_par
         return ARGUMENT_EMPTY;
     }
     // <call_param> Node
-    tac_argument result = tac_emit_call_param(err, call_param_list_->left_child, prog, num_of_args);
+    const tac_argument result = tac_emit_call_param(err, call_param_list_->left_child, prog, num_of_args);
     if (result.type == ARG_ERROR || *err != NONE)
     {
         return ARGUMENT_ERROR;
@@ -366,7 +310,7 @@ static tac_argument tac_evaluate_call_param_list_(error *err, ast_node *call_par
     // <call_params'> Node
     return tac_evaluate_call_param_list_(err, call_param_list_->right_child, prog, num_of_args);
 }
-static tac_argument tac_evaluate_call_param_list(error *err, ast_node *call_param_list, tac_prog *prog,
+static tac_argument tac_evaluate_call_param_list(error *err, const ast_node *call_param_list, tac_prog *prog,
                                                  long long int *num_of_args)
 {
     *err = NONE;
@@ -382,13 +326,13 @@ static tac_argument tac_evaluate_call_param_list(error *err, ast_node *call_para
     }
 
     // <call_param> Node
-    tac_argument result = tac_emit_call_param(err, call_param_list->left_child, prog, num_of_args);
+    const tac_argument result = tac_emit_call_param(err, call_param_list->left_child, prog, num_of_args);
     if (result.type == ARG_ERROR || *err != NONE)
     {
         return ARGUMENT_ERROR;
     }
     // <call_params'> Node
-    tac_argument result2 = tac_evaluate_call_param_list_(err, call_param_list->right_child, prog, num_of_args);
+    const tac_argument result2 = tac_evaluate_call_param_list_(err, call_param_list->right_child, prog, num_of_args);
     if (result2.type == ARG_ERROR)
     {
         return ARGUMENT_ERROR;
@@ -844,7 +788,7 @@ static tac_argument tac_expr_emit(error *err, ast_node *expr, tac_prog *prog)
     }
     return ARGUMENT_ERROR; // return error if undefined
 }
-static tac_argument tac_emit_definition(error *err, ast_node *def, tac_prog *prog)
+static tac_argument tac_emit_definition(error *err, const ast_node *def, tac_prog *prog)
 {
     *err = NONE;
     tac_argument unknown_type_definition = {0};
@@ -863,7 +807,7 @@ static tac_argument tac_emit_definition(error *err, ast_node *def, tac_prog *pro
         return ARGUMENT_ERROR;
     }
 
-    tac_argument ass_value = tac_arg_assignment(err, def->right_child, prog);
+    const tac_argument ass_value = tac_arg_assignment(err, def->right_child, prog);
     if (ass_value.type == ARG_ERROR || *err != NONE)
     {
         free_unconsumed_argument(unknown_type_definition);
@@ -898,11 +842,11 @@ static tac_argument tac_emit_definition(error *err, ast_node *def, tac_prog *pro
     }
     return ARGUMENT_ERROR;
 }
-static tac_argument tac_emit_return(error *err, ast_node *ret, tac_prog *prog)
+static tac_argument tac_emit_return(error *err, const ast_node *ret, tac_prog *prog)
 {
     *err = NONE;
-    tac_argument arg1 = (tac_argument){.type = ARG_EMPTY};
-    tac_argument arg2 = (tac_argument){.type = ARG_EMPTY};
+    const tac_argument arg1 = (tac_argument){.type = ARG_EMPTY};
+    const tac_argument arg2 = (tac_argument){.type = ARG_EMPTY};
     tac_argument result = {.type = ARG_EMPTY};
     if (ret->left_child != NULL)
     {
@@ -921,7 +865,7 @@ static tac_argument tac_emit_return(error *err, ast_node *ret, tac_prog *prog)
     append_instruction(prog, ret_instruction);
     return (tac_argument){.type = ARG_EMPTY};
 }
-static tac_argument tac_emit_while(error *err, ast_node *while_node, tac_prog *prog)
+static tac_argument tac_emit_while(error *err, const ast_node *while_node, tac_prog *prog)
 {
     *err = NONE;
 
@@ -982,19 +926,19 @@ static tac_argument tac_emit_while(error *err, ast_node *while_node, tac_prog *p
     append_instruction(prog, outside_label);
     return ARGUMENT_EMPTY;
 }
-static tac_argument tac_emit_statement(error *err, ast_node *stat, tac_prog *prog)
+static tac_argument tac_emit_statement(error *err, const ast_node *stat, tac_prog *prog)
 {
     *err = NONE;
     if (stat->left_child->type == AST_NODE_IDENTIFIER && stat->right_child != NULL &&
         stat->right_child->type == AST_NODE_ASSIGN_VAL)
     {
         // ASSIGNMENT INSTRUCTION BRANCH
-        tac_argument id = create_new_id(err, prog->attr_table, stat->left_child);
+        const tac_argument id = create_new_id(err, prog->attr_table, stat->left_child);
         if (id.type == ARG_ERROR || *err != NONE)
         {
             return ARGUMENT_ERROR;
         }
-        tac_argument ass_value = tac_arg_assignment(err, stat->right_child, prog);
+        const tac_argument ass_value = tac_arg_assignment(err, stat->right_child, prog);
         if (*err != NONE || ass_value.type == ARG_ERROR)
         {
             free_unconsumed_argument(id);
@@ -1034,7 +978,7 @@ static tac_argument tac_emit_statement(error *err, ast_node *stat, tac_prog *pro
     }
     else
     {
-        tac_argument result = tac_expr_emit(err, stat->left_child, prog);
+        const tac_argument result = tac_expr_emit(err, stat->left_child, prog);
         if (*err != NONE || result.type == ARG_ERROR)
         {
             free_unconsumed_argument(result);
@@ -1044,25 +988,25 @@ static tac_argument tac_emit_statement(error *err, ast_node *stat, tac_prog *pro
         return ARGUMENT_EMPTY;
     }
 }
-static tac_argument tac_emit_stat_list_(error *err, ast_node *stat_list_, tac_prog *prog)
+static tac_argument tac_emit_stat_list_(error *err, const ast_node *stat_list_, tac_prog *prog)
 {
     *err = NONE;
     if (stat_list_ == NULL)
     {
         return ARGUMENT_EMPTY;
     }
-    tac_argument statement = tac_emit_statement(err, stat_list_->left_child, prog);
+    const tac_argument statement = tac_emit_statement(err, stat_list_->left_child, prog);
     if (statement.type == ARG_ERROR || *err != NONE)
     {
         return ARGUMENT_ERROR;
     }
     return tac_emit_stat_list_(err, stat_list_->right_child, prog);
 }
-static tac_argument tac_evaluate_block(error *err, ast_node *block, tac_prog *prog)
+static tac_argument tac_evaluate_block(error *err, const ast_node *block, tac_prog *prog)
 {
     *err = NONE;
-    ast_node *stat_list = block->left_child;
-    tac_argument statement = tac_emit_statement(err, stat_list->left_child, prog);
+    const ast_node *stat_list = block->left_child;
+    const tac_argument statement = tac_emit_statement(err, stat_list->left_child, prog);
     if (statement.type == ARG_ERROR || *err != NONE)
     {
         return ARGUMENT_ERROR;
@@ -1074,10 +1018,10 @@ static tac_argument tac_evaluate_block(error *err, ast_node *block, tac_prog *pr
     }
     return ARGUMENT_EMPTY;
 }
-static tac_argument tac_emit_param(error *err, ast_node *param, tac_prog *prog)
+static tac_argument tac_emit_param(error *err, const ast_node *param, tac_prog *prog)
 {
     *err = NONE;
-    tac_argument new_id_name = create_new_id(err, prog->attr_table, param->left_child);
+    const tac_argument new_id_name = create_new_id(err, prog->attr_table, param->left_child);
     if (new_id_name.type == ARG_ERROR)
     {
         return ARGUMENT_ERROR;
@@ -1092,7 +1036,7 @@ static tac_argument tac_emit_param(error *err, ast_node *param, tac_prog *prog)
     append_instruction(prog, param_instruction);
     return ARGUMENT_EMPTY;
 }
-static tac_argument tac_evaluate_param_list_(error *err, ast_node *param_list_, tac_prog *prog)
+static tac_argument tac_evaluate_param_list_(error *err, const ast_node *param_list_, tac_prog *prog)
 {
     *err = NONE;
     if (param_list_ == NULL)
@@ -1100,7 +1044,7 @@ static tac_argument tac_evaluate_param_list_(error *err, ast_node *param_list_, 
         return ARGUMENT_EMPTY;
     }
     // <param> Node
-    tac_argument result = tac_emit_param(err, param_list_->left_child, prog);
+    const tac_argument result = tac_emit_param(err, param_list_->left_child, prog);
     if (result.type == ARG_ERROR || *err != NONE)
     {
         return ARGUMENT_ERROR;
@@ -1108,7 +1052,7 @@ static tac_argument tac_evaluate_param_list_(error *err, ast_node *param_list_, 
     // <param_list'> Node
     return tac_evaluate_param_list_(err, param_list_->right_child, prog);
 }
-static tac_argument tac_evaluate_param_list(error *err, ast_node *param_list, tac_prog *prog)
+static tac_argument tac_evaluate_param_list(error *err, const ast_node *param_list, tac_prog *prog)
 {
     *err = NONE;
     if (param_list->left_child == NULL)
@@ -1123,7 +1067,7 @@ static tac_argument tac_evaluate_param_list(error *err, ast_node *param_list, ta
     }
 
     // <param> Node
-    tac_argument result = tac_emit_param(err, param_list->left_child, prog);
+    const tac_argument result = tac_emit_param(err, param_list->left_child, prog);
     if (result.type == ARG_ERROR || *err != NONE)
     {
         return ARGUMENT_ERROR;
@@ -1131,7 +1075,7 @@ static tac_argument tac_evaluate_param_list(error *err, ast_node *param_list, ta
     // <param_list'> Node
     return tac_evaluate_param_list_(err, param_list->right_child, prog);
 }
-static tac_argument tac_emit_func_start(error *err, ast_node *func_start, tac_prog *prog)
+static tac_argument tac_emit_func_start(error *err, const ast_node *func_start, tac_prog *prog)
 {
     *err = NONE;
 
@@ -1156,7 +1100,7 @@ static tac_argument tac_emit_func_start(error *err, ast_node *func_start, tac_pr
     // <param_list> Node
     return tac_evaluate_param_list(err, func_start->right_child->left_child, prog);
 }
-static tac_argument tac_evaluate_func_body(error *err, ast_node *func_body, tac_prog *prog)
+static tac_argument tac_evaluate_func_body(error *err, const ast_node *func_body, tac_prog *prog)
 {
     *err = NONE;
     if (func_body->left_child->type == AST_NODE_BLOCK)
@@ -1165,12 +1109,12 @@ static tac_argument tac_evaluate_func_body(error *err, ast_node *func_body, tac_
     }
     return tac_expr_emit(err, func_body->left_child, prog);
 }
-static tac_argument tac_emit_main_func(error *err, ast_node *main_func, tac_prog *prog)
+static tac_argument tac_emit_main_func(error *err, const ast_node *main_func, tac_prog *prog)
 {
     *err = NONE;
-    ast_node *func_str_node = main_func->left_child->left_child;
-    ast_node *func_body_node = main_func->left_child->right_child;
-    ast_node *func_name_node = func_str_node->left_child->left_child;
+    const ast_node *func_str_node = main_func->left_child->left_child;
+    const ast_node *func_body_node = main_func->left_child->right_child;
+    const ast_node *func_name_node = func_str_node->left_child->left_child;
 
     char *func_id = attribute_table_get_identifier(prog->attr_table, err, func_name_node->attribute_index);
     if (*err != NONE)
@@ -1178,7 +1122,7 @@ static tac_argument tac_emit_main_func(error *err, ast_node *main_func, tac_prog
         return ARGUMENT_ERROR;
     }
 
-    tac_argument func_id_arg = {.type = ARG_FUNC,
+    const tac_argument func_id_arg = {.type = ARG_FUNC,
                                 .value_type = (tac_argument_value_type)func_name_node->literal_type,
                                 .identifier_name = func_id};
 
@@ -1192,14 +1136,14 @@ static tac_argument tac_emit_main_func(error *err, ast_node *main_func, tac_prog
     append_instruction(prog, main_func_instruction);
 
     // <func_start> Node
-    tac_argument result = tac_emit_func_start(err, func_str_node, prog);
+    const tac_argument result = tac_emit_func_start(err, func_str_node, prog);
     if (result.type == ARG_ERROR || *err != NONE)
     {
         return ARGUMENT_ERROR;
     }
 
     // <func_body> Node
-    tac_argument body_result = tac_evaluate_func_body(err, func_body_node, prog);
+    const tac_argument body_result = tac_evaluate_func_body(err, func_body_node, prog);
     if (body_result.type == ARG_ERROR || *err != NONE)
     {
         return ARGUMENT_ERROR;
@@ -1225,31 +1169,31 @@ static tac_argument tac_emit_main_func(error *err, ast_node *main_func, tac_prog
     append_instruction(prog, func_end);
     return ARGUMENT_EMPTY;
 }
-static tac_argument tac_emit_func(error *err, ast_node *func_def, tac_prog *prog)
+static tac_argument tac_emit_func(error *err, const ast_node *func_def, tac_prog *prog)
 {
     *err = NONE;
 
-    ast_node *start = func_def->left_child;
-    ast_node *body = func_def->right_child;
-    ast_node *id = start->left_child->left_child;
+    const ast_node *start = func_def->left_child;
+    const ast_node *body = func_def->right_child;
+    const ast_node *id = start->left_child->left_child;
 
     char *name = attribute_table_get_identifier(prog->attr_table, err, id->attribute_index);
     if (*err != NONE)
     {
         return ARGUMENT_ERROR;
     }
-    tac_argument func_id = {
+    const tac_argument func_id = {
         .type = ARG_FUNC, .value_type = (tac_argument_value_type)id->literal_type, .identifier_name = name};
 
     // <func_start> Node
-    tac_argument result = tac_emit_func_start(err, start, prog);
+    const tac_argument result = tac_emit_func_start(err, start, prog);
     if (*err != NONE || result.type == ARG_ERROR)
     {
         return ARGUMENT_ERROR;
     }
 
     // <func_body> Node
-    tac_argument body_result = tac_evaluate_func_body(err, body, prog);
+    const tac_argument body_result = tac_evaluate_func_body(err, body, prog);
     if (*err != NONE || body_result.type == ARG_ERROR)
     {
         return ARGUMENT_ERROR;
@@ -1275,7 +1219,7 @@ static tac_argument tac_emit_func(error *err, ast_node *func_def, tac_prog *prog
     append_instruction(prog, end);
     return ARGUMENT_EMPTY;
 }
-static tac_argument tac_evaluate_func_list(error *err, ast_node *def_list, tac_prog *prog)
+static tac_argument tac_evaluate_func_list(error *err, const ast_node *def_list, tac_prog *prog)
 {
     *err = NONE;
     tac_argument result = {0};
@@ -1303,20 +1247,20 @@ static tac_argument tac_evaluate_func_list(error *err, ast_node *def_list, tac_p
     // <def_list> Node
     return tac_evaluate_func_list(err, def_list->right_child, prog);
 }
-static tac_instruction *tac_emit_if(error *err, ast_node *if_node, tac_prog *prog, tac_argument false_label,
-                                    tac_argument end_label)
+static tac_instruction *tac_emit_if(error *err, const ast_node *if_node, tac_prog *prog, const tac_argument false_label,
+                                    const tac_argument end_label)
 {
     *err = NONE;
 
     //<expression> Node
-    tac_argument expr_arg = tac_expr_emit(err, if_node->left_child, prog);
+    const tac_argument expr_arg = tac_expr_emit(err, if_node->left_child, prog);
 
     if (expr_arg.type == ARG_ERROR || *err != NONE)
     {
         return NULL;
     }
 
-    tac_argument start_label = create_label(prog);
+    const tac_argument start_label = create_label(prog);
     tac_instruction *if_instruction = create_instruction(err, TAC_IF_JUMP, start_label, false_label, expr_arg);
     if (if_instruction == NULL)
     {
@@ -1335,7 +1279,7 @@ static tac_instruction *tac_emit_if(error *err, ast_node *if_node, tac_prog *pro
 
     append_instruction(prog, start_label_instruction);
     // <block> Node
-    tac_argument block_arg = tac_evaluate_block(err, if_node->right_child, prog);
+    const tac_argument block_arg = tac_evaluate_block(err, if_node->right_child, prog);
 
     if (block_arg.type == ARG_ERROR || *err != NONE)
     {
@@ -1353,8 +1297,8 @@ static tac_instruction *tac_emit_if(error *err, ast_node *if_node, tac_prog *pro
     append_instruction(prog, skip_instruction);
     return if_instruction;
 }
-static tac_argument tac_emit_else(error *err, ast_node *else_node, tac_prog *prog, tac_argument false_label,
-                                  tac_argument end_label)
+static tac_argument tac_emit_else(error *err, const ast_node *else_node, tac_prog *prog, const tac_argument false_label,
+                                  const tac_argument end_label)
 {
     *err = NONE;
     // else <block> Node
@@ -1377,15 +1321,14 @@ static tac_argument tac_emit_else(error *err, ast_node *else_node, tac_prog *pro
     }
 
     // else <if> Node
-    tac_instruction *result = tac_emit_if(err, else_node->left_child, prog, false_label, end_label);
+    const tac_instruction *result = tac_emit_if(err, else_node->left_child, prog, false_label, end_label);
     if (result == NULL || *err != NONE)
     {
         return ARGUMENT_ERROR;
     }
     return ARGUMENT_EMPTY;
 }
-static tac_argument tac_evaluate_if_list_(error *err, ast_node *if_list_, tac_prog *prog, tac_argument branch_label,
-                                          tac_argument end_label)
+static tac_argument tac_evaluate_if_list_(error *err, const ast_node *if_list_, tac_prog *prog, const tac_argument branch_label, const tac_argument end_label)
 {
     *err = NONE;
     if (if_list_ == NULL)
@@ -1415,10 +1358,10 @@ static tac_argument tac_evaluate_if_list_(error *err, ast_node *if_list_, tac_pr
     // <if_list'> Node
     return tac_evaluate_if_list_(err, if_list_->right_child, prog, false_label, end_label);
 }
-static tac_argument tac_evaluate_if_list(error *err, ast_node *if_list, tac_prog *prog)
+static tac_argument tac_evaluate_if_list(error *err, const ast_node *if_list, tac_prog *prog)
 {
     *err = NONE;
-    tac_argument end_label = create_label(prog);
+    const tac_argument end_label = create_label(prog);
     tac_argument false_label = end_label; // if else is not exist jump straight to end
     if (if_list->right_child != NULL)
     {
@@ -1426,14 +1369,14 @@ static tac_argument tac_evaluate_if_list(error *err, ast_node *if_list, tac_prog
     }
 
     // <if> Node
-    tac_instruction *if_stm = tac_emit_if(err, if_list->left_child, prog, false_label, end_label);
+    const tac_instruction *if_stm = tac_emit_if(err, if_list->left_child, prog, false_label, end_label);
     if (if_stm == NULL || *err != NONE)
     {
         return ARGUMENT_ERROR;
     }
 
     // <if_list'> Node
-    tac_argument result = tac_evaluate_if_list_(err, if_list->right_child, prog, false_label, end_label);
+    const tac_argument result = tac_evaluate_if_list_(err, if_list->right_child, prog, false_label, end_label);
     if (result.type == ARG_ERROR || *err != NONE)
     {
         return ARGUMENT_ERROR;
@@ -1446,6 +1389,30 @@ static tac_argument tac_evaluate_if_list(error *err, ast_node *if_list, tac_prog
     }
     append_instruction(prog, end_instruction);
     return ARGUMENT_EMPTY;
+}
+
+// @brief Function to append TAC_MAIN to the start of list
+static void tac_move_main_to_start(tac_list *list)
+{
+    tac_instruction **instruction_copy = &list->first_instruction;
+
+    // Find main
+    while (*instruction_copy != NULL)
+    {
+        if ((*instruction_copy)->op == TAC_MAIN)
+        {
+            break;
+        }
+        instruction_copy = &(*instruction_copy)->next_instruction;
+    }
+
+    if (*instruction_copy != NULL && instruction_copy != &list->first_instruction)
+    {
+        tac_instruction *main_instruction = *instruction_copy;
+        *instruction_copy = main_instruction->next_instruction;
+        main_instruction->next_instruction = list->first_instruction;
+        list->first_instruction = main_instruction;
+    }
 }
 
 tac_list *tac_generate(error *err, ast_node **root, attribute_table *attr_table)
@@ -1471,9 +1438,14 @@ tac_list *tac_generate(error *err, ast_node **root, attribute_table *attr_table)
         stack_destruct(&call_param_stack);
         return NULL;
     }
-    tac_argument result = tac_evaluate_func_list(err, *root, &prog);
+    const tac_argument result = tac_evaluate_func_list(err, *root, &prog);
+
+    tac_move_main_to_start(prog.list);
+    update_instruction_id(prog.list);
+
     ast_node_destruct_recursively(root);
     stack_destruct(&call_param_stack);
+
     if (result.type == ARG_ERROR || *err != NONE)
     {
         tac_log_print("Error occurred during creation of TAC instructions!\n");

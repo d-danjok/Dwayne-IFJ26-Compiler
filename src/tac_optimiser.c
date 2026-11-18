@@ -408,34 +408,9 @@ static void update_list_info(tac_list *list)
         instruction->id = (unsigned int)list->size++;
         list->last_instruction = instruction;
     }
-    list->curr_instruction = list->first_instruction;
 }
 
-// @brief Function to append TAC_MAIN to the start of list
-static void tac_move_main_to_start(tac_list *list)
-{
-    tac_instruction **instruction_copy = &list->first_instruction;
 
-    // Find main
-    while (*instruction_copy != NULL)
-    {
-        if ((*instruction_copy)->op == TAC_MAIN)
-        {
-            break;
-        }
-        instruction_copy = &(*instruction_copy)->next_instruction;
-    }
-
-    if (*instruction_copy != NULL && instruction_copy != &list->first_instruction)
-    {
-        tac_instruction *main_instruction = *instruction_copy;
-        *instruction_copy = main_instruction->next_instruction;
-        main_instruction->next_instruction = list->first_instruction;
-        list->first_instruction = main_instruction;
-    }
-
-    update_list_info(list);
-}
 // @brief Function to detect INT_TO_FLOAT instruction
 static bool is_conversion_call(const tac_instruction *param, const tac_instruction *call)
 {
@@ -453,8 +428,6 @@ tac_list *tac_optimise(error *err, tac_list *list)
         *err = GENERAL_INTERNAL;
         return NULL;
     }
-
-    tac_move_main_to_start(list);
     const long instruction_count = list->size;
 
     // Return empty list, make no optimization

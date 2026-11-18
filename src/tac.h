@@ -63,7 +63,6 @@ typedef enum
     ARG_FLOAT = AST_TYPE_DOUBLE,
     ARG_INT = AST_TYPE_INT,
     ARG_BOOL = AST_TYPE_BOOLEAN,
-
 } tac_argument_value_type;
 
 //@ brief Single TAC argument/operand
@@ -104,7 +103,6 @@ typedef struct
     long size;
     tac_instruction *first_instruction;
     tac_instruction *last_instruction; // To append to the end in constant time
-    tac_instruction *curr_instruction; // Pointer to the current instruction
 } tac_list;
 
 // @brief Destroy tac_list

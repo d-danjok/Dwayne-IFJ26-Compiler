@@ -377,9 +377,37 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
             }
             else if (strcmp(t->arg1.identifier_name, "subStr") == 0)
             {
-                // subStr args validation:
+                static unsigned substr_cnt = 0;
+                // read args
+                printf("DEFVAR TF@$tt_s\nPOPS TF@$tt_s\n"); // string
+                printf("DEFVAR TF@$tt_i\nPOPS TF@$tt_i\n"); // start
+                printf("DEFVAR TF@$tt_j\nPOPS TF@$tt_j\n"); // end
 
-                // subStr loop
+                printf("DEFVAR TF@$tt_len\nSTRLEN TF@$tt_len TF@$tt_s\n");
+                printf("DEFVAR TF@$tt_b\n");
+
+                // runtime checks
+                printf("LT TF@$tt_b TF@$tt_i int@0\nJUMPIFEQ $subStrErr%u TF@$tt_b bool@true\n", substr_cnt); // start < 0
+                printf("GT TF@$tt_b TF@$tt_i TF@$tt_j\nJUMPIFEQ $subStrErr%u TF@$tt_b bool@true\n", substr_cnt); // start > end 
+                printf("LT TF@$tt_b TF@$tt_i TF@$tt_len\nJUMPIFEQ $subStrErr%u TF@$tt_b bool@false\n", substr_cnt); // start >= len
+                printf("GT TF@$tt_b TF@$tt_j TF@$tt_len\nJUMPIFEQ $subStrErr%u TF@$tt_b bool@true\n", substr_cnt); // end > len
+
+                printf("MOVE"); 
+                print_symbol(&t->result); 
+                printf(" string@\n");
+                printf("DEFVAR TF@$tt_c\n");
+                printf("LABEL $subStrLoop%u\n",substr_cnt);
+                printf("JUMPIFEQ $subStrEnd%u TF@$tt_i TF@$tt_j\n", substr_cnt);   // start <= end is checked, so EQ is enough
+                printf("GETCHAR TF@$tt_c TF@$tt_s TF@$tt_i\n");
+                printf("CONCAT");
+                print_symbol(&t->result); 
+                print_symbol(&t->result); 
+                printf(" TF@$tt_c\n");
+                printf("ADD TF@$tt_i TF@$tt_i int@1\n");
+                printf("JUMP $subStrLoop%u\n", substr_cnt);
+                printf("LABEL $subStrErr%u\n", substr_cnt);
+                printf("EXIT int@40\n");
+                printf("LABEL $subStrEnd%u\n", substr_cnt++);
             }
             else // handle program functions
             {

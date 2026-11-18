@@ -250,33 +250,56 @@ void codegen_run(error *err, tac_list *tac_l, attribute_table *attr_tab)
                 }
             }
             else if (strcmp(t->arg1.identifier_name, "readLine") == 0)
-            { // read should always have result variable
+            {
+                static unsigned read_cnt = 0;
                 printf("READ");
                 print_symbol(&t->result);
                 printf(" string\n");
+                printf("JUMPIFNEQ $read%u", read_cnt);
+                print_symbol(&t->result);
+                printf(" nil@nil\nMOVE");
+                print_symbol(&t->result);
+                printf(" string@\n");
+                printf("LABEL $read%u\n", read_cnt++);
             }
             else if (strcmp(t->arg1.identifier_name, "readInt") == 0)
             {
                 static unsigned read_int_cnt = 0;
                 printf("READ");
                 print_symbol(&t->result);
-                printf(" int\nJUMPIFNEQ $readInt%u", read_int_cnt);
+                printf(" int\n");
+                printf("JUMPIFNEQ $readInt%u", read_int_cnt);
                 print_symbol(&t->result);
                 printf(" nil@nil\nMOVE");
                 print_symbol(&t->result);
-                printf(" int@0\nLABEL $readInt%u\n", read_int_cnt++);
+                printf(" int@0\n");
+                printf("LABEL $readInt%u\n", read_int_cnt++);
             }
             else if (strcmp(t->arg1.identifier_name, "readDouble") == 0)
             {
+                static unsigned read_double_cnt = 0;
                 printf("READ");
                 print_symbol(&t->result);
                 printf(" float\n");
+                printf("JUMPIFNEQ $readDouble%u", read_double_cnt);
+                print_symbol(&t->result);
+                printf(" nil@nil\nMOVE");
+                print_symbol(&t->result);
+                printf(" float@0\n");
+                printf("LABEL $readDouble%u\n", read_double_cnt++);
             }
             else if (strcmp(t->arg1.identifier_name, "readBoolean") == 0)
             {
+                static unsigned read_bool_cnt = 0;
                 printf("READ");
                 print_symbol(&t->result);
                 printf(" bool\n");
+                printf("JUMPIFNEQ $readBool%u", read_bool_cnt);
+                print_symbol(&t->result);
+                printf(" nil@nil\nMOVE");
+                print_symbol(&t->result);
+                printf(" bool@false\n");
+                printf("LABEL $readBool%u\n", read_bool_cnt++);
             }
             else if (strcmp(t->arg1.identifier_name, "strLength") == 0)
             {

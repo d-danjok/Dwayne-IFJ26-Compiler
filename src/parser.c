@@ -1949,8 +1949,6 @@ static ast_node *node_stat_list_(error *err, const bool newline_consumed_by_call
 
     while (next_token.type == TOKEN_EOL || next_token.type == TOKEN_SEMICOLON)
     {
-        const token prev_token = next_token;
-
         get_token(err);
         if (*err != NONE)
         {

@@ -8,9 +8,12 @@
 #include "error.h"
 #include "stack.h"
 #include "token.h"
+#include "utils.h"
 
+#include <ctype.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #define BUFFER_SIZE 128
 
@@ -38,6 +41,7 @@ typedef enum
     STATE_STR_MULTILN,
     STATE_STR_MQ1,
     STATE_STR_MQ2,
+    STATE_STR_MQ3,
     STATE_STR_ESCAPE,
     STATE_STR,
     STATE_STR_END,
@@ -70,7 +74,8 @@ typedef enum
     STATE_MLINE_MUL,
     STATE_WAITING_EOL,
 
-    STATE_NL, // to detect indentation and dedentation, but not to return it as a
+    STATE_NL,               // to detect indentation and dedentation
+    STATE_NL_AFTER_COMMENT, // spaces after a block comment that started the line, not counted as indentation
     STATE_INDENT_DIV,
 
     STATE_DEDENT
@@ -81,24 +86,20 @@ typedef struct
     state current_state;
     FILE *input;
     attribute_table *attr_table;
-    char *buffer;
-    size_t buffer_index;
+
+    char *buffer;        // [0, buffer_index) token, then buffer_peeked chars
+    size_t buffer_index; // token length = start of lookahead
+    size_t buffer_peeked;
     size_t buffer_capacity;
-    int Cdepth;
+
     int Pdepth;
+    int Cdepth;
     bool CSline;
     bool NL; // need to emit EOL
 
-    // int coment_depth;
-    // bool comment_sline;
-
-    stack *indent_size_s;
     int indent_cnt;
-    // bool last_was_eol;
-    // bool last_was_eof;
-    // bool empty_line;
-    // int parentaces;
-    // bool m_comment;
+    stack *indent_size_s;
+
     size_t current_line;
 } lexer;
 

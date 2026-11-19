@@ -41,6 +41,7 @@ typedef enum
     STATE_STR_MULTILN,
     STATE_STR_MQ1,
     STATE_STR_MQ2,
+    STATE_STR_MQ3,
     STATE_STR_ESCAPE,
     STATE_STR,
     STATE_STR_END,
@@ -73,7 +74,8 @@ typedef enum
     STATE_MLINE_MUL,
     STATE_WAITING_EOL,
 
-    STATE_NL, // to detect indentation and dedentation, but not to return it as a
+    STATE_NL,               // to detect indentation and dedentation
+    STATE_NL_AFTER_COMMENT, // spaces after a block comment that started the line, not counted as indentation
     STATE_INDENT_DIV,
 
     STATE_DEDENT

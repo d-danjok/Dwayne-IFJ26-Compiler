@@ -294,17 +294,22 @@ token lexer_get_next_token(lexer *self, error *err)
         switch (self->current_state)
         {
         case STATE_START:
-            // keep only chars that start token with a buffered lexeme (identifier, number, dot)
-            c = lexer_get_char(self, err, &internal_err, c == '_' || c == '.' || isalnum((unsigned char)c));
+            // keep only chars that start a token with a buffered lexeme (identifier, number, dot)
+            c = lexer_peek_char(self, err, &internal_err, 0);
+            lexer_get_char(self, err, &internal_err, c == '_' || c == '.' || isalnum((unsigned char)c));
+
             switch (c)
             {
             case ' ':
                 break;
             // EOL, EOF
             case '\0':
+                if (internal_err != INTERNAL_END_OF_FILE)
+                    *err = INVALID_SYMBOL;
+                // fall through - NUL byte ends the line like EOF (after setting the error)
             case '\n':
                 self->indent_cnt = 0;
-                self->current_state = STATE_NL; // could throw errpr on negative par
+                self->current_state = STATE_NL;
                 break;
             // Simple tokens
             case '|':
@@ -389,14 +394,12 @@ token lexer_get_next_token(lexer *self, error *err)
             break;
         // ANNOTATION
         case STATE_ANNOTATION: {
-            if (lexer_get_char(self, err, &internal_err, false) == 'm' &&
-                lexer_get_char(self, err, &internal_err, false) == 'a' &&
-                lexer_get_char(self, err, &internal_err, false) == 'i' &&
-                lexer_get_char(self, err, &internal_err, false) == 'n' &&
-                (lexer_peek_char(self, err, &internal_err, 0) == ' ' ||
-                 lexer_peek_char(self, err, &internal_err, 0) == '\n' ||
-                 lexer_peek_char(self, err, &internal_err, 0) == '\t' ||
-                 lexer_peek_char(self, err, &internal_err, 0) == '\0'))
+            bool is_main = lexer_get_char(self, err, &internal_err, false) == 'm' &&
+                           lexer_get_char(self, err, &internal_err, false) == 'a' &&
+                           lexer_get_char(self, err, &internal_err, false) == 'i' &&
+                           lexer_get_char(self, err, &internal_err, false) == 'n';
+            c = lexer_peek_char(self, err, &internal_err, 0);
+            if (is_main && c != '_' && !isalnum((unsigned char)c))
                 res.type = TOKEN_ANNOTATION;
             else
                 *err = INVALID_SYMBOL;
@@ -533,8 +536,6 @@ token lexer_get_next_token(lexer *self, error *err)
                 self->indent_cnt = 0;
                 self->current_state = STATE_NL;
             }
-            else
-                self->current_state = STATE_S_COMMENT;
             break;
         case STATE_M_COMMENT:
             c = lexer_get_char(self, err, &internal_err, false);
@@ -569,11 +570,20 @@ token lexer_get_next_token(lexer *self, error *err)
                 *err = UNFINISHED_COMMENT;
             else if (c == '\n')
                 self->CSline = false;
+            else if (c == '*')
+                self->current_state = STATE_MLINE_MUL;
             else if (c == '/')
             {
                 self->Cdepth--;
                 if (self->Cdepth == 0)
-                    self->current_state = self->CSline ? STATE_START : STATE_WAITING_EOL;
+                {
+                    if (!self->CSline)
+                        self->current_state = STATE_WAITING_EOL;
+                    else if (!self->NL) // comment starts the line ("  /* c */ x"): x keeps indentation before it
+                        self->current_state = STATE_NL_AFTER_COMMENT;
+                    else
+                        self->current_state = STATE_START;
+                }
             }
             break;
         case STATE_WAITING_EOL:
@@ -592,38 +602,30 @@ token lexer_get_next_token(lexer *self, error *err)
             break;
         case STATE_NL:
             c = lexer_peek_char(self, err, &internal_err, 0);
-            if (c == ' ')
+            if (self->NL && (self->Pdepth == 0 || internal_err == INTERNAL_END_OF_FILE))
+            { // a non-empty logical line ended: EOL goes before anything on the next lines
+                res.type = TOKEN_EOL;
+                res.line = self->current_line;
+            }
+            else if (c == ' ')
             {
                 lexer_get_char(self, err, &internal_err, false);
                 self->indent_cnt++;
             }
             else if (c == '\n')
             {
-
                 lexer_get_char(self, err, &internal_err, false);
                 self->indent_cnt = 0;
             }
             else if (c == '/')
             {
                 lexer_get_char(self, err, &internal_err, false);
-                self->indent_cnt = 0;
-                self->current_state = STATE_INDENT_DIV;
+                self->current_state = STATE_INDENT_DIV; // indent_cnt is kept
             }
-            else if (self->Pdepth > 0)
-            {
-                if (self->indent_cnt < lexer_indent_top(self, err))
-                    *err = INVALID_PARENTACES_INDENTATION;
-                else
-                    self->current_state = STATE_START;
-            }
-            else if (c == '\t')
-                *err = INVALID_INDENTATION;
             else if (self->Pdepth == 0 || internal_err == INTERNAL_END_OF_FILE)
             {
                 res.line = self->current_line;
-                if (self->NL) // a non-empty logical line ends before any INDENT/DEDENT
-                    res.type = TOKEN_EOL;
-                else if (internal_err == INTERNAL_END_OF_FILE)
+                if (internal_err == INTERNAL_END_OF_FILE)
                     self->current_state = STATE_DEDENT;
                 else if (self->indent_cnt > lexer_indent_top(self, err))
                 {
@@ -635,8 +637,23 @@ token lexer_get_next_token(lexer *self, error *err)
                 else
                     self->current_state = STATE_START;
             }
+            else if (self->Pdepth > 0)
+            {
+                if (self->indent_cnt < lexer_indent_top(self, err))
+                    *err = INVALID_PARENTACES_INDENTATION;
+                else
+                    self->current_state = STATE_START;
+            }
+            else if (c == '\t')
+                *err = INVALID_INDENTATION;
             else
                 self->current_state = STATE_START;
+            break;
+        case STATE_NL_AFTER_COMMENT:
+            if (lexer_peek_char(self, err, &internal_err, 0) == ' ')
+                lexer_get_char(self, err, &internal_err, false); // not indentation
+            else
+                self->current_state = STATE_NL;
             break;
         case STATE_DEDENT:
             if (self->indent_cnt < lexer_indent_top(self, err))
@@ -769,13 +786,21 @@ token lexer_get_next_token(lexer *self, error *err)
             c = lexer_get_char(self, err, &internal_err, true);
             if (internal_err == INTERNAL_END_OF_FILE)
                 *err = UNFINISHED_STRING;
-            else if (c == '"')
+            else
+                self->current_state = c == '"' ? STATE_STR_MQ3 : STATE_STR_MULTILN;
+            break;
+        case STATE_STR_MQ3:
+            c = lexer_peek_char(self, err, &internal_err, 0);
+            if (c == '"')
+            {
+                c = lexer_get_char(self, err, &internal_err, true);
+                self->current_state = STATE_STR_MQ3;
+            }
+            else
             {
                 self->buffer[self->buffer_index - 3] = '\0'; // cut off closing """
                 self->current_state = STATE_STR_END;
             }
-            else
-                self->current_state = STATE_STR_MULTILN;
             break;
         case STATE_STR_ESCAPE: {
             char decoded;

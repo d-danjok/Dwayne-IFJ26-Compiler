@@ -300,7 +300,12 @@ token lexer_get_next_token(lexer *self, error *err)
 
             switch (c)
             {
+            case '\t':
+                if (!self->NL) // no token on this line yet
+                    *err = INVALID_INDENTATION;
+                break;
             case ' ':
+            case '\r': // CR of CRLF is whitespace
                 break;
             // EOL, EOF
             case '\0':
@@ -593,7 +598,7 @@ token lexer_get_next_token(lexer *self, error *err)
                 self->indent_cnt = 0;
                 self->current_state = STATE_NL;
             }
-            else if (c == ' ')
+            else if (c == ' ' || c == '\t' || c == '\r')
                 self->current_state = STATE_WAITING_EOL;
             else if (c == '/')
                 self->current_state = STATE_INDENT_DIV;
@@ -612,6 +617,10 @@ token lexer_get_next_token(lexer *self, error *err)
                 lexer_get_char(self, err, &internal_err, false);
                 self->indent_cnt++;
             }
+            else if (c == '\t') // tab before the first token of line
+                *err = INVALID_INDENTATION;
+            else if (c == '\r') // CR of CRLF
+                lexer_get_char(self, err, &internal_err, false);
             else if (c == '\n')
             {
                 lexer_get_char(self, err, &internal_err, false);
@@ -644,8 +653,6 @@ token lexer_get_next_token(lexer *self, error *err)
                 else
                     self->current_state = STATE_START;
             }
-            else if (c == '\t')
-                *err = INVALID_INDENTATION;
             else
                 self->current_state = STATE_START;
             break;

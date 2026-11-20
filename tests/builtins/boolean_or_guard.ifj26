@@ -1,0 +1,6 @@
+import ifj26.*
+
+@main def main(): Unit =
+  val safe = true || (ord("", 0) > 0)
+  print("or=")
+  print(toStr(safe))

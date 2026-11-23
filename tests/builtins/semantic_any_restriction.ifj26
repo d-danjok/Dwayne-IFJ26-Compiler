@@ -1,0 +1,5 @@
+import ifj26.*
+
+@main def main(): Unit =
+  print("start")
+  print(toInt("3.5"))

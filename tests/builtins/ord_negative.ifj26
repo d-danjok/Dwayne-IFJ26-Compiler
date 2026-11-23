@@ -1,0 +1,6 @@
+import ifj26.*
+
+@main def main(): Unit =
+  print("negative=")
+  print(toStr(ord("ABC", -1)))
+  print("; after=done")

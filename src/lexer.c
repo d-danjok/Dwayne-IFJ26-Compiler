@@ -648,7 +648,7 @@ token lexer_get_next_token(lexer *self, error *err)
             }
             else if (self->Pdepth > 0)
             {
-                if (self->indent_cnt < lexer_indent_top(self, err))
+                if (self->indent_cnt <= lexer_indent_top(self, err))
                     *err = INVALID_PARENTACES_INDENTATION;
                 else
                     self->current_state = STATE_START;

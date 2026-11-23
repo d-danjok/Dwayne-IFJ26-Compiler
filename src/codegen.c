@@ -349,7 +349,7 @@ void codegen_run(error *err, tac_list *tac_l)
                 print_symbol(&t->result);
                 printf(" nil@nil\nMOVE");
                 print_symbol(&t->result);
-                printf(" float@0\n");
+                printf(" float@0x0p+0\n");
                 printf("LABEL $readDouble%u\n", read_double_cnt++);
             }
             else if (strcmp(t->arg1.identifier_name, "readBoolean") == 0)

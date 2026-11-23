@@ -82,6 +82,70 @@ static void print_symbol(const tac_argument *arg)
     print_symbol(arg);                                                                                                 \
     putchar('\n');
 
+typedef struct builtins_used_s
+{
+    bool subStr;
+    bool toStrBool;
+    bool ord;
+} builtins_used_t;
+
+static void print_builtins(const builtins_used_t *fns)
+{
+    if (fns->ord) // 
+        printf("LABEL $b$ord\n"
+               "PUSHFRAME\n"
+               "DEFVAR LF@$res\n"
+               "DEFVAR LF@$str\nPOPS LF@$str\n"
+               "DEFVAR LF@$idx\nPOPS LF@$idx\n"
+               "MOVE LF@$res int@-1\n"
+               "DEFVAR LF@$cond\n"
+               "LT LF@$cond LF@$idx int@0\nJUMPIFEQ $b$ord$end LF@$cond bool@true\n"
+               "DEFVAR LF@$len\nSTRLEN LF@$len LF@$str\n"
+               "LT LF@$cond LF@$idx LF@$len\nJUMPIFEQ $b$ord$end LF@$cond bool@false\n"
+               "STRI2INT LF@$res LF@$str LF@$idx\n"
+               "LABEL $b$ord$end\n"
+               "POPFRAME\n"
+               "RETURN\n");
+
+    if (fns->toStrBool)
+        printf("LABEL $b$toStrBool\n"
+               "PUSHFRAME\n"
+               "DEFVAR LF@$res\n"
+               "DEFVAR LF@$val\nPOPS LF@$val\n"
+               "MOVE LF@$res string@true\n"
+               "JUMPIFEQ $b$toStrBool$end LF@$val bool@true\n"
+               "MOVE LF@$res string@false\n"
+               "LABEL $b$toStrBool$end\n"
+               "POPFRAME\n"
+               "RETURN\n");
+
+    if (fns->subStr) 
+        printf("LABEL $b$subStr\n"
+               "PUSHFRAME\n"
+               "DEFVAR LF@$res\n"
+               "DEFVAR LF@$str\nPOPS LF@$str\n"
+               "DEFVAR LF@$start\nPOPS LF@$start\n"
+               "DEFVAR LF@$end\nPOPS LF@$end\n"
+               "DEFVAR LF@$len\nSTRLEN LF@$len LF@$str\n"
+               "DEFVAR LF@$cond\n"
+               "LT LF@$cond LF@$start int@0\nJUMPIFEQ $b$subStr$err LF@$cond bool@true\n"
+               "GT LF@$cond LF@$start LF@$end\nJUMPIFEQ $b$subStr$err LF@$cond bool@true\n"
+               "LT LF@$cond LF@$start LF@$len\nJUMPIFEQ $b$subStr$err LF@$cond bool@false\n"
+               "GT LF@$cond LF@$end LF@$len\nJUMPIFEQ $b$subStr$err LF@$cond bool@true\n"
+               "MOVE LF@$res string@\n"
+               "DEFVAR LF@$char\n"
+               "LABEL $b$subStr$loop\n"
+               "JUMPIFEQ $b$subStr$end LF@$start LF@$end\n"
+               "GETCHAR LF@$char LF@$str LF@$start\n"
+               "CONCAT LF@$res LF@$res LF@$char\n"
+               "ADD LF@$start LF@$start int@1\n"
+               "JUMP $b$subStr$loop\n"
+               "LABEL $b$subStr$err\n"
+               "EXIT int@40\n"
+               "LABEL $b$subStr$end\n"
+               "POPFRAME\n"
+               "RETURN\n");
+}
 // SLL for declared_vars_list vars
 typedef struct declared_var_node_s
 {
@@ -92,9 +156,9 @@ typedef struct declared_var_node_s
 void codegen_run(error *err, tac_list *tac_l)
 {
     printf(".IFJcode26\n");
-
     // tac_l->curr_instruction = tac_l->first_instruction;
     tac_instruction *t = tac_l->first_instruction;
+    builtins_used_t builtins_used = {0};
     bool frame_open = false;
     tac_argument_value_type f0_type = ARG_NONE;
 
@@ -315,14 +379,6 @@ void codegen_run(error *err, tac_list *tac_l)
                 print_symbol(&t->result);
                 printf(" TF@$tt\n");
             }
-            else if (strcmp(t->arg1.identifier_name, "ord") == 0)
-            {
-                printf("DEFVAR TF@$tt\nPOPS TF@$tt\n");
-                printf("DEFVAR TF@$ttt\nPOPS TF@$ttt\n");
-                printf("STRI2INT");
-                print_symbol(&t->result);
-                printf(" TF@$tt TF@$ttt\n"); // first arg (string) is on top
-            }
             else if (strcmp(t->arg1.identifier_name, "toInt") == 0)
             {
                 printf("DEFVAR TF@$tt\nPOPS TF@$tt\n");
@@ -351,68 +407,13 @@ void codegen_run(error *err, tac_list *tac_l)
                 print_symbol(&t->result);
                 printf(" TF@$tt\n");
             }
-            else if (strcmp(t->arg1.identifier_name, "toStr") == 0 && f0_type == ARG_BOOL)
-            {
-                static unsigned to_str_cnt = 0;
-                printf("MOVE");
-                print_symbol(&t->result);
-                printf(" string@false\n");
-                printf("DEFVAR TF@$tt\n\
-                    POPS TF@$tt\n\
-                    JUMPIFNEQ $toStr%u TF@$tt bool@true\n",
-                       to_str_cnt);
-                printf("MOVE");
-                print_symbol(&t->result);
-                printf(" string@true\n");
-
-                printf("LABEL $toStr%u\n", to_str_cnt++);
-            }
-            else if (strcmp(t->arg1.identifier_name, "toStr") == 0)
-            {
+            else if (strcmp(t->arg1.identifier_name, "toStr") == 0 && f0_type != ARG_BOOL)
+            { // bool drops to else branch
                 if (f0_type != ARG_UNIT)
                     printf("DEFVAR TF@$tt\nPOPS TF@$tt\n");
                 printf("MOVE");
                 print_symbol(&t->result);
                 printf(f0_type == ARG_UNIT ? " string@()\n" : " TF@$tt\n");
-            }
-            else if (strcmp(t->arg1.identifier_name, "subStr") == 0)
-            {
-                static unsigned substr_cnt = 0;
-                // read args
-                printf("DEFVAR TF@$tt_s\nPOPS TF@$tt_s\n"); // string
-                printf("DEFVAR TF@$tt_i\nPOPS TF@$tt_i\n"); // start
-                printf("DEFVAR TF@$tt_j\nPOPS TF@$tt_j\n"); // end
-
-                printf("DEFVAR TF@$tt_len\nSTRLEN TF@$tt_len TF@$tt_s\n");
-                printf("DEFVAR TF@$tt_b\n");
-
-                // runtime checks
-                printf("LT TF@$tt_b TF@$tt_i int@0\nJUMPIFEQ $subStrErr%u TF@$tt_b bool@true\n",
-                       substr_cnt); // start < 0
-                printf("GT TF@$tt_b TF@$tt_i TF@$tt_j\nJUMPIFEQ $subStrErr%u TF@$tt_b bool@true\n",
-                       substr_cnt); // start > end
-                printf("LT TF@$tt_b TF@$tt_i TF@$tt_len\nJUMPIFEQ $subStrErr%u TF@$tt_b bool@false\n",
-                       substr_cnt); // start >= len
-                printf("GT TF@$tt_b TF@$tt_j TF@$tt_len\nJUMPIFEQ $subStrErr%u TF@$tt_b bool@true\n",
-                       substr_cnt); // end > len
-
-                printf("MOVE");
-                print_symbol(&t->result);
-                printf(" string@\n");
-                printf("DEFVAR TF@$tt_c\n");
-                printf("LABEL $subStrLoop%u\n", substr_cnt);
-                printf("JUMPIFEQ $subStrEnd%u TF@$tt_i TF@$tt_j\n",
-                       substr_cnt); // start <= end is checked, so EQ is enough
-                printf("GETCHAR TF@$tt_c TF@$tt_s TF@$tt_i\n");
-                printf("CONCAT");
-                print_symbol(&t->result);
-                print_symbol(&t->result);
-                printf(" TF@$tt_c\n");
-                printf("ADD TF@$tt_i TF@$tt_i int@1\n");
-                printf("JUMP $subStrLoop%u\n", substr_cnt);
-                printf("LABEL $subStrErr%u\n", substr_cnt);
-                printf("EXIT int@40\n");
-                printf("LABEL $subStrEnd%u\n", substr_cnt++);
             }
             else // handle program functions
             {
@@ -422,13 +423,30 @@ void codegen_run(error *err, tac_list *tac_l)
                     frame_open = true;
                 }
 
-                PRINT_1AC("CALL", &t->arg1)
-                if (t->result.type != ARG_EMPTY)
+                if (strcmp(t->arg1.identifier_name, "ord") == 0)
                 {
-                    printf("MOVE");
-                    print_symbol(&t->result);
-                    printf(" TF@$res\n");
+                    builtins_used.ord = true;
+                    printf("CALL $b$ord\n");
                 }
+                else if (strcmp(t->arg1.identifier_name, "subStr") == 0)
+                {
+                    builtins_used.subStr = true;
+                    printf("CALL $b$subStr\n");
+                }
+                else if (strcmp(t->arg1.identifier_name, "toStr") == 0)
+                {
+                    builtins_used.toStrBool = true;
+                    printf("CALL $b$toStrBool\n");
+                }
+                else
+                {
+                    PRINT_1AC("CALL", &t->arg1)
+                }
+                if (t->result.type == ARG_EMPTY)
+                    return;
+                printf("MOVE");
+                print_symbol(&t->result);
+                printf(" TF@$res\n");
             }
             frame_open = false;
             break;
@@ -463,5 +481,6 @@ void codegen_run(error *err, tac_list *tac_l)
             break;
         t = t->next_instruction;
     }
+    print_builtins(&builtins_used);
     tac_list_destruct(tac_l);
 }

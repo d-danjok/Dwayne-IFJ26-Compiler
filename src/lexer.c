@@ -881,11 +881,6 @@ token lexer_get_next_token(lexer *self, error *err)
                 lexer_get_char(self, err, &internal_err, true); // eat e/E
                 self->current_state = STATE_EXP;
             }
-            else if (c == 'd' || c == 'D')
-            {
-                lexer_get_char(self, err, &internal_err, false);
-                self->current_state = STATE_D_SUFF;
-            }
             else if (isalpha(c))
                 *err = INVALID_SYMBOL; // 12abc, 0x1F, 1L
             else
@@ -906,12 +901,7 @@ token lexer_get_next_token(lexer *self, error *err)
 
         case STATE_ZERO:
             c = lexer_peek_char(self, err, &internal_err, 0);
-            if (c == '0')
-            {
-                lexer_get_char(self, err, &internal_err, false);
-                self->current_state = STATE_ZERO;
-            }
-            else if (isdigit(c))
+            if (isdigit(c))
             {
                 lexer_get_char(self, err, &internal_err, true);
                 self->current_state = STATE_DOUBLE_START;
@@ -923,7 +913,7 @@ token lexer_get_next_token(lexer *self, error *err)
             else if (c == '_')
             {
                 lexer_get_char(self, err, &internal_err, false);
-                self->current_state = STATE_UZERO;
+                self->current_state = STATE_UDOUBLE_START;
             }
             else if (c == 'e' || c == 'E')
             {
@@ -939,18 +929,6 @@ token lexer_get_next_token(lexer *self, error *err)
                 *err = INVALID_SYMBOL; // 12abc, 0x1F, 1L
             else
                 self->current_state = STATE_PROCESS_INT; // c stays unread, it starts the next token
-            break;
-        case STATE_UZERO:
-            c = lexer_peek_char(self, err, &internal_err, 0);
-            if (c == '0')
-                self->current_state = STATE_ZERO;
-            else if (c == '_')
-            {
-                lexer_get_char(self, err, &internal_err, false); // eat underscore
-                self->current_state = STATE_UZERO;
-            }
-            else
-                *err = INVALID_SYMBOL;
             break;
         case STATE_PROCESS_INT: {
             res.type = TOKEN_INT;
@@ -982,11 +960,6 @@ token lexer_get_next_token(lexer *self, error *err)
             {
                 lexer_get_char(self, err, &internal_err, true);
                 self->current_state = STATE_EXP;
-            }
-            else if (c == 'd' || c == 'D') // #uncertainty: should we allow d/D suffix?
-            {
-                lexer_get_char(self, err, &internal_err, false);
-                self->current_state = STATE_D_SUFF;
             }
             else
             {

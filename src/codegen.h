@@ -13,7 +13,21 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+// ================== SUPPORTED BUILTINS ==================
+//     [Unit]print           (v: any)                             cond: v is Unit -> writes "()"
+//     [String]readLine      ()                                   cond: EOF -> ""
+//     [Int]readInt          ()                                   cond: invalid line | EOF -> 0
+//     [Double]readDouble    ()                                   cond: invalid line | EOF -> 0.0
+//     [Boolean]readBoolean  ()                                   cond: invalid line | EOF -> false
+//     [Int]strLength        (s: String)
+//     [String]chr           (i: Int)                             cond: i not in 0..127 -> err58
+//     [Int]toInt            (d: Double)
+//     [String]toStr         (v: Int|Double|Boolean|String|Unit)  cond: v is Unit -> "()"
+//     [Int]ord              (s: String, i: Int)                  cond: i not in 0..len(s)-1 -> -1
+//     [String]subStr        (s: String, i: Int, j: Int)          cond: i < 0 | i > j | i >= len(s) | j > len(s) -> exit 40
+//     [Double]INT_TO_FLOAT  (i: Int)
 
+// ================== IFJ26CODE INSTRUCTIONS ==================
 //     MOVE, // DEST_SYM SRC_VAR
 
 //     CREATEFRAME,
@@ -94,14 +108,17 @@
 //     INT2STRS,
 //     TYPES,
 //     ISINTS
+// ================== IFJ26CODE INSTRUCTIONS ==================
 
 /* @note:
-        X - union
-        label: LX
+        label: $LX
         func label: $f$X
-        function arguments names: @$fX
-        function result name: @$res
-        temporary var: LF@$tX
+        builtin func label: $b$X (vars: $b$X$var)
+        variable: LF@X
+        temporary var: LF@$tX, TF@$tt
+        inline builtin labels: $readN, $readIntN, $readDoubleN, $readBoolN
+        function arguments: pushed by caller on data stack in reverse order
+        function result: LF@$res in callee, TF@$res in caller after RETURN
 */
 
 // @brief translates TAC into IFJcode26 and prints it to stdout (@1)

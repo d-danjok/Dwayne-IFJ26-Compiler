@@ -2751,8 +2751,9 @@ static ast_node *node_if_list_(error *err)
     if (next_token.type != TOKEN_KEYWORD || next_token.attribute_index != KW_ELSE)
     {
 
-        prev_was_else_node = false; // reset this, since otherwise if nested if-else used may apply rules to else branch
-                                    // if different if-else sequence
+        prev_was_else_node = false;
+        // reset this, since otherwise if nested if-else used may
+        // apply rules to else branch if different if-else sequence
 
         return NULL;
     }
@@ -2855,6 +2856,14 @@ static ast_node *node_else_block(error *err)
         return NULL;
     }
 
+    if (prev_was_else_node)
+    {
+        *err = GENERAL_SYNTAX;
+        log_printf("[%lu] more that one else branch\n", current_token.line);
+
+        return NULL;
+    }
+
     ast_node *else_node = new_ast_node(err);
     if (*err != NONE)
     {
@@ -2888,14 +2897,6 @@ static ast_node *node_else_block(error *err)
     else_node->left_child = node_block(err);
     if (*err != NONE)
     {
-        ast_node_destruct_recursively(&else_node);
-        return NULL;
-    }
-    if (prev_was_else_node)
-    {
-        *err = GENERAL_SYNTAX;
-        log_printf("[%lu] more that one else branch\n", current_token.line);
-
         ast_node_destruct_recursively(&else_node);
         return NULL;
     }

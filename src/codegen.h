@@ -24,8 +24,8 @@
 //     [Int]toInt            (d: Double)
 //     [String]toStr         (v: Int|Double|Boolean|String|Unit)  cond: v is Unit -> "()"
 //     [Int]ord              (s: String, i: Int)                  cond: i not in 0..len(s)-1 -> -1
-//     [String]subStr        (s: String, i: Int, j: Int)          cond: i < 0 | i > j | i >= len(s) | j > len(s) -> exit 40
-//     [Double]INT_TO_FLOAT  (i: Int)
+//     [String]subStr        (s: String, i: Int, j: Int)          cond: i < 0 | i > j | i >= len(s) | j > len(s) -> exit
+//     40 [Double]INT_TO_FLOAT  (i: Int)
 
 // ================== IFJ26CODE INSTRUCTIONS ==================
 //     MOVE, // DEST_SYM SRC_VAR

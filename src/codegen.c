@@ -91,7 +91,7 @@ typedef struct builtins_used_s
 
 static void print_builtins(const builtins_used_t *fns)
 {
-    if (fns->ord) // 
+    if (fns->ord) //
         printf("LABEL $b$ord\n"
                "PUSHFRAME\n"
                "DEFVAR LF@$res\n"
@@ -119,7 +119,7 @@ static void print_builtins(const builtins_used_t *fns)
                "POPFRAME\n"
                "RETURN\n");
 
-    if (fns->subStr) 
+    if (fns->subStr)
         printf("LABEL $b$subStr\n"
                "PUSHFRAME\n"
                "DEFVAR LF@$res\n"

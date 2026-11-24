@@ -2743,8 +2743,6 @@ static ast_node *node_if_list_(error *err)
 {
     *err = NONE;
 
-    prev_was_else_node = false;
-
     const token next_token = peek_token(err);
     if (*err != NONE)
     {
@@ -2752,6 +2750,10 @@ static ast_node *node_if_list_(error *err)
     }
     if (next_token.type != TOKEN_KEYWORD || next_token.attribute_index != KW_ELSE)
     {
+
+        prev_was_else_node = false; // reset this, since otherwise if nested if-else used may apply rules to else branch
+                                    // if different if-else sequence
+
         return NULL;
     }
 
@@ -2870,12 +2872,15 @@ static ast_node *node_else_block(error *err)
 
     if (after_else.type == TOKEN_KEYWORD && after_else.attribute_index == KW_IF)
     {
+        prev_was_else_node = false;
+
         else_node->left_child = node_if_block(err);
         if (*err != NONE)
         {
             ast_node_destruct_recursively(&else_node);
             return NULL;
         }
+        prev_was_else_node = false; // just a hack
 
         return else_node;
     }
@@ -2888,8 +2893,8 @@ static ast_node *node_else_block(error *err)
     }
     if (prev_was_else_node)
     {
-        *err = GENERAL_SEMANTICS_COMMON;
-        log_printf("[%lu] semantics error: more that one else branch", current_token.line);
+        *err = GENERAL_SYNTAX;
+        log_printf("[%lu] more that one else branch\n", current_token.line);
 
         ast_node_destruct_recursively(&else_node);
         return NULL;

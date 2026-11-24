@@ -65,10 +65,10 @@
 2. \<call_params> ::= __)__
 3. \<call_params> ::= EOL \<call_params>
 4. \<call_params> ::= \<call_param>\<call_params’>
-5. <call_params'> ::= , <call'_tail>
-6. <call_params'> ::= )
-7. <call'_tail>   ::= EOL <call_eol>
-8. <call'_tail>   ::= <call_param> <call_params'>
-9. <call_eol>     ::= )
-10. <call_eol>    ::= <call_param> <call_params'>
-11. <call_param>  ::= <expression>
+5. \<call_params'> ::= , \<call'_tail>
+6. \<call_params'> ::= )
+7. \<call'_tail>   ::= EOL \<call_eol>
+8. \<call'_tail>   ::= \<call_param>\<call_params'>
+9. \<call_eol>     ::= )
+10. \<call_eol>    ::= \<call_param>\<call_params'>
+11. \<call_param>  ::= \<expression>

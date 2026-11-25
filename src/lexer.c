@@ -4,7 +4,7 @@
 
 #include "lexer.h"
 
-// ------ HELPERS -------
+// --------------------------------------===HELPERS===--------------------------------------
 
 // @brief checks if internal error is set and sets external error if so
 // @param err - pointer to external error
@@ -342,7 +342,8 @@ token lexer_get_next_token(lexer *self, error *err)
                 break;
             // Operators
             case '+':
-                self->current_state = STATE_PLUS;
+                res.type = TOKEN_OPERATOR;
+                res.attribute_index = OP_PLUS;
                 break;
             case '-':
                 res.type = TOKEN_OPERATOR;
@@ -431,11 +432,6 @@ token lexer_get_next_token(lexer *self, error *err)
                 lexer_get_char(self, err, &internal_err, false);
                 res.attribute_index = OP_EQUAL;
             }
-            else if (c == '>')
-            {
-                lexer_get_char(self, err, &internal_err, false);
-                res.attribute_index = OP_ARROW;
-            }
         }
         break;
         case STATE_MORE:
@@ -456,11 +452,6 @@ token lexer_get_next_token(lexer *self, error *err)
             {
                 lexer_get_char(self, err, &internal_err, false);
                 res.attribute_index = OP_EQUAL_LESS;
-            }
-            else if (c == '-')
-            {
-                lexer_get_char(self, err, &internal_err, false);
-                res.attribute_index = OP_LEFT_ARROW;
             }
         }
         break;
@@ -487,13 +478,14 @@ token lexer_get_next_token(lexer *self, error *err)
         }
         break;
         case STATE_OR:
-            res.type = TOKEN_OPERATOR;
-            res.attribute_index = OP_SEPARATOR;
             if (lexer_peek_char(self, err, &internal_err, 0) == '|')
             {
                 lexer_get_char(self, err, &internal_err, false);
+                res.type = TOKEN_OPERATOR;
                 res.attribute_index = OP_OR;
             }
+            else
+                *err = INVALID_SYMBOL;
             break;
         case STATE_AND:
             if (lexer_peek_char(self, err, &internal_err, 0) == '&')
@@ -505,15 +497,6 @@ token lexer_get_next_token(lexer *self, error *err)
             else
             {
                 *err = INVALID_SYMBOL;
-            }
-            break;
-        case STATE_PLUS:
-            res.type = TOKEN_OPERATOR;
-            res.attribute_index = OP_PLUS;
-            if (lexer_peek_char(self, err, &internal_err, 0) == '+')
-            {
-                lexer_get_char(self, err, &internal_err, false);
-                res.attribute_index = OP_CONCAT;
             }
             break;
         // COMMENTS

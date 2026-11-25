@@ -57,46 +57,6 @@ char utils_get_char(error *err, FILE *stream)
     return (char)c;
 }
 
-char utils_peek_char(error *err, FILE *stream, int offset)
-{
-    *err = NONE;
-
-    if (offset < 0)
-    {
-        *err = INTERNAL_INDEX_OUT_OF_BOUNDS;
-        return '\0';
-    }
-
-    long position = ftell(stream);
-    if (position == -1L)
-    {
-        *err = INTERNAL_FILE_READ_ERROR;
-        return '\0';
-    }
-
-    int c = getc(stream);
-    for (int i = 0; i < offset && c != EOF; i++)
-    {
-        c = getc(stream);
-    }
-
-    if (c == EOF)
-    {
-        *err = ferror(stream) ? INTERNAL_FILE_READ_ERROR : INTERNAL_END_OF_FILE;
-    }
-
-    if (fseek(stream, position, SEEK_SET) != 0)
-    {
-        *err = INTERNAL_FILE_READ_ERROR;
-        return '\0';
-    }
-    if (c == EOF)
-    {
-        return '\0';
-    }
-    return (char)c;
-}
-
 int utils_string_to_int(error *err, const char *string)
 {
     *err = NONE;

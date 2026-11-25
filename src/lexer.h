@@ -28,7 +28,6 @@ typedef enum
     STATE_LESS,
     STATE_OR,
     STATE_AND,
-    STATE_PLUS,
 
     // Identifiers
     STATE_IDENTIFIER,

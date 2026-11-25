@@ -352,12 +352,6 @@ static void log_token_type(const token_type type)
     case TOKEN_CLOSE_PAREN:
         log_printf("close paren");
         break;
-    case TOKEN_OPEN_BRACKET:
-        log_printf("open bracket");
-        break;
-    case TOKEN_CLOSE_BRACKET:
-        log_printf("close bracket");
-        break;
     case TOKEN_INDENT:
         log_printf("indent");
         break;

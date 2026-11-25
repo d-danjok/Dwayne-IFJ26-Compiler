@@ -2058,6 +2058,14 @@ static ast_node *node_statement(error *err)
         return NULL;
     }
 
+    if (next_token.type == TOKEN_OPERATOR) // a kludge
+    {
+        *err = GENERAL_SYNTAX;
+
+        log_printf("[%lu] logical line should not start with operator\n", next_token.line);
+        return NULL;
+    }
+
     ast_node *expression_or_assignment = node_expression_or_assignment_to_id(err, true);
     if (*err != NONE)
     {

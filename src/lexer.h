@@ -51,7 +51,6 @@ typedef enum
     STATE_INT,
     STATE_UINT,
     STATE_ZERO,
-    STATE_UZERO,
     STATE_DOUBLE_START,
     STATE_UDOUBLE_START,
 

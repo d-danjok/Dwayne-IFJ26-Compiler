@@ -790,7 +790,7 @@ static ast_node *node_func_body(error *err);
 static ast_node *node_block(error *err);
 static ast_node *node_stat_list(error *err);
 static ast_node *node_stat_list_(error *err, bool newline_consumed_by_caller);
-static ast_node *node_statement(error *err);
+static ast_node *node_statement(error *err, bool is_on_new_line);
 static ast_node *node_definition(error *err);
 
 static ast_node *node_expression_or_assignment_to_id(error *err, bool can_be_assignment);
@@ -1238,7 +1238,6 @@ static ast_node *node_main_func(error *err)
 
         return NULL;
     }
-    // TODO: resolve how @main is processed in lexer
 
     // current_token = get_token(err);
     // if (*err != NONE)
@@ -1280,7 +1279,7 @@ static ast_node *node_main_func(error *err)
         return NULL;
     }
 
-    while (next_token.type == TOKEN_EOL) // TODO: check if more then 1 \n is allowed, if not remove this loop
+    while (next_token.type == TOKEN_EOL)
     {
         get_token(err);
         if (*err != NONE)
@@ -1894,7 +1893,7 @@ static ast_node *node_stat_list(error *err)
 {
     *err = NONE;
 
-    ast_node *statement_node = node_statement(err);
+    ast_node *statement_node = node_statement(err, true);
     if (*err != NONE)
     {
         return NULL;
@@ -1941,8 +1940,12 @@ static ast_node *node_stat_list_(error *err, const bool newline_consumed_by_call
         return NULL;
     }
 
+    bool next_stat_is_on_new_line = false;
+
     while (next_token.type == TOKEN_EOL || next_token.type == TOKEN_SEMICOLON)
     {
+        next_stat_is_on_new_line = (next_token.type == TOKEN_EOL)? true : false;
+
         get_token(err);
         if (*err != NONE)
         {
@@ -1960,7 +1963,7 @@ static ast_node *node_stat_list_(error *err, const bool newline_consumed_by_call
         }
     }
 
-    ast_node *statement_node = node_statement(err);
+    ast_node *statement_node = node_statement(err, next_stat_is_on_new_line);
     if (*err != NONE)
     {
         return NULL;
@@ -1987,7 +1990,7 @@ static ast_node *node_stat_list_(error *err, const bool newline_consumed_by_call
     return stat_list_;
 }
 
-static ast_node *node_statement(error *err)
+static ast_node *node_statement(error *err, const bool is_on_new_line)
 {
     *err = NONE;
 
@@ -2052,7 +2055,7 @@ static ast_node *node_statement(error *err)
         return NULL;
     }
 
-    if (next_token.type == TOKEN_OPERATOR) // a kludge
+    if (next_token.type == TOKEN_OPERATOR && is_on_new_line) // a kludge
     {
         *err = GENERAL_SYNTAX;
 

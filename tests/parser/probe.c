@@ -48,10 +48,7 @@ static void print_token(FILE *out, const token tok, const attribute_table *attr_
         [TOKEN_DOT] = "DOT",                   [TOKEN_COMMA] = "COMMA",
         [TOKEN_UNDERSCORE] = "UNDERSCORE",     [TOKEN_COLON] = "COLON",
         [TOKEN_SEMICOLON] = "SEMICOLON",       [TOKEN_OPEN_PAREN] = "OPEN_PAREN",
-        [TOKEN_CLOSE_PAREN] = "CLOSE_PAREN",   [TOKEN_OPEN_BRACKET] = "OPEN_BRACKET",
-        [TOKEN_CLOSE_BRACKET] = "CLOSE_BRACKET", [TOKEN_OPEN_BRACE] = "OPEN_BRACE",
-        [TOKEN_CLOSE_BRACE] = "CLOSE_BRACE",   [TOKEN_INTERP_BEGIN] = "INTERP_BEGIN",
-        [TOKEN_INTERP_END] = "INTERP_END",     [TOKEN_INDENT] = "INDENT",
+        [TOKEN_CLOSE_PAREN] = "CLOSE_PAREN",   [TOKEN_INDENT] = "INDENT",
         [TOKEN_DEDENT] = "DEDENT",
     };
     static const char *const keywords[] = {
@@ -66,8 +63,7 @@ static void print_token(FILE *out, const token tok, const attribute_table *attr_
         [OP_ASSIGN] = "=",         [OP_PLUS] = "+",        [OP_MINUS] = "-",    [OP_MULTIPLY] = "*",
         [OP_DIVISION] = "/",       [OP_EQUAL] = "==",      [OP_NOT_EQUAL] = "!=", [OP_GREATER] = ">",
         [OP_EQUAL_GREATER] = ">=", [OP_LESS] = "<",        [OP_EQUAL_LESS] = "<=", [OP_NOT] = "!",
-        [OP_AND] = "&&",           [OP_SEPARATOR] = "|",   [OP_OR] = "||",      [OP_CONCAT] = "++",
-        [OP_ARROW] = "=>",         [OP_LEFT_ARROW] = "<-",
+        [OP_AND] = "&&",           [OP_OR] = "||",
     };
 #define COUNT(array) ((int)(sizeof(array) / sizeof(*(array))))
 #define LOOKUP(array, index) ((index) >= 0 && (index) < COUNT(array) && (array)[index] ? (array)[index] : "?")

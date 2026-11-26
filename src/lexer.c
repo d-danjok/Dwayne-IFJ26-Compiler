@@ -548,6 +548,8 @@ token lexer_get_next_token(lexer *self, error *err)
                 *err = UNFINISHED_COMMENT;
             else if (c == '\n')
                 self->CSline = false;
+            else if (c=='/')
+                self->current_state = STATE_MLINE_DIV;
             else if (c == '*')
                 self->Cdepth++;
             break;

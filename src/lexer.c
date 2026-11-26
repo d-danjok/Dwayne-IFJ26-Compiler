@@ -620,7 +620,10 @@ token lexer_get_next_token(lexer *self, error *err)
             {
                 res.line = self->current_line;
                 if (internal_err == INTERNAL_END_OF_FILE)
+                {
+                    self->indent_cnt = 0;
                     self->current_state = STATE_DEDENT;
+                }
                 else if (self->indent_cnt > lexer_indent_top(self, err))
                 {
                     res.type = TOKEN_INDENT;

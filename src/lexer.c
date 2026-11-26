@@ -303,7 +303,6 @@ token lexer_get_next_token(lexer *self, error *err)
             case '\t':
                 if (!self->NL) // no token on this line yet
                     *err = INVALID_INDENTATION;
-                break;
             case ' ':
             case '\r': // CR of CRLF is whitespace
                 break;
@@ -645,7 +644,9 @@ token lexer_get_next_token(lexer *self, error *err)
                 self->current_state = STATE_START;
             break;
         case STATE_NL_AFTER_COMMENT:
-            if (lexer_peek_char(self, err, &internal_err, 0) == ' ')
+            if (lexer_peek_char(self, err, &internal_err, 0) == '/')
+                self->current_state = STATE_INDENT_DIV;
+            else if (lexer_peek_char(self, err, &internal_err, 0) == ' ')
                 lexer_get_char(self, err, &internal_err, false); // not indentation
             else
                 self->current_state = STATE_NL;

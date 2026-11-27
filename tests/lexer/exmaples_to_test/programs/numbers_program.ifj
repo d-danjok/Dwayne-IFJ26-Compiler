@@ -1,0 +1,8 @@
+import ifj26.*
+@main def main(): Unit =
+  val whole: Int = 1_000
+  val fraction: Double = .5D
+  val exponent: Double = 1e00
+  print(whole)
+  print(fraction)
+  print(exponent)

@@ -8,6 +8,9 @@
 
 #include "error.h"
 
+#include <errno.h>
+#include <limits.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -36,12 +39,17 @@ void utils_safe_free(void **ptr);
 // @return character if not EOF, if is returns `\0`
 char utils_get_char(error *err, FILE *stream);
 
-// @brief function for getting next character without consuming it
-//
+// @brief function for converting string to integer
 // @param err is a pointer to error handling variable in calling function
-// @param stream is a steam from which we get characters
-// @return character if not EOF, if is returns `\0`
-char utils_peek_char(error *err, FILE *stream);
+// @param string is a string we want to convert
+// @return integer value of string, if conversion fails returns 0 and sets error
+int utils_string_to_int(error *err, const char *string);
+
+// @brief function for converting string to double
+// @param err is a pointer to error handling variable in calling function
+// @param string is a string we want to convert
+// @return double value of string, if conversion fails returns 0 and sets error
+double utils_string_to_double(error *err, const char *string);
 
 // @brief function for printing logs to Stderr
 //

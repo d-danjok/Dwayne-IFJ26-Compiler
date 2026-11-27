@@ -1,0 +1,28 @@
+import ifj26.*
+def f(): Unit =
+  val a = 1
+  val b = 2
+  if a < b then
+    ()
+  else
+    ()
+  if a <= b then
+    ()
+  else
+    ()
+  if a > b then
+    ()
+  else
+    ()
+  if a >= b then
+    ()
+  else
+    ()
+  if a == b then
+    ()
+  else
+    ()
+  if a != b then
+    ()
+  else
+    ()

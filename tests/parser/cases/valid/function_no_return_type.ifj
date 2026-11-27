@@ -1,0 +1,2 @@
+import ifj26.*
+def twice(a: Int) = a * 2

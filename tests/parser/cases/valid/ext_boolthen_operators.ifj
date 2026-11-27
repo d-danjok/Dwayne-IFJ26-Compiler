@@ -1,0 +1,6 @@
+import ifj26.*
+def f(): Unit =
+  val a = true
+  val b = false
+  val c = !a && b || a
+  val d = 1 < 2 && 2 < 3

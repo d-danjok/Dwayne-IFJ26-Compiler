@@ -1,0 +1,7 @@
+import ifj26.*
+@main def main(): Unit =
+  val text = "Hello\nworld\t!" // escaped text
+  val raw = """first
+  second\n"""
+  /* outer /* nested */ comment */ print(text)
+  print(raw)

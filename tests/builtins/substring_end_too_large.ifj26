@@ -1,0 +1,6 @@
+import ifj26.*
+
+@main def main(): Unit =
+  print("before=ok; invalid=")
+  print(subStr("ABCDE", 1, 6))
+  print("; after=unreachable")

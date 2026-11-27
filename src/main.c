@@ -6,30 +6,14 @@
 
 #include "ast.h"
 #include "attribute_table.h"
+#include "codegen.h"
 #include "parser.h"
-#include "symtable.h"
-
-// temporary placeholders for project structure representation TODO: implement and delete from here
-typedef struct tac_s tac; // tmp placeholder, delete it
-
-extern ast_node *semantic_analyser_run(error *err, ast_node **parser_tree, attribute_table *attr_tab);
-
-// NOTE: takes ownership of parser_tree (should free it itself if no longer needs it)
-
-extern tac *tac_generate(error *err, ast_node **ast_root, attribute_table *attr_tab);
-
-// tac_generate NOTE: takes ownership of AST (should free it itself if no longer needs it)
-
-extern tac *tac_optimise(error *err, tac **unoptimised_tac, attribute_table *attr_tab);
-
-// tac_optimise NOTE: takes ownership of old tac (should free it itself if no longer needs it)
-
-extern void codegen_run(error *err, tac **tac, attribute_table *attr_tab); // emits code to stdout
-
-// codegen_run  NOTE: takes ownership of tac (should free it itself if no longer needs it)
+#include "semantic_analyser.h"
+#include "tac.h"
+#include "tac_optimiser.h"
 
 static error convert_err_for_program_return(const error err)
-// may be this wont work as intended, if some action will be required, should be replaced with propper logic
+// may be this won't work as intended, if some action will be required, should be replaced with propper logic
 {
     if (error_is_internal(err))
     {
@@ -69,7 +53,7 @@ int main()
         return err;
     }
 
-    tac *tac_list = tac_generate(&err, &ast, attr_tab);
+    tac_list *tac_l = tac_generate(&err, &ast, attr_tab);
     if (err != NONE)
     {
         err = convert_err_for_program_return(err);
@@ -78,7 +62,7 @@ int main()
         return err;
     }
 
-    tac_list = tac_optimise(&err, &tac_list, attr_tab);
+    tac_l = tac_optimise(&err, tac_l);
     if (err != NONE)
     {
         err = convert_err_for_program_return(err);
@@ -87,7 +71,7 @@ int main()
         return err;
     }
 
-    codegen_run(&err, &tac_list, attr_tab);
+    codegen_run(&err, tac_l);
     if (err != NONE)
     {
         err = convert_err_for_program_return(err);

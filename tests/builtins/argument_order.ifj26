@@ -1,0 +1,10 @@
+import ifj26.*
+
+def mark(value: Int): Int =
+  print(toStr(value))
+  return value
+
+@main def main(): Unit =
+  print("order=")
+  print(subStr("ABCDE", mark(1), mark(4)))
+  print("; done")

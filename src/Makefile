@@ -2,8 +2,9 @@
 
 #defines for compilation
 CC = gcc
+CFLAGS = -std=c11 -Wall -Wextra -Werror -pedantic -O2
 
-#TODO: implement actual build
+PROG_NAME = ifj26
 
 #defines for clang-format
 CLANG_FORMAT = clang-format
@@ -13,10 +14,17 @@ HEADER_FILES_FOLDER = #nothing
 
 FILES_TO_FORMAT := $(wildcard $(SOURCE_FILES_FOLDER)*.c $(HEADER_FILES_FOLDER)*.h)
 
-.PHONY: fmt
+all: build
+
+build: $(PROG_COMPS)
+	$(CC) $(CFLAGS) $(PROG_COMPS) -o $(PROG_NAME)
+
 fmt:
 	@$(CLANG_FORMAT) -i --style=$(FORMAT_STYLE) $(FILES_TO_FORMAT)
 
-.PHONY: fmt-check
 fmt-check:
 	@$(CLANG_FORMAT) --dry-run --Werror --style=$(FORMAT_STYLE) $(FILES_TO_FORMAT)
+
+PROG_COMPS = main.c ast.c attribute_table.c bst.c error.c lexer.c parser.c stack.c symtable.c utils.c semantic_analyser.c tac.c tac_optimiser.c codegen.c
+
+.PHONY: fmt fmt-check build

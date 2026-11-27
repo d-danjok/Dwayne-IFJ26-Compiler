@@ -17,6 +17,9 @@ typedef enum
     INVALID_ESCAPE_SEQUENCE = 1,
     UNFINISHED_STRING = 1,
     UNFINISHED_COMMENT = 1,
+    SYMBOL_AFTER_COMMENT = 1,
+    INVALID_INDENTATION = 1,
+    INVALID_PARENTHESES_INDENTATION = 2,
 
     DOUBLE_INSTEAD_OF_INT = 6,
 
@@ -61,6 +64,7 @@ typedef enum
 
     // Internal use errors
     INTERNAL_MEMORY_ALLOCATION = 200,
+    INTERNAL_WRONG_NUMERIC_FORMAT,
     INTERNAL_ITEM_ALREADY_EXISTS,
     INTERNAL_INDEX_OUT_OF_BOUNDS,
     INTERNAL_INVALID_MEMORY_ALLOCATION_SIZE,
@@ -70,6 +74,8 @@ typedef enum
     //							particular error and do not propagate it further only stop reading)
     INTERNAL_STACK_IS_EMPTY,
     INTERNAL_NULL_ITEM_INSERT,
+
+    INTERNAL_FATAL, // only used if something very strange happened
 } error;
 
 // @brief checks if error is internal

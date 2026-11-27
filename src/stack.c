@@ -10,8 +10,8 @@ typedef struct stack_item_s
 {
     struct stack_item_s *next;
     void *data;
-} stack_item; // implemented as linked list since it is way easier to implement
-// and it wont house large amount of data, so it being slightly slower is not critical
+} stack_item; // implemented as linked list since it is way easier to implement,
+// and it won't house large amount of data, so it being slightly slower is not critical
 
 struct stack_s
 {
@@ -65,6 +65,12 @@ void stack_destruct(stack **self)
 void stack_push(stack *self, error *err, void **data)
 {
     *err = NONE;
+
+    if (self == NULL)
+    {
+        *err = INTERNAL_FATAL;
+        return;
+    }
 
     if (data == NULL || *data == NULL)
     {
@@ -122,4 +128,9 @@ void *stack_peek(const stack *self, error *err, const int depth)
         current_depth++;
     }
     return current_item->data;
+}
+
+int stack_get_item_count(const stack *self)
+{
+    return self->item_count;
 }

@@ -1,11 +1,8 @@
 #ifndef SYMTABLE_H
 #define SYMTABLE_H
 
-#include <stdbool.h>
-
 #include "error.h"
 #include "token.h"
-#include "utils.h"
 
 typedef enum
 {

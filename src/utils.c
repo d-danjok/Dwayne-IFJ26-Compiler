@@ -5,6 +5,8 @@
 
 #include "utils.h"
 
+#include <errno.h>
+
 void *utils_safe_malloc(error *err, size_t size)
 {
     *err = NONE;
@@ -42,7 +44,7 @@ void utils_safe_free(void **ptr)
 char utils_get_char(error *err, FILE *stream)
 {
     *err = NONE;
-    int c = getc(stream);
+    const int c = getc(stream);
     if (c == EOF)
     {
         *err = INTERNAL_END_OF_FILE;
@@ -55,21 +57,41 @@ char utils_get_char(error *err, FILE *stream)
     return (char)c;
 }
 
-char utils_peek_char(error *err, FILE *stream)
+int utils_string_to_int(error *err, const char *string)
 {
     *err = NONE;
-    int c = getc(stream);
-    if (c == EOF)
+
+    char *endptr;
+    const long num = strtol(string, &endptr, 10);
+
+    if (*endptr != '\0')
     {
-        *err = INTERNAL_END_OF_FILE;
-        if (ferror(stream) != 0)
-        {
-            *err = INTERNAL_FILE_READ_ERROR;
-        }
-        return '\0';
+        *err = INTERNAL_WRONG_NUMERIC_FORMAT;
+        return 0;
     }
-    ungetc(c, stream);
-    return (char)c;
+    if (num < INT_MIN || num > INT_MAX)
+    {
+        *err = INTERNAL_WRONG_NUMERIC_FORMAT;
+        return 0;
+    }
+    return (int)num;
+}
+
+double utils_string_to_double(error *err, const char *string)
+{
+    *err = NONE;
+    errno = 0; // reset errno before calling strtod
+
+    char *endptr;
+    const double num = strtod(string, &endptr);
+
+    // ERANGE flags subnormal results; only reject underflow to zero
+    if (endptr == string || *endptr != '\0' || !isfinite(num) || (errno == ERANGE && num == 0.0))
+    {
+        *err = INTERNAL_WRONG_NUMERIC_FORMAT;
+        return 0;
+    }
+    return num;
 }
 
 void log_printf(const char *fmt, ...)
@@ -78,7 +100,6 @@ void log_printf(const char *fmt, ...)
     va_start(args, fmt);
 
     vfprintf(stderr, fmt, args);
-    fprintf(stderr, "\n");
 
     va_end(args);
 }

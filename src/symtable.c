@@ -3,8 +3,10 @@
 // @brief symbol table
 // @author Daniil Didenko (xdidend00)
 
-#include "symtable.h"
+#include <stdbool.h>
+
 #include "bst.h"
+#include "symtable.h"
 #include "utils.h"
 
 typedef struct symtable_s

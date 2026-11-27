@@ -1,5 +1,0 @@
-import ifj26.*
-def f(): Unit =
-  print(1)
-  foo()
-  bar(1, 2.5, "s", x, ())

@@ -1,6 +1,0 @@
-import ifj26.*
-
-@main def main(): Unit =
-  print("unit=")
-  print(toStr(()))
-  print("; after=done")

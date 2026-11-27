@@ -1,6 +1,0 @@
-// line comment
-/* block
-   comment */
-
-import ifj26.*
-def f(): Int = 1

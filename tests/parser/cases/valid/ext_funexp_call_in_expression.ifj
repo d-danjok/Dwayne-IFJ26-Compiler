@@ -1,4 +1,0 @@
-import ifj26.*
-def f(): Unit =
-  val result = 2 * factorial(readInt() + 1)
-  print(toStr(result + strLength(subStr("abcd", 1, 3))))

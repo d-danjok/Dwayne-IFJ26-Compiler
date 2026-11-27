@@ -1,7 +1,0 @@
-import ifj26.*
-def a(): Int = 1
-def b(): Int = 2
-
-def c(): Unit =
-  ()
-def d(): Int = 4

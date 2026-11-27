@@ -1,8 +1,0 @@
-import ifj26.*
-
-@main def main(): Unit =
-  print("before=")
-  print(toStr(ord("ABC", 2)))
-  print("; past_end=")
-  print(toStr(ord("ABC", 3)))
-  print("; after=done")

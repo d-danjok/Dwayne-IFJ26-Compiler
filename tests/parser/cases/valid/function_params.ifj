@@ -1,2 +1,0 @@
-import ifj26.*
-def add(a: Int, b: Double, c: String, d: Unit): Double = a + b

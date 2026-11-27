@@ -1,5 +1,0 @@
-import ifj26.*
-def f(): Unit =
-  val raw = """first
-    second"""
-  print(raw)

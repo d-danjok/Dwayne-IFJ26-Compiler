@@ -1,2 +1,0 @@
-extension (v: Int)
-  def twice: Int = v * 2

@@ -1,2 +1,0 @@
-import ifj25.*
-def f(): Int = 1

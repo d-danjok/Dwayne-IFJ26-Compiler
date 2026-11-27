@@ -1,6 +1,0 @@
-import ifj26.*
-
-@main def main(): Unit =
-  print("line 1\n# \\ end")
-  print("; rounded=")
-  print(toStr(1.2345))

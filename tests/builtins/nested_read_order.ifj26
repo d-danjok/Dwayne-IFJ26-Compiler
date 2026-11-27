@@ -1,5 +1,0 @@
-import ifj26.*
-
-@main def main(): Unit =
-  print("difference=")
-  print(toStr(readInt() - readInt()))

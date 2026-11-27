@@ -1,6 +1,0 @@
-import ifj26.*
-
-@main def main(): Unit =
-  print("before=ok; invalid=")
-  print(chr(-1))
-  print("; after=unreachable")

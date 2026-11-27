@@ -1,7 +1,0 @@
-import ifj26.*
-def f(): Unit =
-  print(42)
-  print(1.5)
-  print(1e3)
-  print("a\n\"b\"")
-  print(())

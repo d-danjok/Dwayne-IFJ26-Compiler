@@ -1,4 +1,0 @@
-import ifj26.*
-def f(): Unit =
-  val a = 10 - 4 - 3
-  val b = 100 / 10 / 5

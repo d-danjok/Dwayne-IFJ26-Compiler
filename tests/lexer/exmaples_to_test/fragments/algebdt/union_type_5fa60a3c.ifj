@@ -1,1 +1,0 @@
-type Scalar = Int | Double | String

@@ -1,7 +1,0 @@
-import ifj26.*
-
-@main def main(): Unit =
-  val first = readInt()
-  val second = readInt()
-  print("sum=")
-  print(toStr(first + second))

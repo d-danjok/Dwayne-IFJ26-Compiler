@@ -1,9 +1,0 @@
-import ifj26.*
-def f(): Unit =
-  val x = 1
-  if x < 0 then
-    print("negative")
-  else if x == 0 then
-    print("zero")
-  else
-    print("positive")

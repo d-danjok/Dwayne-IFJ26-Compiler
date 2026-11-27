@@ -1,7 +1,0 @@
-import ifj26.*
-
-@main def main(): Unit =
-  print("empty=[")
-  print(subStr("ABCDE", 2, 2))
-  print("]; next=")
-  print(subStr("ABCDE", 0, 5))

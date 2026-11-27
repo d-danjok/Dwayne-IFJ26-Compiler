@@ -1,5 +1,0 @@
-import ifj26.*
-def f(): Unit =
-  val a = (1 + 2) * 3
-  val b = ((4))
-  val c = 2 * (3 + (4 - 1))
